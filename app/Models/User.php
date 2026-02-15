@@ -51,4 +51,17 @@ class User extends Authenticatable implements FilamentUser
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }
+
+    // Relations avec les sections (pour les greffiers)
+    public function sections()
+    {
+        return $this->belongsToMany(Section::class, 'greffier_section')
+            ->withPivot(['date_affectation', 'date_fin_affectation', 'is_active'])
+            ->withTimestamps();
+    }
+
+    public function sectionsActives()
+    {
+        return $this->sections()->wherePivot('is_active', true);
+    }
 }

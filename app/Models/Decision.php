@@ -14,21 +14,27 @@ class Decision extends Model
 
     protected $fillable = [
         'numero_rg',
+        'numero_repertoire',
         'numero_parquet',
         'nature_decision_id',
+        'nature_rendu',
         'tribunal_id',
+        'section_id',
         'date_decision',
         'date_signature',
         'date_factum',
         'date_enregistrement',
+        'date_saisie',
         'president',
         'juge_1',
         'juge_2',
+        'assesseur',
         'greffier',
         'ministere_public',
         'resume',
         'dispositif',
         'montant_amende',
+        'montant_depens',
         'duree_peine',
         'statut',
         'fichier_scan',
@@ -42,8 +48,10 @@ class Decision extends Model
         'date_signature' => 'date',
         'date_factum' => 'date',
         'date_enregistrement' => 'date',
+        'date_saisie' => 'datetime',
         'date_archivage' => 'date',
         'montant_amende' => 'decimal:2',
+        'montant_depens' => 'decimal:2',
         'is_archived' => 'boolean',
     ];
 
@@ -63,6 +71,11 @@ class Decision extends Model
     public function tribunal()
     {
         return $this->belongsTo(Tribunal::class);
+    }
+
+    public function section()
+    {
+        return $this->belongsTo(Section::class);
     }
 
     public function parties()
@@ -94,5 +107,10 @@ class Decision extends Model
     public function scopeParStatut($query, $statut)
     {
         return $query->where('statut', $statut);
+    }
+
+    public function scopeParAnnee($query, $annee)
+    {
+        return $query->whereYear('date_decision', $annee);
     }
 }
