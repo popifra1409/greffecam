@@ -20,6 +20,7 @@ class Decision extends Model
         'nature_rendu',
         'tribunal_id',
         'section_id',
+        'annee_judiciaire_id',
         'date_decision',
         'date_signature',
         'date_factum',
@@ -41,6 +42,7 @@ class Decision extends Model
         'greffier_responsable_id',
         'is_archived',
         'date_archivage',
+        'motif_transmission',
     ];
 
     protected $casts = [
@@ -58,11 +60,17 @@ class Decision extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['numero_rg', 'statut', 'date_decision'])
-            ->logOnlyDirty();
+            ->logAll()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
     // Relations
+    public function validateurUser()
+    {
+        return $this->belongsTo(User::class, 'validee_par');
+    }
+
     public function natureDecision()
     {
         return $this->belongsTo(NatureDecision::class);
@@ -93,6 +101,38 @@ class Decision extends Model
         return $this->belongsTo(User::class, 'greffier_responsable_id');
     }
 
+    public function estModifiable(): bool
+    {
+        return $this->statut === 'brouillon';
+    }
+
+    public function peutEtreValidee(): bool
+    {
+        return $this->statut === 'brouillon';
+    }
+
+    public function peutEtreAnnulee(): bool
+    {
+        return in_array($this->statut, ['validee', 'transmise_chef', 'signee']);
+    }
+    // Helper pour vérifier si peut être transmise
+    public function peutEtreTransmise(): bool
+    {
+        return $this->statut === 'brouillon';
+    }
+
+    // Helper pour vérifier si peut être signée
+    public function peutEtreSignee(): bool
+    {
+        return $this->statut === 'transmise_chef';
+    }
+
+    // Helper pour vérifier si peut être enregistrée
+    public function peutEtreEnregistree(): bool
+    {
+        return $this->statut === 'signee';
+    }
+
     // Scopes
     public function scopeNonArchivees($query)
     {
@@ -112,5 +152,10 @@ class Decision extends Model
     public function scopeParAnnee($query, $annee)
     {
         return $query->whereYear('date_decision', $annee);
+    }
+
+    public function anneeJudiciaire()
+    {
+        return $this->belongsTo(AnneeJudiciaire::class);
     }
 }

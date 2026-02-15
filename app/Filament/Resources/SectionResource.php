@@ -37,30 +37,34 @@ class SectionResource extends Resource
                             ->preload()
                             ->required(),
 
+                        Forms\Components\Select::make('type_section_id')
+                            ->label('Type de section')
+                            ->relationship('typeSection', 'libelle')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state) {
+                                    $typeSection = \App\Models\TypeSection::find($state);
+                                    if ($typeSection) {
+                                        $set('code', $typeSection->code . '_');
+                                    }
+                                }
+                            }),
+
                         Forms\Components\TextInput::make('nom')
                             ->label('Nom de la section')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Ex: Section Civile'),
+                            ->placeholder('Ex: Section Civile de Yaoundé'),
 
                         Forms\Components\TextInput::make('code')
                             ->label('Code')
                             ->required()
-                            ->maxLength(20)
+                            ->maxLength(255)
                             ->unique(ignoreRecord: true)
-                            ->placeholder('Ex: CIV, CORR'),
-
-                        Forms\Components\Select::make('type')
-                            ->label('Type de section')
-                            ->options([
-                                'civil' => 'Civil',
-                                'commercial' => 'Commercial',
-                                'social' => 'Social',
-                                'correctionnel' => 'Correctionnel',
-                                'tdl' => 'Tribunal de Droit Local (TDL)',
-                            ])
-                            ->required()
-                            ->searchable(),
+                            ->placeholder('Ex: CIV_YDE'),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Description')
@@ -91,25 +95,18 @@ class SectionResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('type')
+                Tables\Columns\TextColumn::make('typeSection.libelle')
                     ->label('Type')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
-                        'civil' => 'info',
-                        'commercial' => 'success',
-                        'social' => 'warning',
-                        'correctionnel' => 'danger',
-                        'tdl' => 'gray',
+                    ->color(fn($record) => match ($record->typeSection?->code) {
+                        'CIV' => 'info',
+                        'COMM' => 'success',
+                        'SOC' => 'warning',
+                        'CORR' => 'danger',
+                        'TDL' => 'gray',
                         default => 'gray',
                     })
-                    ->formatStateUsing(fn(string $state): string => match ($state) {
-                        'civil' => 'Civil',
-                        'commercial' => 'Commercial',
-                        'social' => 'Social',
-                        'correctionnel' => 'Correctionnel',
-                        'tdl' => 'TDL',
-                        default => $state,
-                    })
+                    ->searchable()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('tribunal.ville')

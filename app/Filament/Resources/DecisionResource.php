@@ -42,10 +42,56 @@ class DecisionResource extends Resource
                                             ->maxLength(255)
                                             ->placeholder('Ex: RG/2025/001'),
 
+                                        Forms\Components\TextInput::make('numero_repertoire')
+                                            ->label('N° Répertoire')
+                                            ->maxLength(255)
+                                            ->placeholder('Numéro de la décision'),
+
                                         Forms\Components\TextInput::make('numero_parquet')
                                             ->label('Numéro Parquet')
                                             ->maxLength(255),
 
+                                        Forms\Components\Select::make('annee_judiciaire_id')
+                                            ->label('Année judiciaire')
+                                            ->relationship('anneeJudiciaire', 'libelle', function ($query) {
+                                                return $query->where('is_active', true)
+                                                    ->orWhere('is_cloturee', false);
+                                            })
+                                            ->default(function () {
+                                                $annee = \App\Models\AnneeJudiciaire::where('is_active', true)->first();
+                                                return $annee?->id;
+                                            })
+                                            ->required()
+                                            ->searchable()
+                                            ->preload()
+                                            ->helperText('Sélectionnez l\'année judiciaire'),
+
+                                        Forms\Components\Select::make('tribunal_id')
+                                            ->label('Tribunal')
+                                            ->relationship('tribunal', 'nom')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->live()
+                                            ->afterStateUpdated(fn(callable $set) => $set('section_id', null)),
+
+                                        Forms\Components\Select::make('section_id')
+                                            ->label('Section')
+                                            ->relationship('section', 'nom', function ($query, callable $get) {
+                                                $tribunalId = $get('tribunal_id');
+                                                if ($tribunalId) {
+                                                    return $query->where('tribunal_id', $tribunalId)->where('is_active', true);
+                                                }
+                                                return $query->where('is_active', true);
+                                            })
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->live(),
+                                    ])->columns(3),
+
+                                Forms\Components\Section::make('Nature de la décision')
+                                    ->schema([
                                         Forms\Components\Select::make('nature_decision_id')
                                             ->label('Nature de décision')
                                             ->relationship('natureDecision', 'libelle')
@@ -58,14 +104,20 @@ class DecisionResource extends Resource
                                                 Forms\Components\TextInput::make('code')
                                                     ->required(),
                                             ]),
-
-                                        Forms\Components\Select::make('tribunal_id')
-                                            ->label('Tribunal')
-                                            ->relationship('tribunal', 'nom')
-                                            ->searchable()
-                                            ->preload()
-                                            ->required(),
-                                    ])->columns(2),
+                                        Forms\Components\Select::make('statut')
+                                            ->label('Statut')
+                                            ->options([
+                                                'brouillon' => 'Brouillon',
+                                                'transmise_chef' => 'Transmise au chef',
+                                                'signee' => 'Signée',
+                                                'enregistree' => 'Enregistrée',
+                                                'annulee' => 'Annulée',
+                                                'archivee' => 'Archivée',
+                                            ])
+                                            ->default('brouillon')
+                                            ->required()
+                                            ->disabled(fn($record) => $record && $record->statut !== 'brouillon'),
+                                    ])->columns(3),
 
                                 Forms\Components\Section::make('Dates')
                                     ->schema([
@@ -74,6 +126,12 @@ class DecisionResource extends Resource
                                             ->required()
                                             ->native(false)
                                             ->displayFormat('d/m/Y')
+                                            ->default(now()),
+
+                                        Forms\Components\DateTimePicker::make('date_saisie')
+                                            ->label('Date de saisie')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y H:i')
                                             ->default(now()),
 
                                         Forms\Components\DatePicker::make('date_factum')
@@ -90,7 +148,7 @@ class DecisionResource extends Resource
                                             ->label('Date d\'enregistrement')
                                             ->native(false)
                                             ->displayFormat('d/m/Y'),
-                                    ])->columns(2),
+                                    ])->columns(3),
                             ]),
 
                         Forms\Components\Tabs\Tab::make('Composition du Tribunal')
@@ -100,12 +158,38 @@ class DecisionResource extends Resource
                                     ->maxLength(255),
 
                                 Forms\Components\TextInput::make('juge_1')
-                                    ->label('Juge 1')
+                                    ->label(function (callable $get) {
+                                        $sectionId = $get('section_id');
+                                        if ($sectionId) {
+                                            $section = \App\Models\Section::find($sectionId);
+                                            return $section?->utilise_assesseur ? 'Assesseur 1' : 'Juge 1';
+                                        }
+                                        return 'Juge 1';
+                                    })
                                     ->maxLength(255),
 
                                 Forms\Components\TextInput::make('juge_2')
-                                    ->label('Juge 2')
+                                    ->label(function (callable $get) {
+                                        $sectionId = $get('section_id');
+                                        if ($sectionId) {
+                                            $section = \App\Models\Section::find($sectionId);
+                                            return $section?->utilise_assesseur ? 'Assesseur 2' : 'Juge 2';
+                                        }
+                                        return 'Juge 2';
+                                    })
                                     ->maxLength(255),
+
+                                Forms\Components\TextInput::make('assesseur')
+                                    ->label('Assesseur supplémentaire')
+                                    ->maxLength(255)
+                                    ->visible(function (callable $get) {
+                                        $sectionId = $get('section_id');
+                                        if ($sectionId) {
+                                            $section = \App\Models\Section::find($sectionId);
+                                            return $section?->utilise_assesseur ?? false;
+                                        }
+                                        return false;
+                                    }),
 
                                 Forms\Components\TextInput::make('greffier')
                                     ->label('Greffier')
@@ -119,12 +203,29 @@ class DecisionResource extends Resource
                         Forms\Components\Tabs\Tab::make('Détails & Décision')
                             ->schema([
                                 Forms\Components\Select::make('infractions')
-                                    ->label('Infractions')
+                                    ->label('Infractions / Nature du différend')
                                     ->relationship('infractions', 'libelle')
                                     ->multiple()
                                     ->searchable()
                                     ->preload()
-                                    ->columnSpanFull(),
+                                    ->createOptionForm([
+                                        Forms\Components\TextInput::make('libelle')
+                                            ->label('Libellé')
+                                            ->required(),
+                                        Forms\Components\TextInput::make('code')
+                                            ->label('Code')
+                                            ->required(),
+                                        Forms\Components\Select::make('categorie')
+                                            ->label('Catégorie')
+                                            ->options([
+                                                'Crime' => 'Crime',
+                                                'Délit' => 'Délit',
+                                                'Contravention' => 'Contravention',
+                                            ])
+                                            ->required(),
+                                    ])
+                                    ->columnSpanFull()
+                                    ->helperText('Pour les sections civiles/commerciales/sociales, utilisez ce champ pour la nature du différend'),
 
                                 Forms\Components\Textarea::make('resume')
                                     ->label('Résumé des faits')
@@ -141,7 +242,15 @@ class DecisionResource extends Resource
                                 Forms\Components\TextInput::make('montant_amende')
                                     ->label('Montant de l\'amende (FCFA)')
                                     ->numeric()
-                                    ->prefix('FCFA'),
+                                    ->prefix('FCFA')
+                                    ->maxValue(9999999999999.99),
+
+                                Forms\Components\TextInput::make('montant_depens')
+                                    ->label('Montant des dépens (FCFA)')
+                                    ->numeric()
+                                    ->prefix('FCFA')
+                                    ->maxValue(9999999999999.99)
+                                    ->helperText('Frais et dépens de justice'),
 
                                 Forms\Components\TextInput::make('duree_peine')
                                     ->label('Durée de la peine')
@@ -156,12 +265,18 @@ class DecisionResource extends Resource
                                     ->schema([
                                         Forms\Components\Select::make('type')
                                             ->label('Type de partie')
-                                            ->options([
-                                                'prevenu' => 'Prévenu',
-                                                'victime' => 'Victime',
-                                                'partie_civile' => 'Partie civile',
-                                                'temoin' => 'Témoin',
-                                            ])
+                                            ->options(function (callable $get) {
+                                                $sectionId = $get('../../section_id');
+                                                if ($sectionId) {
+                                                    $section = \App\Models\Section::find($sectionId);
+                                                    return $section?->types_parties ?? [];
+                                                }
+                                                return [
+                                                    'demandeur' => 'Demandeur',
+                                                    'defendeur' => 'Défendeur',
+                                                    'temoin' => 'Témoin',
+                                                ];
+                                            })
                                             ->required()
                                             ->live(),
 
@@ -177,46 +292,46 @@ class DecisionResource extends Resource
                                                     ->label('Nom')
                                                     ->required()
                                                     ->maxLength(255)
-                                                    ->visible(fn(Get $get) => !$get('is_personne_morale')),
+                                                    ->visible(fn(Forms\Get $get) => !$get('is_personne_morale')),
 
                                                 Forms\Components\TextInput::make('prenom')
                                                     ->label('Prénom')
                                                     ->maxLength(255)
-                                                    ->visible(fn(Get $get) => !$get('is_personne_morale')),
+                                                    ->visible(fn(Forms\Get $get) => !$get('is_personne_morale')),
 
                                                 Forms\Components\DatePicker::make('date_naissance')
                                                     ->label('Date de naissance')
                                                     ->native(false)
                                                     ->displayFormat('d/m/Y')
-                                                    ->visible(fn(Get $get) => !$get('is_personne_morale')),
+                                                    ->visible(fn(Forms\Get $get) => !$get('is_personne_morale')),
 
                                                 Forms\Components\TextInput::make('lieu_naissance')
                                                     ->label('Lieu de naissance')
                                                     ->maxLength(255)
-                                                    ->visible(fn(Get $get) => !$get('is_personne_morale')),
+                                                    ->visible(fn(Forms\Get $get) => !$get('is_personne_morale')),
 
                                                 Forms\Components\TextInput::make('profession')
                                                     ->label('Profession')
                                                     ->maxLength(255)
-                                                    ->visible(fn(Get $get) => !$get('is_personne_morale')),
+                                                    ->visible(fn(Forms\Get $get) => !$get('is_personne_morale')),
 
                                                 Forms\Components\TextInput::make('nationalite')
                                                     ->label('Nationalité')
                                                     ->maxLength(255)
                                                     ->default('Camerounaise')
-                                                    ->visible(fn(Get $get) => !$get('is_personne_morale')),
+                                                    ->visible(fn(Forms\Get $get) => !$get('is_personne_morale')),
 
                                                 // Personne morale
                                                 Forms\Components\TextInput::make('raison_sociale')
                                                     ->label('Raison sociale')
-                                                    ->required(fn(Get $get) => $get('is_personne_morale'))
+                                                    ->required(fn(Forms\Get $get) => $get('is_personne_morale'))
                                                     ->maxLength(255)
-                                                    ->visible(fn(Get $get) => $get('is_personne_morale')),
+                                                    ->visible(fn(Forms\Get $get) => $get('is_personne_morale')),
 
                                                 Forms\Components\TextInput::make('representant_legal')
                                                     ->label('Représentant légal')
                                                     ->maxLength(255)
-                                                    ->visible(fn(Get $get) => $get('is_personne_morale')),
+                                                    ->visible(fn(Forms\Get $get) => $get('is_personne_morale')),
                                             ])->columns(2),
 
                                         Forms\Components\Section::make('Contact')
@@ -265,18 +380,6 @@ class DecisionResource extends Resource
 
                         Forms\Components\Tabs\Tab::make('Gestion')
                             ->schema([
-                                Forms\Components\Select::make('statut')
-                                    ->label('Statut')
-                                    ->options([
-                                        'brouillon' => 'Brouillon',
-                                        'en_attente_signature' => 'En attente de signature',
-                                        'signee' => 'Signée',
-                                        'enregistree' => 'Enregistrée',
-                                        'archivee' => 'Archivée',
-                                    ])
-                                    ->default('brouillon')
-                                    ->required(),
-
                                 Forms\Components\Select::make('greffier_responsable_id')
                                     ->label('Greffier responsable')
                                     ->relationship('greffierResponsable', 'name')
@@ -325,17 +428,19 @@ class DecisionResource extends Resource
                     ->badge()
                     ->color(fn(string $state): string => match ($state) {
                         'brouillon' => 'gray',
-                        'en_attente_signature' => 'warning',
+                        'transmise_chef' => 'warning',
                         'signee' => 'info',
                         'enregistree' => 'success',
-                        'archivee' => 'danger',
+                        'annulee' => 'danger',
+                        'archivee' => 'secondary',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn(string $state): string => match ($state) {
                         'brouillon' => 'Brouillon',
-                        'en_attente_signature' => 'En attente signature',
+                        'transmise_chef' => 'Transmise au chef',
                         'signee' => 'Signée',
                         'enregistree' => 'Enregistrée',
+                        'annulee' => 'Annulée',
                         'archivee' => 'Archivée',
                         default => $state,
                     })
@@ -385,9 +490,120 @@ class DecisionResource extends Resource
                     }),
             ])
             ->actions([
+                Tables\Actions\Action::make('valider')
+                    ->label('Valider')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('success')
+                    ->visible(fn($record) => $record->peutEtreValidee())
+                    ->requiresConfirmation()
+                    ->action(function ($record) {
+                        $record->update([
+                            'statut' => 'validee',
+                            'date_validation' => now(),
+                            'validee_par' => auth()->id(),
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Décision validée')
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('transmettre_chef')
+                    ->label('Transmettre pour validation')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->color('success')
+                    ->visible(fn($record) => $record->peutEtreTransmise())
+                    ->form([
+                        Forms\Components\Textarea::make('motif_transmission')
+                            ->label('Motif de transmission')
+                            ->default('Pour validation et signature')
+                            ->required()
+                            ->rows(2),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $record->update([
+                            'statut' => 'transmise_chef',
+                            'motif_transmission' => $data['motif_transmission'],
+                            'date_validation' => now(),
+                            'validee_par' => auth()->id(),
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Décision transmise au chef de section')
+                            ->body('La décision a été transmise pour validation et signature')
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('signer')
+                    ->label('Signer')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('info')
+                    ->visible(fn($record) => $record->peutEtreSignee())
+                    ->requiresConfirmation()
+                    ->modalHeading('Signer la décision')
+                    ->modalDescription('Confirmez-vous la signature de cette décision ?')
+                    ->action(function ($record) {
+                        $record->update([
+                            'statut' => 'signee',
+                            'date_signature' => now(),
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Décision signée')
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('enregistrer')
+                    ->label('Enregistrer')
+                    ->icon('heroicon-o-check-badge')
+                    ->color('primary')
+                    ->visible(fn($record) => $record->peutEtreEnregistree())
+                    ->requiresConfirmation()
+                    ->action(function ($record) {
+                        $record->update([
+                            'statut' => 'enregistree',
+                            'date_enregistrement' => now(),
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Décision enregistrée')
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('annuler')
+                    ->label('Annuler')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->visible(fn($record) => $record->peutEtreAnnulee())
+                    ->form([
+                        Forms\Components\Textarea::make('motif_annulation')
+                            ->label('Motif d\'annulation')
+                            ->required()
+                            ->rows(3),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $record->update([
+                            'statut' => 'annulee',
+                            'motif_annulation' => $data['motif_annulation'],
+                        ]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Décision annulée')
+                            ->warning()
+                            ->send();
+                    }),
+
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => $record->estModifiable()),
+
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => $record->estModifiable()),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

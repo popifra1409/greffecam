@@ -21,9 +21,9 @@ class InfractionResource extends Resource
 
     protected static ?string $navigationGroup = 'Référentiels';
 
-    protected static ?string $modelLabel = 'Infraction';
+    protected static ?string $modelLabel = 'Infraction / Nature du différend';
 
-    protected static ?string $pluralModelLabel = 'Infractions';
+    protected static ?string $pluralModelLabel = 'Infractions / Natures du différend';
 
     protected static ?int $navigationSort = 3;
 

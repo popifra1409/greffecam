@@ -13,9 +13,9 @@ class Section extends Model
 
     protected $fillable = [
         'tribunal_id',
+        'type_section_id',
         'nom',
         'code',
-        'type',
         'description',
         'is_active',
     ];
@@ -27,7 +27,7 @@ class Section extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['nom', 'code', 'type', 'is_active'])
+            ->logOnly(['nom', 'code', 'is_active'])
             ->logOnlyDirty();
     }
 
@@ -35,6 +35,11 @@ class Section extends Model
     public function tribunal()
     {
         return $this->belongsTo(Tribunal::class);
+    }
+
+    public function typeSection()
+    {
+        return $this->belongsTo(TypeSection::class);
     }
 
     public function decisions()
@@ -57,19 +62,12 @@ class Section extends Model
     // Helper pour obtenir les types de parties selon la section
     public function getTypesPartiesAttribute()
     {
-        return match ($this->type) {
-            'civil', 'commercial', 'social' => [
-                'demandeur' => 'Demandeur',
-                'defendeur' => 'Défendeur',
-                'temoin' => 'Témoin',
-            ],
-            'correctionnel', 'tdl' => [
-                'ministere_public' => 'Ministère Public',
-                'partie_civile' => 'Partie Civile',
-                'prevenu' => 'Prévenu',
-                'temoin' => 'Témoin',
-            ],
-            default => []
-        };
+        return $this->typeSection?->types_parties_options ?? [];
+    }
+
+    // Helper pour savoir si la section utilise des assesseurs
+    public function getUtiliseAssesseurAttribute()
+    {
+        return $this->typeSection?->utilise_assesseur ?? false;
     }
 }
