@@ -10,6 +10,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Get;
+use Illuminate\Database\Eloquent\Builder;
 
 class DecisionResource extends Resource
 {
@@ -24,6 +25,27 @@ class DecisionResource extends Resource
     protected static ?string $pluralModelLabel = 'Décisions';
 
     protected static ?int $navigationSort = 1;
+
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery();
+
+        $user = auth()->user();
+
+        // Si admin ou greffier en chef, voir tout
+        if ($user->hasAnyRole(['Administrateur', 'Greffier en Chef'])) {
+            return $query;
+        }
+
+        // Sinon, voir uniquement les décisions dont on est :
+        // - Le détenteur actuel
+        // - Le greffier responsable
+        return $query->where(function ($q) use ($user) {
+            $q->where('detenteur_actuel_id', $user->id)
+                ->orWhere('greffier_responsable_id', $user->id);
+        });
+    }
 
     public static function form(Form $form): Form
     {
@@ -58,36 +80,27 @@ class DecisionResource extends Resource
                                                     ->orWhere('is_cloturee', false);
                                             })
                                             ->default(function () {
-                                                $annee = \App\Models\AnneeJudiciaire::where('is_active', true)->first();
-                                                return $annee?->id;
+                                                return \App\Models\AnneeJudiciaire::where('is_active', true)->first()?->id;
                                             })
                                             ->required()
                                             ->searchable()
-                                            ->preload()
-                                            ->helperText('Sélectionnez l\'année judiciaire'),
+                                            ->preload(),
 
                                         Forms\Components\Select::make('tribunal_id')
                                             ->label('Tribunal')
                                             ->relationship('tribunal', 'nom')
                                             ->searchable()
                                             ->preload()
-                                            ->required()
-                                            ->live()
-                                            ->afterStateUpdated(fn(callable $set) => $set('section_id', null)),
+                                            ->required(),
 
-                                        Forms\Components\Select::make('section_id')
-                                            ->label('Section')
-                                            ->relationship('section', 'nom', function ($query, callable $get) {
-                                                $tribunalId = $get('tribunal_id');
-                                                if ($tribunalId) {
-                                                    return $query->where('tribunal_id', $tribunalId)->where('is_active', true);
-                                                }
-                                                return $query->where('is_active', true);
-                                            })
+                                        Forms\Components\Select::make('type_section_id')
+                                            ->label('Type de section')
+                                            ->relationship('typeSection', 'libelle')
                                             ->searchable()
                                             ->preload()
                                             ->required()
-                                            ->live(),
+                                            ->live()
+                                            ->helperText('Le type de section sera déterminé automatiquement selon l\'infraction/nature du différend'),
                                     ])->columns(3),
 
                                 Forms\Components\Section::make('Nature de la décision')
@@ -208,12 +221,26 @@ class DecisionResource extends Resource
                                     ->multiple()
                                     ->searchable()
                                     ->preload()
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                        if ($state && is_array($state) && count($state) > 0) {
+                                            // Récupérer la première infraction pour déterminer le type de section
+                                            $infraction = \App\Models\Infraction::find($state[0]);
+                                            if ($infraction && $infraction->type_section_id) {
+                                                $set('type_section_id', $infraction->type_section_id);
+                                            }
+                                        }
+                                    })
                                     ->createOptionForm([
                                         Forms\Components\TextInput::make('libelle')
                                             ->label('Libellé')
                                             ->required(),
                                         Forms\Components\TextInput::make('code')
                                             ->label('Code')
+                                            ->required(),
+                                        Forms\Components\Select::make('type_section_id')
+                                            ->label('Type de section')
+                                            ->relationship('typeSection', 'libelle')
                                             ->required(),
                                         Forms\Components\Select::make('categorie')
                                             ->label('Catégorie')
@@ -225,7 +252,7 @@ class DecisionResource extends Resource
                                             ->required(),
                                     ])
                                     ->columnSpanFull()
-                                    ->helperText('Pour les sections civiles/commerciales/sociales, utilisez ce champ pour la nature du différend'),
+                                    ->helperText('Le type de section sera suggéré automatiquement selon l\'infraction sélectionnée'),
 
                                 Forms\Components\Textarea::make('resume')
                                     ->label('Résumé des faits')
@@ -290,7 +317,7 @@ class DecisionResource extends Resource
                                                 // Personne physique
                                                 Forms\Components\TextInput::make('nom')
                                                     ->label('Nom')
-                                                    ->required()
+                                                    ->required(fn(Forms\Get $get) => !$get('is_personne_morale'))
                                                     ->maxLength(255)
                                                     ->visible(fn(Forms\Get $get) => !$get('is_personne_morale')),
 
@@ -509,31 +536,166 @@ class DecisionResource extends Resource
                             ->send();
                     }),
 
-                Tables\Actions\Action::make('transmettre_chef')
-                    ->label('Transmettre pour validation')
+                Tables\Actions\Action::make('transmettre')
+                    ->label('Transmettre')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('success')
-                    ->visible(fn($record) => $record->peutEtreTransmise())
+                    ->visible(fn($record) => $record->peutEtreTransmise() && $record->detenteur_actuel_id === auth()->id())
                     ->form([
-                        Forms\Components\Textarea::make('motif_transmission')
-                            ->label('Motif de transmission')
-                            ->default('Pour validation et signature')
+                        Forms\Components\Select::make('destinataire_id')
+                            ->label('Transmettre à')
+                            ->options(function () {
+                                // Récupérer les utilisateurs hiérarchiques (Greffier en Chef, Admins, Juges)
+                                return \App\Models\User::role(['Administrateur', 'Greffier en Chef', 'Juge'])
+                                    ->where('id', '!=', auth()->id())
+                                    ->pluck('name', 'id');
+                            })
+                            ->searchable()
                             ->required()
-                            ->rows(2),
+                            ->helperText('Sélectionnez l\'utilisateur auquel transmettre la décision'),
+
+                        Forms\Components\Select::make('motif')
+                            ->label('Motif de la transmission')
+                            ->options([
+                                'validation' => 'Pour validation',
+                                'signature' => 'Pour signature',
+                                'correction' => 'Pour correction',
+                                'avis' => 'Pour avis',
+                                'information' => 'Pour information',
+                                'autre' => 'Autre',
+                            ])
+                            ->required()
+                            ->default('validation'),
+
+                        Forms\Components\Textarea::make('observations')
+                            ->label('Observations / Instructions')
+                            ->rows(3)
+                            ->placeholder('Ajoutez vos observations ou instructions...'),
                     ])
                     ->action(function ($record, array $data) {
+                        // Créer la transmission
+                        \App\Models\TransmissionDecision::create([
+                            'decision_id' => $record->id,
+                            'expediteur_id' => auth()->id(),
+                            'destinataire_id' => $data['destinataire_id'],
+                            'motif' => $data['motif'],
+                            'observations_expediteur' => $data['observations'] ?? null,
+                            'date_transmission' => now(),
+                            'statut' => 'en_attente',
+                        ]);
+
+                        // Mettre à jour la décision
                         $record->update([
                             'statut' => 'transmise_chef',
-                            'motif_transmission' => $data['motif_transmission'],
-                            'date_validation' => now(),
-                            'validee_par' => auth()->id(),
+                            'detenteur_actuel_id' => $data['destinataire_id'],
                         ]);
 
                         \Filament\Notifications\Notification::make()
-                            ->title('Décision transmise au chef de section')
-                            ->body('La décision a été transmise pour validation et signature')
+                            ->title('Décision transmise')
+                            ->body('La décision a été transmise avec succès')
                             ->success()
                             ->send();
+
+                        // TODO: Envoyer une notification au destinataire
+                    }),
+
+                Tables\Actions\Action::make('traiter_transmission')
+                    ->label('Traiter')
+                    ->icon('heroicon-o-check-circle')
+                    ->color('info')
+                    ->visible(function ($record) {
+                        // Visible si l'utilisateur est le détenteur actuel et la décision est transmise
+                        return $record->statut === 'transmise_chef' && $record->detenteur_actuel_id === auth()->id();
+                    })
+                    ->form([
+                        Forms\Components\Select::make('action')
+                            ->label('Action')
+                            ->options([
+                                'accepter' => 'Accepter et signer',
+                                'rejeter' => 'Rejeter / Demander corrections',
+                                'retourner' => 'Retourner à l\'expéditeur',
+                            ])
+                            ->required()
+                            ->live(),
+
+                        Forms\Components\Textarea::make('observations')
+                            ->label('Observations')
+                            ->required(fn(Forms\Get $get) => in_array($get('action'), ['rejeter', 'retourner']))
+                            ->rows(3),
+                    ])
+                    ->action(function ($record, array $data) {
+                        // Récupérer la dernière transmission en attente
+                        $transmission = $record->transmissions()
+                            ->where('statut', 'en_attente')
+                            ->where('destinataire_id', auth()->id())
+                            ->latest()
+                            ->first();
+
+                        if (!$transmission) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Erreur')
+                                ->body('Aucune transmission en attente trouvée')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        switch ($data['action']) {
+                            case 'accepter':
+                                $transmission->update([
+                                    'statut' => 'acceptee',
+                                    'observations_destinataire' => $data['observations'] ?? null,
+                                    'date_traitement' => now(),
+                                ]);
+
+                                $record->update([
+                                    'statut' => 'signee',
+                                    'date_signature' => now(),
+                                ]);
+
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Décision signée')
+                                    ->success()
+                                    ->send();
+                                break;
+
+                            case 'rejeter':
+                                $transmission->update([
+                                    'statut' => 'rejetee',
+                                    'observations_destinataire' => $data['observations'],
+                                    'date_traitement' => now(),
+                                ]);
+
+                                $record->update([
+                                    'statut' => 'rejetee',
+                                    'detenteur_actuel_id' => $transmission->expediteur_id,
+                                ]);
+
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Décision rejetée')
+                                    ->body('La décision a été retournée pour corrections')
+                                    ->warning()
+                                    ->send();
+                                break;
+
+                            case 'retourner':
+                                $transmission->update([
+                                    'statut' => 'retournee',
+                                    'observations_destinataire' => $data['observations'],
+                                    'date_traitement' => now(),
+                                ]);
+
+                                $record->update([
+                                    'statut' => 'brouillon',
+                                    'detenteur_actuel_id' => $transmission->expediteur_id,
+                                ]);
+
+                                \Filament\Notifications\Notification::make()
+                                    ->title('Décision retournée')
+                                    ->warning()
+                                    ->send();
+                                break;
+                        }
                     }),
 
                 Tables\Actions\Action::make('signer')

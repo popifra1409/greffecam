@@ -23,7 +23,7 @@ class InfractionResource extends Resource
 
     protected static ?string $modelLabel = 'Infraction / Nature du différend';
 
-    protected static ?string $pluralModelLabel = 'Infractions / Natures du différend';
+    protected static ?string $pluralModelLabel = 'Infractions/Nature du différend';
 
     protected static ?int $navigationSort = 3;
 
@@ -31,18 +31,48 @@ class InfractionResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\TextInput::make('libelle')
-                    ->required()
-                    ->maxLength(255),
-                Forms\Components\TextInput::make('code')
-                    ->required()
-                    ->maxLength(50),
-                Forms\Components\Textarea::make('description')
-                    ->columnSpanFull(),
-                Forms\Components\TextInput::make('categorie')
-                    ->maxLength(255),
-                Forms\Components\Toggle::make('is_active')
-                    ->required(),
+                Forms\Components\Section::make('Informations')
+                    ->schema([
+                        Forms\Components\TextInput::make('libelle')
+                            ->label('Libellé')
+                            ->required()
+                            ->maxLength(255),
+
+                        Forms\Components\TextInput::make('code')
+                            ->label('Code')
+                            ->required()
+                            ->maxLength(50)
+                            ->unique(ignoreRecord: true)
+                            ->helperText('Code unique (ex: VOL, ESCROQUERIE)'),
+
+                        Forms\Components\Select::make('type_section_id')
+                            ->label('Type de section')
+                            ->relationship('typeSection', 'libelle')
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->helperText('Le type de section compétent pour ce type d\'infraction/différend'),
+
+                        Forms\Components\Select::make('categorie')
+                            ->label('Catégorie')
+                            ->options([
+                                'Crime' => 'Crime',
+                                'Délit' => 'Délit',
+                                'Contravention' => 'Contravention',
+                            ])
+                            ->searchable()
+                            ->required(),
+
+                        Forms\Components\Textarea::make('description')
+                            ->label('Description')
+                            ->maxLength(65535)
+                            ->columnSpanFull(),
+
+                        Forms\Components\Toggle::make('is_active')
+                            ->label('Actif')
+                            ->default(true)
+                            ->required(),
+                    ])->columns(2),
             ]);
     }
 
@@ -56,6 +86,11 @@ class InfractionResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('categorie')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('typeSection.libelle')
+                    ->label('Type de section')
+                    ->badge()
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->boolean(),
                 Tables\Columns\TextColumn::make('created_at')

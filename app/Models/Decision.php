@@ -19,7 +19,7 @@ class Decision extends Model
         'nature_decision_id',
         'nature_rendu',
         'tribunal_id',
-        'section_id',
+        'type_section_id',
         'annee_judiciaire_id',
         'date_decision',
         'date_signature',
@@ -81,10 +81,21 @@ class Decision extends Model
         return $this->belongsTo(Tribunal::class);
     }
 
-    public function section()
+    public function typeSection()
     {
-        return $this->belongsTo(Section::class);
+        return $this->belongsTo(TypeSection::class);
     }
+
+    public function detenteurActuel()
+    {
+        return $this->belongsTo(User::class, 'detenteur_actuel_id');
+    }
+
+    public function transmissions()
+    {
+        return $this->hasMany(TransmissionDecision::class)->orderBy('date_transmission', 'desc');
+    }
+
 
     public function parties()
     {
@@ -133,6 +144,29 @@ class Decision extends Model
         return $this->statut === 'signee';
     }
 
+
+    // Helper pour vérifier la visibilité
+    public function estVisiblePar(User $user): bool
+    {
+        // L'utilisateur peut voir si :
+        // 1. Il est le détenteur actuel
+        // 2. Il est l'auteur/greffier responsable
+        // 3. Il est admin ou greffier en chef
+
+        if ($this->detenteur_actuel_id === $user->id) {
+            return true;
+        }
+
+        if ($this->greffier_responsable_id === $user->id) {
+            return true;
+        }
+
+        if ($user->hasAnyRole(['Administrateur', 'Greffier en Chef'])) {
+            return true;
+        }
+
+        return false;
+    }
     // Scopes
     public function scopeNonArchivees($query)
     {
