@@ -16,7 +16,7 @@ class TypeSectionResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-tag';
 
-    protected static ?string $navigationGroup = 'Paramétrage';
+    protected static ?string $navigationGroup = 'Référentiels';
 
     protected static ?string $modelLabel = 'Type de section';
 
