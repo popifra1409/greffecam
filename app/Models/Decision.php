@@ -19,7 +19,7 @@ class Decision extends Model
         'nature_decision_id',
         'nature_rendu',
         'tribunal_id',
-        'type_section_id',
+        'section_id',
         'annee_judiciaire_id',
         'date_decision',
         'date_signature',
@@ -81,9 +81,9 @@ class Decision extends Model
         return $this->belongsTo(Tribunal::class);
     }
 
-    public function typeSection()
+    public function section()
     {
-        return $this->belongsTo(TypeSection::class);
+        return $this->belongsTo(Section::class, 'section_id');
     }
 
     public function detenteurActuel()

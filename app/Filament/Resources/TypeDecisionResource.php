@@ -2,25 +2,25 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\TypeSectionResource\Pages;
-use App\Models\TypeSection;
+use App\Filament\Resources\TypeDecisionResource\Pages;
+use App\Models\TypeDecision;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-class TypeSectionResource extends Resource
+class TypeDecisionResource extends Resource
 {
-    protected static ?string $model = TypeSection::class;
+    protected static ?string $model = TypeDecision::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-tag';
+    protected static ?string $navigationIcon = 'heroicon-o-document-text';
 
     protected static ?string $navigationGroup = 'Référentiels';
 
-    protected static ?string $modelLabel = 'Type de section';
+    protected static ?string $modelLabel = 'Type de décision';
 
-    protected static ?string $pluralModelLabel = 'Types de sections';
+    protected static ?string $pluralModelLabel = 'Types de décisions';
 
     protected static ?int $navigationSort = 2;
 
@@ -30,49 +30,49 @@ class TypeSectionResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Informations')
                     ->schema([
+                        Forms\Components\Select::make('categorie_decision_id')
+                            ->label('Catégorie de décision')
+                            ->relationship('categorieDecision', 'libelle')
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('libelle')
+                                    ->label('Libellé')
+                                    ->required(),
+                                Forms\Components\TextInput::make('code')
+                                    ->label('Code')
+                                    ->required()
+                                    ->maxLength(20),
+                                Forms\Components\Textarea::make('description')
+                                    ->label('Description')
+                                    ->rows(2),
+                            ]),
+
                         Forms\Components\TextInput::make('libelle')
                             ->label('Libellé')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Ex: Pénal, Foncier'),
+                            ->placeholder('Ex: Jugement au fond, Ordonnance de référé'),
 
                         Forms\Components\TextInput::make('code')
                             ->label('Code')
                             ->required()
                             ->maxLength(20)
                             ->unique(ignoreRecord: true)
-                            ->placeholder('Ex: PEN, FONC'),
+                            ->placeholder('Ex: JUG_FOND, ORD_REF'),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Description')
                             ->maxLength(65535)
+                            ->rows(3)
                             ->columnSpanFull(),
-
-                        Forms\Components\Toggle::make('utilise_assesseur')
-                            ->label('Utilise des assesseurs')
-                            ->helperText('Cochez si cette section utilise des assesseurs au lieu de juges')
-                            ->default(false),
 
                         Forms\Components\Toggle::make('is_active')
                             ->label('Actif')
-                            ->default(true),
+                            ->default(true)
+                            ->required(),
                     ])->columns(2),
-
-                Forms\Components\Section::make('Types de parties')
-                    ->schema([
-                        Forms\Components\KeyValue::make('types_parties')
-                            ->label('Types de parties autorisés')
-                            ->keyLabel('Code')
-                            ->valueLabel('Libellé')
-                            ->helperText('Définissez les types de parties pour ce type de section (Ex: demandeur => Demandeur, defendeur => Défendeur)')
-                            ->reorderable()
-                            ->addActionLabel('Ajouter un type de partie')
-                            ->default([
-                                'demandeur' => 'Demandeur',
-                                'defendeur' => 'Défendeur',
-                                'temoin' => 'Témoin',
-                            ]),
-                    ]),
             ]);
     }
 
@@ -80,6 +80,13 @@ class TypeSectionResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('categorieDecision.libelle')
+                    ->label('Catégorie')
+                    ->searchable()
+                    ->sortable()
+                    ->badge()
+                    ->color('info'),
+
                 Tables\Columns\TextColumn::make('code')
                     ->label('Code')
                     ->searchable()
@@ -90,23 +97,12 @@ class TypeSectionResource extends Resource
                 Tables\Columns\TextColumn::make('libelle')
                     ->label('Libellé')
                     ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\IconColumn::make('utilise_assesseur')
-                    ->label('Assesseurs')
-                    ->boolean()
-                    ->sortable(),
+                    ->sortable()
+                    ->wrap(),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actif')
                     ->boolean()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('sections_count')
-                    ->label('Nb. Sections')
-                    ->counts('sections')
-                    ->badge()
-                    ->color('info')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('created_at')
@@ -116,6 +112,10 @@ class TypeSectionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('categorie_decision_id')
+                    ->label('Catégorie')
+                    ->relationship('categorieDecision', 'libelle'),
+
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Statut')
                     ->placeholder('Tous')
@@ -124,22 +124,22 @@ class TypeSectionResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => $record->sections_count === 0),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('categorieDecision.libelle');
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListTypeSections::route('/'),
-            'create' => Pages\CreateTypeSection::route('/create'),
-            'edit' => Pages\EditTypeSection::route('/{record}/edit'),
+            'index' => Pages\ListTypeDecisions::route('/'),
+            'create' => Pages\CreateTypeDecision::route('/create'),
+            'edit' => Pages\EditTypeDecision::route('/{record}/edit'),
         ];
     }
 }

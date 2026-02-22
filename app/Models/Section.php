@@ -12,34 +12,31 @@ class Section extends Model
     use HasFactory, LogsActivity;
 
     protected $fillable = [
-        'tribunal_id',
-        'type_section_id',
-        'nom',
+        'libelle',
         'code',
         'description',
+        'types_parties',
+        'utilise_assesseur',
         'is_active',
     ];
 
     protected $casts = [
+        'types_parties' => 'array',
+        'utilise_assesseur' => 'boolean',
         'is_active' => 'boolean',
     ];
 
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['nom', 'code', 'is_active'])
+            ->logOnly(['libelle', 'code', 'is_active'])
             ->logOnlyDirty();
     }
 
     // Relations
-    public function tribunal()
+    public function matieres()
     {
-        return $this->belongsTo(Tribunal::class);
-    }
-
-    public function typeSection()
-    {
-        return $this->belongsTo(TypeSection::class);
+        return $this->hasMany(Matiere::class);
     }
 
     public function decisions()
@@ -47,27 +44,22 @@ class Section extends Model
         return $this->hasMany(Decision::class);
     }
 
-    public function greffiers()
+    public function infractions()
     {
-        return $this->belongsToMany(User::class, 'greffier_section')
-            ->withPivot(['date_affectation', 'date_fin_affectation', 'is_active'])
-            ->withTimestamps();
+        return $this->hasMany(Infraction::class);
     }
 
-    public function greffiersActifs()
+    // Accesseur pour obtenir les types de parties
+    public function getTypesPartiesOptionsAttribute()
     {
-        return $this->greffiers()->wherePivot('is_active', true);
-    }
+        if (!$this->types_parties) {
+            return [];
+        }
 
-    // Helper pour obtenir les types de parties selon la section
-    public function getTypesPartiesAttribute()
-    {
-        return $this->typeSection?->types_parties_options ?? [];
-    }
-
-    // Helper pour savoir si la section utilise des assesseurs
-    public function getUtiliseAssesseurAttribute()
-    {
-        return $this->typeSection?->utilise_assesseur ?? false;
+        $options = [];
+        foreach ($this->types_parties as $key => $label) {
+            $options[$key] = $label;
+        }
+        return $options;
     }
 }

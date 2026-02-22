@@ -93,14 +93,9 @@ class DecisionResource extends Resource
                                             ->preload()
                                             ->required(),
 
-                                        Forms\Components\Select::make('type_section_id')
-                                            ->label('Type de section')
-                                            ->relationship('typeSection', 'libelle')
-                                            ->searchable()
-                                            ->preload()
-                                            ->required()
-                                            ->live()
-                                            ->helperText('Le type de section sera déterminé automatiquement selon l\'infraction/nature du différend'),
+                                        Forms\Components\Select::make('section_id')
+                                            ->label('Section')
+                                            ->relationship('section', 'libelle')
                                     ])->columns(3),
 
                                 Forms\Components\Section::make('Nature de la décision')
@@ -221,26 +216,12 @@ class DecisionResource extends Resource
                                     ->multiple()
                                     ->searchable()
                                     ->preload()
-                                    ->live()
-                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                        if ($state && is_array($state) && count($state) > 0) {
-                                            // Récupérer la première infraction pour déterminer le type de section
-                                            $infraction = \App\Models\Infraction::find($state[0]);
-                                            if ($infraction && $infraction->type_section_id) {
-                                                $set('type_section_id', $infraction->type_section_id);
-                                            }
-                                        }
-                                    })
                                     ->createOptionForm([
                                         Forms\Components\TextInput::make('libelle')
                                             ->label('Libellé')
                                             ->required(),
                                         Forms\Components\TextInput::make('code')
                                             ->label('Code')
-                                            ->required(),
-                                        Forms\Components\Select::make('type_section_id')
-                                            ->label('Type de section')
-                                            ->relationship('typeSection', 'libelle')
                                             ->required(),
                                         Forms\Components\Select::make('categorie')
                                             ->label('Catégorie')
@@ -250,41 +231,60 @@ class DecisionResource extends Resource
                                                 'Contravention' => 'Contravention',
                                             ])
                                             ->required(),
+                                        Forms\Components\Textarea::make('description')
+                                            ->label('Description')
+                                            ->rows(2),
                                     ])
                                     ->columnSpanFull()
-                                    ->helperText('Le type de section sera suggéré automatiquement selon l\'infraction sélectionnée'),
+                                    ->helperText('Sélectionnez les infractions ou la nature du différend'),
 
-                                Forms\Components\Textarea::make('resume')
-                                    ->label('Résumé des faits')
-                                    ->maxLength(65535)
-                                    ->rows(4)
-                                    ->columnSpanFull(),
+                                Forms\Components\Section::make('Faits et dispositif')
+                                    ->schema([
+                                        Forms\Components\Textarea::make('resume')
+                                            ->label('Résumé des faits')
+                                            ->maxLength(65535)
+                                            ->rows(4)
+                                            ->columnSpanFull(),
 
-                                Forms\Components\Textarea::make('dispositif')
-                                    ->label('Dispositif')
-                                    ->maxLength(65535)
-                                    ->rows(4)
-                                    ->columnSpanFull(),
+                                        Forms\Components\Textarea::make('dispositif')
+                                            ->label('Dispositif')
+                                            ->maxLength(65535)
+                                            ->rows(4)
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->collapsible(),
 
-                                Forms\Components\TextInput::make('montant_amende')
-                                    ->label('Montant de l\'amende (FCFA)')
-                                    ->numeric()
-                                    ->prefix('FCFA')
-                                    ->maxValue(9999999999999.99),
+                                Forms\Components\Section::make('Condamnation pécuniaire')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('montant_amende')
+                                            ->label('Montant de l\'amende')
+                                            ->numeric()
+                                            ->prefix('FCFA')
+                                            ->maxValue(9999999999999.99)
+                                            ->placeholder('0'),
 
-                                Forms\Components\TextInput::make('montant_depens')
-                                    ->label('Montant des dépens (FCFA)')
-                                    ->numeric()
-                                    ->prefix('FCFA')
-                                    ->maxValue(9999999999999.99)
-                                    ->helperText('Frais et dépens de justice'),
+                                        Forms\Components\TextInput::make('montant_depens')
+                                            ->label('Montant des dépens')
+                                            ->numeric()
+                                            ->prefix('FCFA')
+                                            ->maxValue(9999999999999.99)
+                                            ->placeholder('0')
+                                            ->helperText('Frais et dépens de justice'),
+                                    ])
+                                    ->columns(2)
+                                    ->collapsible()
+                                    ->collapsed(),
 
-                                Forms\Components\TextInput::make('duree_peine')
-                                    ->label('Durée de la peine')
-                                    ->maxLength(255)
-                                    ->placeholder('Ex: 2 ans'),
-                            ])->columns(2),
-
+                                Forms\Components\Section::make('Peine privative de liberté')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('duree_peine')
+                                            ->label('Durée de la peine')
+                                            ->maxLength(255)
+                                            ->placeholder('Ex: 2 ans, 6 mois'),
+                                    ])
+                                    ->collapsible()
+                                    ->collapsed(),
+                            ]),
                         Forms\Components\Tabs\Tab::make('Parties')
                             ->schema([
                                 Forms\Components\Repeater::make('parties')

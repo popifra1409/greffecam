@@ -16,7 +16,6 @@ class Infraction extends Model
         'code',
         'description',
         'categorie',
-        'type_section_id',
         'is_active',
     ];
 
@@ -31,14 +30,9 @@ class Infraction extends Model
             ->logOnlyDirty();
     }
 
-    // Relation avec les décisions (on la créera plus tard)
+    // Relation avec les décisions
     public function decisions()
     {
         return $this->belongsToMany(Decision::class, 'decision_infractions');
-    }
-    // Ajouter la relation
-    public function typeSection()
-    {
-        return $this->belongsTo(TypeSection::class);
     }
 }

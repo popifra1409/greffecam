@@ -14,15 +14,15 @@ class SectionResource extends Resource
 {
     protected static ?string $model = Section::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-squares-2x2';
+    protected static ?string $navigationIcon = 'heroicon-o-tag';
 
-    protected static ?string $navigationGroup = 'Référentiels';
+    protected static ?string $navigationGroup = 'Paramétrage';
 
     protected static ?string $modelLabel = 'Section';
 
     protected static ?string $pluralModelLabel = 'Sections';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
@@ -30,52 +30,49 @@ class SectionResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Informations')
                     ->schema([
-                        Forms\Components\Select::make('tribunal_id')
-                            ->label('Tribunal')
-                            ->relationship('tribunal', 'nom')
-                            ->searchable()
-                            ->preload()
-                            ->required(),
-
-                        Forms\Components\Select::make('type_section_id')
-                            ->label('Type de section')
-                            ->relationship('typeSection', 'libelle')
-                            ->searchable()
-                            ->preload()
-                            ->required()
-                            ->live()
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                if ($state) {
-                                    $typeSection = \App\Models\TypeSection::find($state);
-                                    if ($typeSection) {
-                                        $set('code', $typeSection->code . '_');
-                                    }
-                                }
-                            }),
-
-                        Forms\Components\TextInput::make('nom')
-                            ->label('Nom de la section')
+                        Forms\Components\TextInput::make('libelle')
+                            ->label('Libellé')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Ex: Section Civile de Yaoundé'),
+                            ->placeholder('Ex: Civil, Commercial, Pénal'),
 
                         Forms\Components\TextInput::make('code')
                             ->label('Code')
                             ->required()
-                            ->maxLength(255)
+                            ->maxLength(20)
                             ->unique(ignoreRecord: true)
-                            ->placeholder('Ex: CIV_YDE'),
+                            ->placeholder('Ex: CIV, COMM, PEN'),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Description')
                             ->maxLength(65535)
                             ->columnSpanFull(),
 
+                        Forms\Components\Toggle::make('utilise_assesseur')
+                            ->label('Utilise des assesseurs')
+                            ->helperText('Cochez si cette section utilise des assesseurs au lieu de juges')
+                            ->default(false),
+
                         Forms\Components\Toggle::make('is_active')
                             ->label('Actif')
-                            ->default(true)
-                            ->required(),
+                            ->default(true),
                     ])->columns(2),
+
+                Forms\Components\Section::make('Types de parties')
+                    ->schema([
+                        Forms\Components\KeyValue::make('types_parties')
+                            ->label('Types de parties autorisés')
+                            ->keyLabel('Code')
+                            ->valueLabel('Libellé')
+                            ->helperText('Définissez les types de parties pour cette section (Ex: demandeur => Demandeur, defendeur => Défendeur)')
+                            ->reorderable()
+                            ->addActionLabel('Ajouter un type de partie')
+                            ->default([
+                                'demandeur' => 'Demandeur',
+                                'defendeur' => 'Défendeur',
+                                'temoin' => 'Témoin',
+                            ]),
+                    ]),
             ]);
     }
 
@@ -90,61 +87,27 @@ class SectionResource extends Resource
                     ->badge()
                     ->color('primary'),
 
-                Tables\Columns\TextColumn::make('nom')
-                    ->label('Nom')
+                Tables\Columns\TextColumn::make('libelle')
+                    ->label('Libellé')
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('typeSection.libelle')
-                    ->label('Type')
-                    ->badge()
-                    ->color(fn($record) => match ($record->typeSection?->code) {
-                        'CIV' => 'info',
-                        'COMM' => 'success',
-                        'SOC' => 'warning',
-                        'CORR' => 'danger',
-                        'TDL' => 'gray',
-                        default => 'gray',
-                    })
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('tribunal.ville')
-                    ->label('Tribunal')
-                    ->searchable()
+                Tables\Columns\IconColumn::make('utilise_assesseur')
+                    ->label('Assesseurs')
+                    ->boolean()
                     ->sortable(),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actif')
                     ->boolean()
                     ->sortable(),
-
-                Tables\Columns\TextColumn::make('decisions_count')
-                    ->label('Décisions')
-                    ->counts('decisions')
-                    ->badge()
-                    ->color('info'),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Créé le')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('type')
-                    ->label('Type')
-                    ->options([
-                        'civil' => 'Civil',
-                        'commercial' => 'Commercial',
-                        'social' => 'Social',
-                        'correctionnel' => 'Correctionnel',
-                        'tdl' => 'TDL',
-                    ]),
-
-                Tables\Filters\SelectFilter::make('tribunal_id')
-                    ->label('Tribunal')
-                    ->relationship('tribunal', 'nom'),
+                Tables\Filters\TernaryFilter::make('is_active')
+                    ->label('Statut')
+                    ->placeholder('Tous')
+                    ->trueLabel('Actifs uniquement')
+                    ->falseLabel('Inactifs uniquement'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

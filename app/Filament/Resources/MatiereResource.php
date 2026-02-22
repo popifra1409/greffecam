@@ -2,25 +2,25 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\TypeRecoursResource\Pages;
-use App\Models\TypeRecours;
+use App\Filament\Resources\MatiereResource\Pages;
+use App\Models\Matiere;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-class TypeRecoursResource extends Resource
+class MatiereResource extends Resource
 {
-    protected static ?string $model = TypeRecours::class;
+    protected static ?string $model = Matiere::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
+    protected static ?string $navigationIcon = 'heroicon-o-folder';
 
     protected static ?string $navigationGroup = 'Référentiels';
 
-    protected static ?string $modelLabel = 'Type de recours';
+    protected static ?string $modelLabel = 'Matière';
 
-    protected static ?string $pluralModelLabel = 'Types de recours';
+    protected static ?string $pluralModelLabel = 'Matières';
 
     protected static ?int $navigationSort = 5;
 
@@ -30,30 +30,32 @@ class TypeRecoursResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Informations')
                     ->schema([
-                        Forms\Components\TextInput::make('libelle')
-                            ->label('Libellé')
+                        Forms\Components\Select::make('section_id')
+                            ->label('Section')
+                            ->relationship('section', 'libelle')
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('libelle')
+                                    ->label('Libellé')
+                                    ->required(),
+                                Forms\Components\TextInput::make('code')
+                                    ->label('Code')
+                                    ->required()
+                                    ->maxLength(20),
+                            ]),
+
+                        Forms\Components\TextInput::make('designation')
+                            ->label('Désignation')
                             ->required()
                             ->maxLength(255)
-                            ->unique(ignoreRecord: true),
-
-                        Forms\Components\TextInput::make('code')
-                            ->label('Code')
-                            ->required()
-                            ->maxLength(20)
-                            ->unique(ignoreRecord: true)
-                            ->helperText('Code unique (ex: APPEL, OPPOSITION, POURVOI)'),
-
-                        Forms\Components\TextInput::make('delai_jours')
-                            ->label('Délai légal (jours)')
-                            ->required()
-                            ->numeric()
-                            ->default(15)
-                            ->minValue(1)
-                            ->helperText('Nombre de jours pour exercer ce recours'),
+                            ->placeholder('Ex: Droit du travail, Accidents de circulation'),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Description')
                             ->maxLength(65535)
+                            ->rows(3)
                             ->columnSpanFull(),
 
                         Forms\Components\Toggle::make('is_active')
@@ -68,28 +70,29 @@ class TypeRecoursResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('code')
-                    ->label('Code')
+                Tables\Columns\TextColumn::make('section.libelle')
+                    ->label('Section')
                     ->searchable()
                     ->sortable()
                     ->badge()
-                    ->color('success'),
+                    ->color('info'),
 
-                Tables\Columns\TextColumn::make('libelle')
-                    ->label('Libellé')
+                Tables\Columns\TextColumn::make('designation')
+                    ->label('Désignation')
                     ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('delai_jours')
-                    ->label('Délai (jours)')
                     ->sortable()
-                    ->badge()
-                    ->color('warning'),
+                    ->wrap(),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actif')
                     ->boolean()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('decisions_count')
+                    ->label('Nb. Décisions')
+                    ->counts('decisions')
+                    ->badge()
+                    ->color('primary'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Créé le')
@@ -98,6 +101,10 @@ class TypeRecoursResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('section_id')
+                    ->label('Section')
+                    ->relationship('section', 'libelle'),
+
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Statut')
                     ->placeholder('Tous')
@@ -112,15 +119,16 @@ class TypeRecoursResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('section.libelle');
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListTypeRecours::route('/'),
-            'create' => Pages\CreateTypeRecours::route('/create'),
-            'edit' => Pages\EditTypeRecours::route('/{record}/edit'),
+            'index' => Pages\ListMatieres::route('/'),
+            'create' => Pages\CreateMatiere::route('/create'),
+            'edit' => Pages\EditMatiere::route('/{record}/edit'),
         ];
     }
 }
