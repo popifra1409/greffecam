@@ -1,0 +1,139 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Activitylog\LogOptions;
+
+class Dossier extends Model
+{
+    use HasFactory, SoftDeletes, LogsActivity;
+
+    protected $fillable = [
+        'tribunal_id',
+        'section_id',
+        'matiere_id',
+        'annee_judiciaire_id',
+        'numero_dossier',
+        'demandeur_est_personne_morale',
+        'demandeur_nom',
+        'demandeur_prenom',
+        'demandeur_date_naissance',
+        'demandeur_lieu_naissance',
+        'demandeur_profession',
+        'demandeur_nationalite',
+        'demandeur_raison_sociale',
+        'demandeur_representant_legal',
+        'demandeur_adresse',
+        'demandeur_telephone',
+        'demandeur_email',
+        'avocat_demandeur_nom',
+        'avocat_demandeur_contact',
+        'date_enrolement',
+        'date_cloture',
+        'statut',
+        'observations',
+        'enrole_par',
+    ];
+
+    protected $casts = [
+        'date_enrolement' => 'date',
+        'date_cloture' => 'date',
+        'demandeur_date_naissance' => 'date',
+        'demandeur_est_personne_morale' => 'boolean',
+    ];
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
+    }
+
+    // Relations
+    public function tribunal()
+    {
+        return $this->belongsTo(Tribunal::class);
+    }
+
+    public function section()
+    {
+        return $this->belongsTo(Section::class);
+    }
+
+    public function matiere()
+    {
+        return $this->belongsTo(Matiere::class);
+    }
+
+    public function anneeJudiciaire()
+    {
+        return $this->belongsTo(AnneeJudiciaire::class);
+    }
+
+    public function enrolePar()
+    {
+        return $this->belongsTo(User::class, 'enrole_par');
+    }
+
+    public function decisions()
+    {
+        return $this->hasMany(Decision::class);
+    }
+
+    public function recours()
+    {
+        return $this->hasManyThrough(Recours::class, Decision::class);
+    }
+
+    // Accesseurs
+    public function getDemandeurNomCompletAttribute()
+    {
+        if ($this->demandeur_est_personne_morale) {
+            return $this->demandeur_raison_sociale;
+        }
+        return trim($this->demandeur_nom . ' ' . $this->demandeur_prenom);
+    }
+
+    // Helpers
+    public function peutEtreClos(): bool
+    {
+        // Un dossier peut être clos si toutes ses décisions sont archivées
+        // ou si la grosse est délivrée et aucun recours en cours
+        return in_array($this->statut, ['grosse_delivree', 'en_instance']);
+    }
+
+    // Générer un numéro de dossier unique
+    public static function genererNumeroDossier($tribunalId, $sectionId, $matiereId, $annee)
+    {
+        $tribunal = Tribunal::find($tribunalId);
+        $section = Section::find($sectionId);
+        $matiere = Matiere::find($matiereId);
+
+        // Format: CODE_TRIBUNAL/CODE_SECTION/CODE_MATIERE/ANNEE/NUMERO
+        // Ex: TPI-YDE/CIV/TRAV/2025/00001
+
+        $count = self::where('tribunal_id', $tribunalId)
+            ->where('section_id', $sectionId)
+            ->where('matiere_id', $matiereId)
+            ->whereYear('date_enrolement', $annee)
+            ->count() + 1;
+
+        $tribunalCode = strtoupper(substr($tribunal->nom, 0, 3));
+        $sectionCode = $section->code;
+        $matiereCode = strtoupper(substr($matiere->designation, 0, 4));
+
+        return sprintf(
+            '%s/%s/%s/%s/%05d',
+            $tribunalCode,
+            $sectionCode,
+            $matiereCode,
+            $annee,
+            $count
+        );
+    }
+}
