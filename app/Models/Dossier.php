@@ -18,6 +18,7 @@ class Dossier extends Model
         'matiere_id',
         'annee_judiciaire_id',
         'numero_dossier',
+        //demandeur
         'demandeur_est_personne_morale',
         'demandeur_nom',
         'demandeur_prenom',
@@ -32,7 +33,23 @@ class Dossier extends Model
         'demandeur_email',
         'avocat_demandeur_nom',
         'avocat_demandeur_contact',
+        // Défendeur
+        'defendeur_est_personne_morale',
+        'defendeur_nom',
+        'defendeur_prenom',
+        'defendeur_date_naissance',
+        'defendeur_lieu_naissance',
+        'defendeur_profession',
+        'defendeur_nationalite',
+        'defendeur_raison_sociale',
+        'defendeur_representant_legal',
+        'defendeur_adresse',
+        'defendeur_telephone',
+        'defendeur_email',
+        'avocat_defendeur_nom',
+        'avocat_defendeur_contact',
         'date_enrolement',
+        'date_assignation',
         'date_cloture',
         'statut',
         'observations',
@@ -41,9 +58,12 @@ class Dossier extends Model
 
     protected $casts = [
         'date_enrolement' => 'date',
+        'date_assignation' => 'date',
         'date_cloture' => 'date',
         'demandeur_date_naissance' => 'date',
+        'defendeur_date_naissance' => 'date',
         'demandeur_est_personne_morale' => 'boolean',
+        'defendeur_est_personne_morale' => 'boolean',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -55,6 +75,21 @@ class Dossier extends Model
     }
 
     // Relations
+    // Relation avec les infractions
+    public function infractions()
+    {
+        return $this->belongsToMany(Infraction::class, 'dossier_infractions');
+    }
+
+    // Accesseur pour le nom complet du défendeur
+    public function getDefendeurNomCompletAttribute()
+    {
+        if ($this->defendeur_est_personne_morale) {
+            return $this->defendeur_raison_sociale;
+        }
+        return trim($this->defendeur_nom . ' ' . $this->defendeur_prenom);
+    }
+
     public function tribunal()
     {
         return $this->belongsTo(Tribunal::class);

@@ -85,6 +85,12 @@ class DossierResource extends Resource
                                         ->native(false)
                                         ->displayFormat('d/m/Y')
                                         ->default(now()),
+
+                                    Forms\Components\DatePicker::make('date_assignation')
+                                        ->label('Date d\'assignation')
+                                        ->native(false)
+                                        ->displayFormat('d/m/Y')
+                                        ->helperText('Date à laquelle le défendeur a été assigné'),
                                 ])->columns(2),
                         ]),
 
@@ -175,6 +181,130 @@ class DossierResource extends Resource
                                 ])->columns(2)
                                 ->collapsible()
                                 ->collapsed(),
+                        ]),
+
+                    Forms\Components\Wizard\Step::make('Défendeur')
+                        ->schema([
+                            Forms\Components\Section::make('Identité du défendeur')
+                                ->schema([
+                                    Forms\Components\Toggle::make('defendeur_est_personne_morale')
+                                        ->label('Personne morale')
+                                        ->live()
+                                        ->columnSpanFull(),
+
+                                    // Personne physique
+                                    Forms\Components\TextInput::make('defendeur_nom')
+                                        ->label('Nom')
+                                        ->required(fn(Get $get) => !$get('defendeur_est_personne_morale'))
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('defendeur_prenom')
+                                        ->label('Prénom')
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+
+                                    Forms\Components\DatePicker::make('defendeur_date_naissance')
+                                        ->label('Date de naissance')
+                                        ->native(false)
+                                        ->displayFormat('d/m/Y')
+                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('defendeur_lieu_naissance')
+                                        ->label('Lieu de naissance')
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('defendeur_profession')
+                                        ->label('Profession')
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('defendeur_nationalite')
+                                        ->label('Nationalité')
+                                        ->maxLength(255)
+                                        ->default('Camerounaise')
+                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+
+                                    // Personne morale
+                                    Forms\Components\TextInput::make('defendeur_raison_sociale')
+                                        ->label('Raison sociale')
+                                        ->required(fn(Get $get) => $get('defendeur_est_personne_morale'))
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => $get('defendeur_est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('defendeur_representant_legal')
+                                        ->label('Représentant légal')
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => $get('defendeur_est_personne_morale')),
+                                ])->columns(2),
+
+                            Forms\Components\Section::make('Contact du défendeur')
+                                ->schema([
+                                    Forms\Components\Textarea::make('defendeur_adresse')
+                                        ->label('Adresse')
+                                        ->maxLength(65535)
+                                        ->rows(2)
+                                        ->columnSpanFull(),
+
+                                    Forms\Components\TextInput::make('defendeur_telephone')
+                                        ->label('Téléphone')
+                                        ->tel()
+                                        ->maxLength(255),
+
+                                    Forms\Components\TextInput::make('defendeur_email')
+                                        ->label('Email')
+                                        ->email()
+                                        ->maxLength(255),
+                                ])->columns(2),
+
+                            Forms\Components\Section::make('Avocat du défendeur')
+                                ->schema([
+                                    Forms\Components\TextInput::make('avocat_defendeur_nom')
+                                        ->label('Nom de l\'avocat')
+                                        ->maxLength(255),
+
+                                    Forms\Components\TextInput::make('avocat_defendeur_contact')
+                                        ->label('Contact de l\'avocat')
+                                        ->maxLength(255),
+                                ])->columns(2)
+                                ->collapsible()
+                                ->collapsed(),
+                        ]),
+
+                    Forms\Components\Wizard\Step::make('Objet du différend')
+                        ->schema([
+                            Forms\Components\Section::make('Infractions / Nature du différend')
+                                ->schema([
+                                    Forms\Components\Select::make('infractions')
+                                        ->label('Infractions / Objet du différend')
+                                        ->relationship('infractions', 'libelle')
+                                        ->multiple()
+                                        ->searchable()
+                                        ->preload()
+                                        ->required()
+                                        ->createOptionForm([
+                                            Forms\Components\TextInput::make('libelle')
+                                                ->label('Libellé')
+                                                ->required(),
+                                            Forms\Components\TextInput::make('code')
+                                                ->label('Code')
+                                                ->required(),
+                                            Forms\Components\Select::make('categorie')
+                                                ->label('Catégorie')
+                                                ->options([
+                                                    'Crime' => 'Crime',
+                                                    'Délit' => 'Délit',
+                                                    'Contravention' => 'Contravention',
+                                                ])
+                                                ->required(),
+                                            Forms\Components\Textarea::make('description')
+                                                ->label('Description')
+                                                ->rows(2),
+                                        ])
+                                        ->helperText('Sélectionnez les infractions ou décrivez la nature du différend')
+                                        ->columnSpanFull(),
+                                ]),
                         ]),
 
                     Forms\Components\Wizard\Step::make('Observations')
