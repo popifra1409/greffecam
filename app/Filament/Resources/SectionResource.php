@@ -22,7 +22,7 @@ class SectionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Sections';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 32;
 
     public static function form(Form $form): Form
     {
@@ -34,18 +34,41 @@ class SectionResource extends Resource
                             ->label('Libellé')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Ex: Civil, Commercial, Pénal'),
+                            ->placeholder('Ex: Civil, Commercial, Correctionnel'),
 
                         Forms\Components\TextInput::make('code')
                             ->label('Code')
                             ->required()
                             ->maxLength(20)
                             ->unique(ignoreRecord: true)
-                            ->placeholder('Ex: CIV, COMM, PEN'),
+                            ->placeholder('Ex: CIV, COMM, CORR'),
+
+                        Forms\Components\Select::make('type')
+                            ->label('Type de section')
+                            ->options([
+                                'repressive' => 'Section Répressive',
+                                'non_repressive' => 'Section Non Répressive',
+                            ])
+                            ->required()
+                            ->default('non_repressive')
+                            ->helperText('Répressive : Correctionnel, Simple Police. Non Répressive : Civil, Commercial, Social, etc.')
+                            ->live(),
+
+                        Forms\Components\Placeholder::make('types_parties_info')
+                            ->label('Types de parties')
+                            ->content(function (callable $get) {
+                                $type = $get('type');
+                                if ($type === 'repressive') {
+                                    return '• Ministère Public • Partie Civile • Prévenu • Témoin';
+                                }
+                                return '• Demandeur • Défendeur • Témoin';
+                            })
+                            ->helperText('Les types de parties sont déterminés automatiquement selon le type de section'),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Description')
                             ->maxLength(65535)
+                            ->rows(3)
                             ->columnSpanFull(),
 
                         Forms\Components\Toggle::make('utilise_assesseur')
@@ -57,22 +80,6 @@ class SectionResource extends Resource
                             ->label('Actif')
                             ->default(true),
                     ])->columns(2),
-
-                Forms\Components\Section::make('Types de parties')
-                    ->schema([
-                        Forms\Components\KeyValue::make('types_parties')
-                            ->label('Types de parties autorisés')
-                            ->keyLabel('Code')
-                            ->valueLabel('Libellé')
-                            ->helperText('Définissez les types de parties pour cette section (Ex: demandeur => Demandeur, defendeur => Défendeur)')
-                            ->reorderable()
-                            ->addActionLabel('Ajouter un type de partie')
-                            ->default([
-                                'demandeur' => 'Demandeur',
-                                'defendeur' => 'Défendeur',
-                                'temoin' => 'Témoin',
-                            ]),
-                    ]),
             ]);
     }
 
@@ -90,6 +97,22 @@ class SectionResource extends Resource
                 Tables\Columns\TextColumn::make('libelle')
                     ->label('Libellé')
                     ->searchable()
+                    ->sortable()
+                    ->weight('bold'),
+
+                Tables\Columns\TextColumn::make('type')
+                    ->label('Type')
+                    ->badge()
+                    ->color(fn(string $state): string => match ($state) {
+                        'repressive' => 'danger',
+                        'non_repressive' => 'success',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'repressive' => 'Répressive',
+                        'non_repressive' => 'Non Répressive',
+                        default => $state,
+                    })
                     ->sortable(),
 
                 Tables\Columns\IconColumn::make('utilise_assesseur')
@@ -97,12 +120,37 @@ class SectionResource extends Resource
                     ->boolean()
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('matieres_count')
+                    ->label('Matières')
+                    ->counts('matieres')
+                    ->badge()
+                    ->color('info'),
+
+                Tables\Columns\TextColumn::make('dossiers_count')
+                    ->label('Dossiers')
+                    ->counts('dossiers')
+                    ->badge()
+                    ->color('warning'),
+
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actif')
                     ->boolean()
                     ->sortable(),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('type')
+                    ->label('Type')
+                    ->options([
+                        'repressive' => 'Répressive',
+                        'non_repressive' => 'Non Répressive',
+                    ]),
+
+                Tables\Filters\TernaryFilter::make('utilise_assesseur')
+                    ->label('Utilise assesseurs')
+                    ->placeholder('Tous')
+                    ->trueLabel('Avec assesseurs')
+                    ->falseLabel('Sans assesseurs'),
+
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Statut')
                     ->placeholder('Tous')
@@ -117,7 +165,8 @@ class SectionResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('code');
     }
 
     public static function getPages(): array

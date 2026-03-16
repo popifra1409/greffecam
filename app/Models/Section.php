@@ -14,14 +14,13 @@ class Section extends Model
     protected $fillable = [
         'libelle',
         'code',
+        'type',
         'description',
-        'types_parties',
         'utilise_assesseur',
         'is_active',
     ];
 
     protected $casts = [
-        'types_parties' => 'array',
         'utilise_assesseur' => 'boolean',
         'is_active' => 'boolean',
     ];
@@ -29,7 +28,7 @@ class Section extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['libelle', 'code', 'is_active'])
+            ->logOnly(['libelle', 'code', 'type', 'is_active'])
             ->logOnlyDirty();
     }
 
@@ -49,17 +48,39 @@ class Section extends Model
         return $this->hasMany(Infraction::class);
     }
 
-    // Accesseur pour obtenir les types de parties
-    public function getTypesPartiesOptionsAttribute()
+    public function dossiers()
     {
-        if (!$this->types_parties) {
-            return [];
+        return $this->hasMany(Dossier::class);
+    }
+
+    // Helpers
+    public function estRepressive(): bool
+    {
+        return $this->type === 'repressive';
+    }
+
+    public function estNonRepressive(): bool
+    {
+        return $this->type === 'non_repressive';
+    }
+
+    // Obtenir les types de parties selon le type de section
+    public function getTypesPartiesAttribute(): array
+    {
+        if ($this->type === 'repressive') {
+            return [
+                'ministere_public' => 'Ministère Public',
+                'partie_civile' => 'Partie Civile',
+                'prevenu' => 'Prévenu',
+                'temoin' => 'Témoin',
+            ];
         }
 
-        $options = [];
-        foreach ($this->types_parties as $key => $label) {
-            $options[$key] = $label;
-        }
-        return $options;
+        // Non répressive
+        return [
+            'demandeur' => 'Demandeur',
+            'defendeur' => 'Défendeur',
+            'temoin' => 'Témoin',
+        ];
     }
 }
