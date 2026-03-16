@@ -22,7 +22,7 @@ class TypeRecoursResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Types de recours';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {

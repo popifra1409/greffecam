@@ -16,13 +16,13 @@ class MatiereResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-folder';
 
-    protected static ?string $navigationGroup = 'Référentiels';
+    protected static ?string $navigationGroup = 'Paramétrage';
 
     protected static ?string $modelLabel = 'Matière';
 
     protected static ?string $pluralModelLabel = 'Matières';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {

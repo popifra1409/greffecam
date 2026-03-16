@@ -16,13 +16,13 @@ class TribunalResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-building-library';
 
-    protected static ?string $navigationGroup = 'Référentiels';
+    protected static ?string $navigationGroup = 'Paramétrage';
 
     protected static ?string $modelLabel = 'Tribunal';
 
     protected static ?string $pluralModelLabel = 'Tribunaux';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {

@@ -22,7 +22,7 @@ class CollegeJugeResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Collèges de juges';
 
-    protected static ?int $navigationSort = 13;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {

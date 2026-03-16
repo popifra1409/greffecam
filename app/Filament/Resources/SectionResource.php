@@ -22,7 +22,7 @@ class SectionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Sections';
 
-    protected static ?int $navigationSort = 32;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {

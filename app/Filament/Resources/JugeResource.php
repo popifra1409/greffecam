@@ -16,13 +16,13 @@ class JugeResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-scale';
 
-    protected static ?string $navigationGroup = 'Référentiels';
+    protected static ?string $navigationGroup = 'Paramétrage';
 
     protected static ?string $modelLabel = 'Juge';
 
     protected static ?string $pluralModelLabel = 'Juges';
 
-    protected static ?int $navigationSort = 12;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {

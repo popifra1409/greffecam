@@ -19,13 +19,13 @@ class InfractionResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-exclamation-triangle';
 
-    protected static ?string $navigationGroup = 'Paramétrage';
+    protected static ?string $navigationGroup = 'Gestion Judiciaire';
 
     protected static ?string $modelLabel = 'Infraction / Nature du différend';
 
     protected static ?string $pluralModelLabel = 'Infractions/Nature du différend';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function form(Form $form): Form
     {
