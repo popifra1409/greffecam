@@ -25,6 +25,13 @@ class DossierResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    public static function getRelations(): array
+    {
+        return [
+            \App\Filament\Resources\DossierResource\RelationManagers\DecisionsRelationManager::class,
+        ];
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -446,7 +453,9 @@ class DossierResource extends Resource
                     ->label('Décisions')
                     ->counts('decisions')
                     ->badge()
-                    ->color('primary'),
+                    ->color(fn($state) => $state > 0 ? 'success' : 'gray')
+                    ->formatStateUsing(fn($state) => $state > 0 ? $state : 'Aucune'),
+
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('tribunal_id')
@@ -533,10 +542,27 @@ class DossierResource extends Resource
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('creer_decision')
+                        ->label('Créer une décision')
+                        ->icon('heroicon-o-scale')
+                        ->color('success')
+                        ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
+                        ->url(fn($record) => \App\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id]))
+                        ->openUrlInNewTab(false),
+
+                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\EditAction::make(),
+                    Tables\Actions\DeleteAction::make(),
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+
             ])
+
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

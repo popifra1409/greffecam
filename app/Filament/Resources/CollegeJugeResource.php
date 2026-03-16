@@ -20,7 +20,7 @@ class CollegeJugeResource extends Resource
 
     protected static ?string $modelLabel = 'Collège de juges';
 
-    protected static ?string $pluralModelLabel = 'Collèges de juges';
+    protected static ?string $pluralModelLabel = 'Collégialité';
 
     protected static ?int $navigationSort = 5;
 

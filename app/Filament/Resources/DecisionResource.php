@@ -440,6 +440,14 @@ class DecisionResource extends Resource
                     }),
             ])
             ->actions([
+                Tables\Actions\Action::make('creer_decision')
+                    ->label('Créer une décision')
+                    ->icon('heroicon-o-scale')
+                    ->color('success')
+                    ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
+                    ->url(fn($record) => DecisionResource::getUrl('create', ['dossier_id' => $record->id]))
+                    ->tooltip('Créer une décision pour ce dossier'),
+
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
                     ->visible(fn($record) => $record->estModifiable()),
