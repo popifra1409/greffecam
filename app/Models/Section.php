@@ -53,6 +53,12 @@ class Section extends Model
         return $this->hasMany(Dossier::class);
     }
 
+    public function greffiers()
+    {
+        return $this->belongsToMany(Greffier::class, 'greffier_section')
+            ->withTimestamps();
+    }
+
     // Helpers
     public function estRepressive(): bool
     {

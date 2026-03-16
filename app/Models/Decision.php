@@ -13,25 +13,35 @@ class Decision extends Model
     use HasFactory, SoftDeletes, LogsActivity;
 
     protected $fillable = [
+        'dossier_id',
         'numero_rg',
         'numero_repertoire',
         'numero_parquet',
         'nature_decision_id',
-        'nature_rendu',
         'tribunal_id',
         'section_id',
+        'matiere_id',
         'annee_judiciaire_id',
         'date_decision',
         'date_signature',
         'date_factum',
         'date_enregistrement',
         'date_saisie',
+
+        // ✅ NOUVELLE COMPOSITION
+        'mode_composition', // juge_unique ou college
+        'juge_unique_id',
+        'college_juge_id',
+        'greffier_id',
+
+        // Anciens champs gardés pour compatibilité si besoin
         'president',
         'juge_1',
         'juge_2',
         'assesseur',
         'greffier',
         'ministere_public',
+
         'resume',
         'dispositif',
         'montant_amende',
@@ -40,6 +50,7 @@ class Decision extends Model
         'statut',
         'fichier_scan',
         'greffier_responsable_id',
+        'detenteur_actuel_id',
         'is_archived',
         'date_archivage',
         'motif_transmission',
@@ -65,7 +76,33 @@ class Decision extends Model
             ->dontSubmitEmptyLogs();
     }
 
-    // Relations
+    // ✅ NOUVELLES RELATIONS
+    public function dossier()
+    {
+        return $this->belongsTo(Dossier::class);
+    }
+
+    public function jugeUnique()
+    {
+        return $this->belongsTo(Juge::class, 'juge_unique_id');
+    }
+
+    public function collegeJuge()
+    {
+        return $this->belongsTo(CollegeJuge::class);
+    }
+
+    public function greffierDecision()
+    {
+        return $this->belongsTo(Greffier::class, 'greffier_id');
+    }
+
+    public function matiere()
+    {
+        return $this->belongsTo(Matiere::class);
+    }
+
+    // Relations existantes
     public function validateurUser()
     {
         return $this->belongsTo(User::class, 'validee_par');
@@ -96,7 +133,6 @@ class Decision extends Model
         return $this->hasMany(TransmissionDecision::class)->orderBy('date_transmission', 'desc');
     }
 
-
     public function parties()
     {
         return $this->hasMany(Partie::class);
@@ -112,6 +148,22 @@ class Decision extends Model
         return $this->belongsTo(User::class, 'greffier_responsable_id');
     }
 
+    public function anneeJudiciaire()
+    {
+        return $this->belongsTo(AnneeJudiciaire::class);
+    }
+
+    // ✅ ACCESSEURS POUR COMPOSITION
+    public function getCompositionAttribute()
+    {
+        if ($this->mode_composition === 'juge_unique') {
+            return $this->jugeUnique?->nom_complet ?? 'Juge unique non défini';
+        }
+
+        return $this->collegeJuge?->designation ?? 'Collège non défini';
+    }
+
+    // Helpers existants
     public function estModifiable(): bool
     {
         return $this->statut === 'brouillon';
@@ -126,33 +178,24 @@ class Decision extends Model
     {
         return in_array($this->statut, ['validee', 'transmise_chef', 'signee']);
     }
-    // Helper pour vérifier si peut être transmise
+
     public function peutEtreTransmise(): bool
     {
         return $this->statut === 'brouillon';
     }
 
-    // Helper pour vérifier si peut être signée
     public function peutEtreSignee(): bool
     {
         return $this->statut === 'transmise_chef';
     }
 
-    // Helper pour vérifier si peut être enregistrée
     public function peutEtreEnregistree(): bool
     {
         return $this->statut === 'signee';
     }
 
-
-    // Helper pour vérifier la visibilité
     public function estVisiblePar(User $user): bool
     {
-        // L'utilisateur peut voir si :
-        // 1. Il est le détenteur actuel
-        // 2. Il est l'auteur/greffier responsable
-        // 3. Il est admin ou greffier en chef
-
         if ($this->detenteur_actuel_id === $user->id) {
             return true;
         }
@@ -167,6 +210,7 @@ class Decision extends Model
 
         return false;
     }
+
     // Scopes
     public function scopeNonArchivees($query)
     {
@@ -186,10 +230,5 @@ class Decision extends Model
     public function scopeParAnnee($query, $annee)
     {
         return $query->whereYear('date_decision', $annee);
-    }
-
-    public function anneeJudiciaire()
-    {
-        return $this->belongsTo(AnneeJudiciaire::class);
     }
 }

@@ -134,6 +134,18 @@ class Dossier extends Model
         return trim($this->demandeur_nom . ' ' . $this->demandeur_prenom);
     }
 
+    public function getTypePartiesAttribute()
+    {
+        // Retourne les types de parties selon la section
+        if ($this->section) {
+            if ($this->section->type === 'repressive') {
+                return ['Ministère Public', 'Partie Civile', 'Prévenu', 'Témoin'];
+            }
+            return ['Demandeur', 'Défendeur', 'Témoin'];
+        }
+        return ['Demandeur', 'Défendeur', 'Témoin'];
+    }
+
     // Helpers
     public function peutEtreClos(): bool
     {
