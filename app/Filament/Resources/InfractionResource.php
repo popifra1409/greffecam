@@ -52,8 +52,8 @@ class InfractionResource extends Resource
                                 'Délit' => 'Délit',
                                 'Contravention' => 'Contravention',
                             ])
-                            ->searchable()
-                            ->required(),
+                            ->searchable(),
+                        // ->required(),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Description')

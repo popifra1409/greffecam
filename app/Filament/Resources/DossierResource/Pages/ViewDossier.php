@@ -15,23 +15,12 @@ class ViewDossier extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\Action::make('clore')
-                ->label('Clôturer le dossier')
-                ->icon('heroicon-o-lock-closed')
-                ->color('danger')
-                ->visible(fn() => $this->record->peutEtreClos() && $this->record->statut !== 'clos')
-                ->requiresConfirmation()
-                ->action(function () {
-                    $this->record->update([
-                        'statut' => 'clos',
-                        'date_cloture' => now(),
-                    ]);
-
-                    \Filament\Notifications\Notification::make()
-                        ->title('Dossier clôturé')
-                        ->success()
-                        ->send();
-                }),
+            Actions\Action::make('creer_decision')
+                ->label('Créer une décision')
+                ->icon('heroicon-o-scale')
+                ->color('success')
+                ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
+                ->url(fn($record) => \App\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id])),
 
             Actions\EditAction::make(),
             Actions\DeleteAction::make(),
@@ -42,18 +31,67 @@ class ViewDossier extends ViewRecord
     {
         return $infolist
             ->schema([
-                Infolists\Components\Section::make('Informations du dossier')
+                // ✅ SECTION 1 : IDENTIFICATION DU DOSSIER
+                Infolists\Components\Section::make('Identification du dossier')
                     ->schema([
                         Infolists\Components\TextEntry::make('numero_dossier')
                             ->label('Numéro de dossier')
-                            ->copyable()
                             ->badge()
                             ->color('primary')
-                            ->size('lg'),
+                            ->size('lg')
+                            ->weight('bold')
+                            ->copyable(),
+
+                        Infolists\Components\TextEntry::make('numero_dossier_personnalise')
+                            ->label('Ancien numéro (personnalisé)')
+                            ->badge()
+                            ->color('gray')
+                            ->placeholder('Non renseigné')
+                            ->visible(fn($record) => $record->numero_dossier_personnalise),
+
+                        Infolists\Components\TextEntry::make('tribunal.nom')
+                            ->label('Tribunal')
+                            ->icon('heroicon-o-building-office-2')
+                            ->badge()
+                            ->color('success'),
+
+                        Infolists\Components\TextEntry::make('section.libelle')
+                            ->label('Section')
+                            ->badge()
+                            ->color(fn($record) => $record->section?->type === 'repressive' ? 'danger' : 'info'),
+
+                        Infolists\Components\TextEntry::make('matiere.designation')
+                            ->label('Matière')
+                            ->badge()
+                            ->color('warning'),
+
+                        Infolists\Components\TextEntry::make('anneeJudiciaire.libelle')
+                            ->label('Année judiciaire')
+                            ->badge(),
+
+                        Infolists\Components\TextEntry::make('date_enrolement')
+                            ->label('Date d\'enrôlement')
+                            ->date('d/m/Y')
+                            ->icon('heroicon-o-calendar'),
+
+                        Infolists\Components\TextEntry::make('date_assignation')
+                            ->label('Date d\'assignation')
+                            ->date('d/m/Y')
+                            ->icon('heroicon-o-calendar')
+                            ->placeholder('Non renseignée'),
+
+                        Infolists\Components\TextEntry::make('date_premiere_audience')
+                            ->label('Date de première audience')
+                            ->date('d/m/Y')
+                            ->icon('heroicon-o-calendar-days')
+                            ->badge()
+                            ->color('info')
+                            ->placeholder('Non renseignée'),
 
                         Infolists\Components\TextEntry::make('statut')
                             ->label('Statut')
                             ->badge()
+                            ->size('lg')
                             ->color(fn(string $state): string => match ($state) {
                                 'ouvert' => 'success',
                                 'en_instance' => 'warning',
@@ -71,132 +109,238 @@ class ViewDossier extends ViewRecord
                                 default => $state,
                             }),
 
-                        Infolists\Components\TextEntry::make('tribunal.nom')
-                            ->label('Tribunal')
-                            ->badge()
-                            ->color('info'),
-
-                        Infolists\Components\TextEntry::make('section.libelle')
-                            ->label('Section')
-                            ->badge(),
-
-                        Infolists\Components\TextEntry::make('matiere.designation')
-                            ->label('Matière')
-                            ->badge()
-                            ->color('warning'),
-
-                        Infolists\Components\TextEntry::make('anneeJudiciaire.libelle')
-                            ->label('Année judiciaire')
-                            ->badge(),
-
-                        Infolists\Components\TextEntry::make('date_enrolement')
-                            ->label('Date d\'enrôlement')
-                            ->date('d/m/Y')
-                            ->icon('heroicon-o-calendar'),
-
-                        Infolists\Components\TextEntry::make('date_cloture')
-                            ->label('Date de clôture')
-                            ->date('d/m/Y')
-                            ->placeholder('Non clôturé')
-                            ->icon('heroicon-o-calendar'),
+                        Infolists\Components\TextEntry::make('enrolePar.name')
+                            ->label('Enrôlé par')
+                            ->icon('heroicon-o-user')
+                            ->placeholder('Non renseigné'),
                     ])->columns(3),
 
-                Infolists\Components\Section::make('Demandeur')
+                Infolists\Components\Section::make(function ($record) {
+                    if ($record->section?->type === 'repressive') {
+                        return 'Ministère Public et Parties Civiles';
+                    }
+                    return 'Demandeurs (Parties requérantes)';
+                })
                     ->schema([
-                        Infolists\Components\TextEntry::make('demandeur_nom_complet')
-                            ->label('Nom complet / Raison sociale')
-                            ->getStateUsing(fn($record) => $record->demandeur_nom_complet)
-                            ->weight('bold')
-                            ->size('lg'),
-
-                        Infolists\Components\TextEntry::make('demandeur_est_personne_morale')
-                            ->label('Type')
-                            ->badge()
-                            ->formatStateUsing(fn($state) => $state ? 'Personne morale' : 'Personne physique')
-                            ->color(fn($state) => $state ? 'info' : 'success'),
-
-                        Infolists\Components\TextEntry::make('demandeur_date_naissance')
-                            ->label('Date de naissance')
-                            ->date('d/m/Y')
-                            ->placeholder('N/A')
-                            ->visible(fn($record) => !$record->demandeur_est_personne_morale),
-
-                        Infolists\Components\TextEntry::make('demandeur_lieu_naissance')
-                            ->label('Lieu de naissance')
-                            ->placeholder('N/A')
-                            ->visible(fn($record) => !$record->demandeur_est_personne_morale),
-
-                        Infolists\Components\TextEntry::make('demandeur_profession')
-                            ->label('Profession')
-                            ->placeholder('N/A')
-                            ->visible(fn($record) => !$record->demandeur_est_personne_morale),
-
-                        Infolists\Components\TextEntry::make('demandeur_nationalite')
-                            ->label('Nationalité')
-                            ->placeholder('N/A')
-                            ->visible(fn($record) => !$record->demandeur_est_personne_morale),
-
-                        Infolists\Components\TextEntry::make('demandeur_representant_legal')
-                            ->label('Représentant légal')
-                            ->placeholder('N/A')
-                            ->visible(fn($record) => $record->demandeur_est_personne_morale),
-
-                        Infolists\Components\TextEntry::make('demandeur_adresse')
-                            ->label('Adresse')
-                            ->placeholder('Non renseignée')
+                        // ✅ CORRECTION : TextEntry au lieu de Placeholder
+                        Infolists\Components\TextEntry::make('ministere_public_info')
+                            ->label('')
+                            ->html()
+                            ->formatStateUsing(fn() => new \Illuminate\Support\HtmlString(
+                                '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
+                                    '<strong>⚖️ Ministère Public</strong><br>' .
+                                    'Le Ministère Public est partie poursuivante d\'office.' .
+                                    '</div>'
+                            ))
+                            ->visible(fn($record) => $record->section?->type === 'repressive')
                             ->columnSpanFull(),
 
-                        Infolists\Components\TextEntry::make('demandeur_telephone')
-                            ->label('Téléphone')
-                            ->placeholder('Non renseigné')
-                            ->icon('heroicon-o-phone'),
+                        // Toutes les parties requérantes
+                        Infolists\Components\RepeatableEntry::make('demandeurs')
+                            ->label(fn($record) => $record->section?->type === 'repressive' ? 'Parties Civiles' : 'Demandeurs')
+                            ->schema([
+                                Infolists\Components\TextEntry::make('nom_complet')
+                                    ->label('Identité')
+                                    ->getStateUsing(fn($record) => $record->nom_complet)
+                                    ->weight('bold')
+                                    ->size('lg')
+                                    ->badge()
+                                    ->color('primary'),
 
-                        Infolists\Components\TextEntry::make('demandeur_email')
-                            ->label('Email')
-                            ->placeholder('Non renseigné')
-                            ->icon('heroicon-o-envelope'),
-                    ])->columns(3),
+                                Infolists\Components\TextEntry::make('profession')
+                                    ->label('Profession')
+                                    ->visible(fn($record) => !$record->est_personne_morale && $record->profession)
+                                    ->icon('heroicon-o-briefcase'),
 
-                Infolists\Components\Section::make('Avocat du demandeur')
+                                Infolists\Components\TextEntry::make('nationalite')
+                                    ->label('Nationalité')
+                                    ->visible(fn($record) => !$record->est_personne_morale && $record->nationalite)
+                                    ->badge(),
+
+                                Infolists\Components\TextEntry::make('representant_legal')
+                                    ->label('Représentant légal')
+                                    ->visible(fn($record) => $record->est_personne_morale && $record->representant_legal),
+
+                                Infolists\Components\TextEntry::make('adresse')
+                                    ->label('Adresse')
+                                    ->visible(fn($record) => $record->adresse)
+                                    ->columnSpanFull(),
+
+                                Infolists\Components\TextEntry::make('telephone')
+                                    ->label('Téléphone')
+                                    ->icon('heroicon-o-phone')
+                                    ->visible(fn($record) => $record->telephone),
+
+                                Infolists\Components\TextEntry::make('email')
+                                    ->label('Email')
+                                    ->icon('heroicon-o-envelope')
+                                    ->visible(fn($record) => $record->email),
+
+                                Infolists\Components\TextEntry::make('avocat_nom')
+                                    ->label('Avocat')
+                                    ->icon('heroicon-o-scale')
+                                    ->badge()
+                                    ->color('gray')
+                                    ->visible(fn($record) => $record->avocat_nom),
+
+                                Infolists\Components\TextEntry::make('avocat_contact')
+                                    ->label('Contact avocat')
+                                    ->visible(fn($record) => $record->avocat_contact),
+                            ])
+                            ->columns(3)
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible(),
+
+                // ✅ SECTION 3 : PARTIES ADVERSES
+                Infolists\Components\Section::make(function ($record) {
+                    if ($record->section?->type === 'repressive') {
+                        return 'Prévenus (Personnes poursuivies)';
+                    }
+                    return 'Défendeurs (Parties adverses)';
+                })
                     ->schema([
-                        Infolists\Components\TextEntry::make('avocat_demandeur_nom')
-                            ->label('Nom de l\'avocat')
-                            ->placeholder('Aucun avocat')
-                            ->icon('heroicon-o-user'),
+                        Infolists\Components\RepeatableEntry::make('defendeurs')
+                            ->label('')
+                            ->schema([
+                                Infolists\Components\TextEntry::make('nom_complet')
+                                    ->label('Identité')
+                                    ->getStateUsing(fn($record) => $record->nom_complet)
+                                    ->weight('bold')
+                                    ->size('lg')
+                                    ->badge()
+                                    ->color('danger'),
 
-                        Infolists\Components\TextEntry::make('avocat_demandeur_contact')
-                            ->label('Contact')
-                            ->placeholder('Non renseigné')
-                            ->icon('heroicon-o-phone'),
-                    ])->columns(2)
-                    ->collapsible()
-                    ->collapsed(),
+                                Infolists\Components\TextEntry::make('profession')
+                                    ->label('Profession')
+                                    ->visible(fn($record) => !$record->est_personne_morale && $record->profession)
+                                    ->icon('heroicon-o-briefcase'),
 
+                                Infolists\Components\TextEntry::make('nationalite')
+                                    ->label('Nationalité')
+                                    ->visible(fn($record) => !$record->est_personne_morale && $record->nationalite)
+                                    ->badge(),
+
+                                Infolists\Components\TextEntry::make('representant_legal')
+                                    ->label('Représentant légal')
+                                    ->visible(fn($record) => $record->est_personne_morale && $record->representant_legal),
+
+                                Infolists\Components\TextEntry::make('adresse')
+                                    ->label('Adresse')
+                                    ->visible(fn($record) => $record->adresse)
+                                    ->columnSpanFull(),
+
+                                Infolists\Components\TextEntry::make('telephone')
+                                    ->label('Téléphone')
+                                    ->icon('heroicon-o-phone')
+                                    ->visible(fn($record) => $record->telephone),
+
+                                Infolists\Components\TextEntry::make('email')
+                                    ->label('Email')
+                                    ->icon('heroicon-o-envelope')
+                                    ->visible(fn($record) => $record->email),
+
+                                Infolists\Components\TextEntry::make('avocat_nom')
+                                    ->label('Avocat')
+                                    ->icon('heroicon-o-scale')
+                                    ->badge()
+                                    ->color('gray')
+                                    ->visible(fn($record) => $record->avocat_nom),
+
+                                Infolists\Components\TextEntry::make('avocat_contact')
+                                    ->label('Contact avocat')
+                                    ->visible(fn($record) => $record->avocat_contact),
+                            ])
+                            ->columns(3)
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible(),
+
+                // ✅ SECTION 4 : INFRACTIONS
+                Infolists\Components\Section::make('Infractions / Objet du différend')
+                    ->schema([
+                        Infolists\Components\RepeatableEntry::make('infractions')
+                            ->label('')
+                            ->schema([
+                                Infolists\Components\TextEntry::make('libelle')
+                                    ->label('Infraction')
+                                    ->badge()
+                                    ->color('danger'),
+
+                                Infolists\Components\TextEntry::make('code')
+                                    ->label('Code')
+                                    ->badge(),
+
+                                Infolists\Components\TextEntry::make('categorie')
+                                    ->label('Catégorie')
+                                    ->badge()
+                                    ->color(fn($state) => match ($state) {
+                                        'Crime' => 'danger',
+                                        'Délit' => 'warning',
+                                        'Contravention' => 'info',
+                                        default => 'gray',
+                                    }),
+
+                                Infolists\Components\TextEntry::make('description')
+                                    ->label('Description')
+                                    ->visible(fn($record) => $record->description)
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(3)
+                            ->columnSpanFull(),
+                    ])
+                    ->visible(fn($record) => $record->infractions?->count() > 0)
+                    ->collapsible(),
+
+                // ✅ SECTION 5 : OBSERVATIONS
                 Infolists\Components\Section::make('Observations')
                     ->schema([
                         Infolists\Components\TextEntry::make('observations')
-                            ->label('Observations')
+                            ->label('')
                             ->markdown()
                             ->placeholder('Aucune observation')
                             ->columnSpanFull(),
-                    ])->collapsible(),
+                    ])
+                    ->visible(fn($record) => $record->observations)
+                    ->collapsible()
+                    ->collapsed(),
 
-                Infolists\Components\Section::make('Gestion')
+                // ✅ SECTION 6 : DÉCISIONS RENDUES
+                Infolists\Components\Section::make('Décisions rendues')
                     ->schema([
-                        Infolists\Components\TextEntry::make('enrolePar.name')
-                            ->label('Enrôlé par')
-                            ->icon('heroicon-o-user-circle'),
+                        Infolists\Components\TextEntry::make('decisions_count')
+                            ->label('Nombre de décisions')
+                            ->getStateUsing(fn($record) => $record->decisions()->count())
+                            ->badge()
+                            ->color(fn($state) => $state > 0 ? 'success' : 'gray')
+                            ->size('lg'),
 
+                        Infolists\Components\TextEntry::make('decisions_info')
+                            ->label('')
+                            ->html()
+                            ->formatStateUsing(function ($record) {
+                                if ($record->decisions()->count() === 0) {
+                                    return 'Aucune décision rendue pour ce dossier.';
+                                }
+
+                                return new \Illuminate\Support\HtmlString(
+                                    'Consultez l\'onglet <strong>"Décisions rendues"</strong> ci-dessous pour voir le détail.'
+                                );
+                            })
+                            ->columnSpanFull(),
+                    ])->columns(2),
+
+                // ✅ SECTION 7 : MÉTADONNÉES
+                Infolists\Components\Section::make('Métadonnées')
+                    ->schema([
                         Infolists\Components\TextEntry::make('created_at')
                             ->label('Créé le')
-                            ->dateTime('d/m/Y à H:i')
-                            ->icon('heroicon-o-clock'),
+                            ->dateTime('d/m/Y à H:i'),
 
                         Infolists\Components\TextEntry::make('updated_at')
                             ->label('Modifié le')
-                            ->dateTime('d/m/Y à H:i')
-                            ->icon('heroicon-o-clock'),
-                    ])->columns(3)
+                            ->dateTime('d/m/Y à H:i'),
+                    ])->columns(2)
                     ->collapsible()
                     ->collapsed(),
             ]);

@@ -78,7 +78,18 @@ class ViewDecision extends ViewRecord
                             ->badge()
                             ->color('primary')
                             ->size('lg')
-                            ->weight('bold'),
+                            ->weight('bold')
+                            ->url(fn($record) => $record->dossier
+                                ? \App\Filament\Resources\DossierResource::getUrl('view', ['record' => $record->dossier])
+                                : null)
+                            ->icon('heroicon-o-arrow-top-right-on-square'),
+
+                        Infolists\Components\TextEntry::make('dossier.numero_dossier_personnalise')
+                            ->label('Ancien numéro')
+                            ->badge()
+                            ->color('gray')
+                            ->placeholder('Non renseigné')
+                            ->visible(fn($record) => $record->dossier?->numero_dossier_personnalise),
 
                         Infolists\Components\TextEntry::make('dossier.tribunal.nom')
                             ->label('Tribunal')
@@ -107,85 +118,111 @@ class ViewDecision extends ViewRecord
                     ])->columns(3)
                     ->collapsible(),
 
-                // ✅ SECTION 2 : PARTIES DU DOSSIER
-                Infolists\Components\Section::make('Parties au litige')
+                // ✅ SECTION 2 : PARTIES DU DOSSIER (REQUÉRANTES)
+                Infolists\Components\Section::make(function ($record) {
+                    if ($record->dossier?->section?->type === 'repressive') {
+                        return 'Ministère Public et Parties Civiles';
+                    }
+                    return 'Demandeurs (Parties requérantes)';
+                })
                     ->schema([
-                        Infolists\Components\Grid::make(2)
+                        // Ministère Public (si répressive)
+                        Infolists\Components\TextEntry::make('ministere_public')
+                            ->label('')
+                            ->html()
+                            ->formatStateUsing(fn() => new \Illuminate\Support\HtmlString(
+                                '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
+                                    '<strong>⚖️ Ministère Public</strong><br>' .
+                                    'Le Ministère Public est partie poursuivante d\'office.' .
+                                    '</div>'
+                            ))
+                            ->visible(fn($record) => $record->dossier?->section?->type === 'repressive')
+                            ->columnSpanFull(),
+
+                        // Toutes les parties requérantes du dossier
+                        Infolists\Components\RepeatableEntry::make('dossier.demandeurs')
+                            ->label(fn($record) => $record->dossier?->section?->type === 'repressive' ? 'Parties Civiles' : 'Demandeurs')
                             ->schema([
-                                // DEMANDEUR / MINISTÈRE PUBLIC
-                                Infolists\Components\Section::make(function ($record) {
-                                    return $record->dossier?->section?->type === 'repressive'
-                                        ? 'Ministère Public'
-                                        : 'Demandeur';
-                                })
-                                    ->schema([
-                                        Infolists\Components\TextEntry::make('dossier.demandeur_nom_complet')
-                                            ->label('Identité')
-                                            ->weight('bold')
-                                            ->size('lg')
-                                            ->getStateUsing(fn($record) => $record->dossier?->demandeur_nom_complet),
+                                Infolists\Components\TextEntry::make('nom_complet')
+                                    ->label('Identité')
+                                    ->getStateUsing(fn($record) => $record->nom_complet)
+                                    ->weight('bold')
+                                    ->size('lg')
+                                    ->badge()
+                                    ->color('primary'),
 
-                                        Infolists\Components\TextEntry::make('dossier.demandeur_profession')
-                                            ->label('Profession')
-                                            ->visible(fn($record) => $record->dossier && !$record->dossier->demandeur_est_personne_morale),
+                                Infolists\Components\TextEntry::make('profession')
+                                    ->label('Profession')
+                                    ->visible(fn($record) => !$record->est_personne_morale && $record->profession)
+                                    ->icon('heroicon-o-briefcase'),
 
-                                        Infolists\Components\TextEntry::make('dossier.demandeur_adresse')
-                                            ->label('Adresse')
-                                            ->visible(fn($record) => $record->dossier?->demandeur_adresse),
+                                Infolists\Components\TextEntry::make('adresse')
+                                    ->label('Adresse')
+                                    ->visible(fn($record) => $record->adresse),
 
-                                        Infolists\Components\TextEntry::make('dossier.demandeur_telephone')
-                                            ->label('Téléphone')
-                                            ->icon('heroicon-o-phone')
-                                            ->visible(fn($record) => $record->dossier?->demandeur_telephone),
+                                Infolists\Components\TextEntry::make('telephone')
+                                    ->label('Téléphone')
+                                    ->icon('heroicon-o-phone')
+                                    ->visible(fn($record) => $record->telephone),
 
-                                        Infolists\Components\TextEntry::make('dossier.avocat_demandeur_nom')
-                                            ->label('Avocat')
-                                            ->icon('heroicon-o-briefcase')
-                                            ->badge()
-                                            ->color('gray')
-                                            ->visible(fn($record) => $record->dossier?->avocat_demandeur_nom),
-                                    ])
-                                    ->columnSpan(1),
-
-                                // DÉFENDEUR / PRÉVENU
-                                Infolists\Components\Section::make(function ($record) {
-                                    return $record->dossier?->section?->type === 'repressive'
-                                        ? 'Prévenu'
-                                        : 'Défendeur';
-                                })
-                                    ->schema([
-                                        Infolists\Components\TextEntry::make('dossier.defendeur_nom_complet')
-                                            ->label('Identité')
-                                            ->weight('bold')
-                                            ->size('lg')
-                                            ->getStateUsing(fn($record) => $record->dossier?->defendeur_nom_complet),
-
-                                        Infolists\Components\TextEntry::make('dossier.defendeur_profession')
-                                            ->label('Profession')
-                                            ->visible(fn($record) => $record->dossier && !$record->dossier->defendeur_est_personne_morale),
-
-                                        Infolists\Components\TextEntry::make('dossier.defendeur_adresse')
-                                            ->label('Adresse')
-                                            ->visible(fn($record) => $record->dossier?->defendeur_adresse),
-
-                                        Infolists\Components\TextEntry::make('dossier.defendeur_telephone')
-                                            ->label('Téléphone')
-                                            ->icon('heroicon-o-phone')
-                                            ->visible(fn($record) => $record->dossier?->defendeur_telephone),
-
-                                        Infolists\Components\TextEntry::make('dossier.avocat_defendeur_nom')
-                                            ->label('Avocat')
-                                            ->icon('heroicon-o-briefcase')
-                                            ->badge()
-                                            ->color('gray')
-                                            ->visible(fn($record) => $record->dossier?->avocat_defendeur_nom),
-                                    ])
-                                    ->columnSpan(1),
-                            ]),
+                                Infolists\Components\TextEntry::make('avocat_nom')
+                                    ->label('Avocat')
+                                    ->icon('heroicon-o-scale')
+                                    ->badge()
+                                    ->color('gray')
+                                    ->visible(fn($record) => $record->avocat_nom),
+                            ])
+                            ->columns(3)
+                            ->columnSpanFull(),
                     ])
                     ->collapsible(),
 
-                // ✅ SECTION 3 : INFRACTIONS
+                // ✅ SECTION 3 : PARTIES ADVERSES DU DOSSIER
+                Infolists\Components\Section::make(function ($record) {
+                    if ($record->dossier?->section?->type === 'repressive') {
+                        return 'Prévenus (Personnes poursuivies)';
+                    }
+                    return 'Défendeurs (Parties adverses)';
+                })
+                    ->schema([
+                        Infolists\Components\RepeatableEntry::make('dossier.defendeurs')
+                            ->label('')
+                            ->schema([
+                                Infolists\Components\TextEntry::make('nom_complet')
+                                    ->label('Identité')
+                                    ->getStateUsing(fn($record) => $record->nom_complet)
+                                    ->weight('bold')
+                                    ->size('lg')
+                                    ->badge()
+                                    ->color('danger'),
+
+                                Infolists\Components\TextEntry::make('profession')
+                                    ->label('Profession')
+                                    ->visible(fn($record) => !$record->est_personne_morale && $record->profession)
+                                    ->icon('heroicon-o-briefcase'),
+
+                                Infolists\Components\TextEntry::make('adresse')
+                                    ->label('Adresse')
+                                    ->visible(fn($record) => $record->adresse),
+
+                                Infolists\Components\TextEntry::make('telephone')
+                                    ->label('Téléphone')
+                                    ->icon('heroicon-o-phone')
+                                    ->visible(fn($record) => $record->telephone),
+
+                                Infolists\Components\TextEntry::make('avocat_nom')
+                                    ->label('Avocat')
+                                    ->icon('heroicon-o-scale')
+                                    ->badge()
+                                    ->color('gray')
+                                    ->visible(fn($record) => $record->avocat_nom),
+                            ])
+                            ->columns(3)
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible(),
+
+                // ✅ SECTION 4 : INFRACTIONS DU DOSSIER
                 Infolists\Components\Section::make('Infractions / Nature du différend')
                     ->schema([
                         Infolists\Components\RepeatableEntry::make('dossier.infractions')
@@ -217,7 +254,7 @@ class ViewDecision extends ViewRecord
                     ->collapsible()
                     ->collapsed(),
 
-                // ✅ SECTION 4 : IDENTIFICATION DE LA DÉCISION
+                // ✅ SECTION 5 : IDENTIFICATION DE LA DÉCISION
                 Infolists\Components\Section::make('Identification de la décision')
                     ->schema([
                         Infolists\Components\TextEntry::make('numero_rg')
@@ -269,7 +306,7 @@ class ViewDecision extends ViewRecord
                             }),
                     ])->columns(3),
 
-                // ✅ SECTION 5 : DATES
+                // ✅ SECTION 6 : DATES
                 Infolists\Components\Section::make('Dates importantes')
                     ->schema([
                         Infolists\Components\TextEntry::make('date_decision')
@@ -304,7 +341,7 @@ class ViewDecision extends ViewRecord
                     ])->columns(3)
                     ->collapsible(),
 
-                // ✅ SECTION 6 : COMPOSITION DU TRIBUNAL
+                // ✅ SECTION 7 : COMPOSITION DU TRIBUNAL
                 Infolists\Components\Section::make('Composition du Tribunal')
                     ->schema([
                         Infolists\Components\TextEntry::make('mode_composition')
@@ -371,7 +408,7 @@ class ViewDecision extends ViewRecord
                             ->placeholder('Non renseigné'),
                     ])->columns(2),
 
-                // ✅ SECTION 7 : CONTENU DE LA DÉCISION
+                // ✅ SECTION 8 : CONTENU DE LA DÉCISION
                 Infolists\Components\Section::make('Contenu de la décision')
                     ->schema([
                         Infolists\Components\TextEntry::make('resume')
@@ -388,7 +425,7 @@ class ViewDecision extends ViewRecord
                     ])
                     ->collapsible(),
 
-                // ✅ SECTION 8 : CONDAMNATIONS
+                // ✅ SECTION 9 : CONDAMNATIONS
                 Infolists\Components\Section::make('Condamnations')
                     ->schema([
                         Infolists\Components\TextEntry::make('montant_amende')
@@ -411,7 +448,7 @@ class ViewDecision extends ViewRecord
                     ->collapsible()
                     ->collapsed(),
 
-                // ✅ SECTION 9 : GESTION
+                // ✅ SECTION 10 : GESTION
                 Infolists\Components\Section::make('Gestion')
                     ->schema([
                         Infolists\Components\TextEntry::make('greffierResponsable.name')

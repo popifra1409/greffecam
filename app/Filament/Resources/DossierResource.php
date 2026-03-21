@@ -23,7 +23,7 @@ class DossierResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Dossiers / Enrôlement';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
 
     public static function getRelations(): array
     {
@@ -37,6 +37,7 @@ class DossierResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Wizard::make([
+                    // ✅ ÉTAPE 1 : HIÉRARCHIE JUDICIAIRE
                     Forms\Components\Wizard\Step::make('Hiérarchie judiciaire')
                         ->schema([
                             Forms\Components\Section::make('Localisation du dossier')
@@ -64,7 +65,6 @@ class DossierResource extends Resource
                                         ->afterStateUpdated(function (callable $set, $state) {
                                             $set('matiere_id', null);
 
-                                            // Récupérer le type de section
                                             if ($state) {
                                                 $section = \App\Models\Section::find($state);
                                                 if ($section) {
@@ -76,12 +76,6 @@ class DossierResource extends Resource
                                         }),
 
                                     Forms\Components\Hidden::make('type_section'),
-                                    Forms\Components\Placeholder::make('debug_type_section')
-                                        ->label('Type de section détecté')
-                                        ->content(fn(callable $get) => $get('type_section')
-                                            ? ($get('type_section') === 'repressive' ? '🔴 Section Répressive' : '🟢 Section Non Répressive')
-                                            : 'Aucune section sélectionnée')
-                                        ->columnSpanFull(),
 
                                     Forms\Components\Select::make('matiere_id')
                                         ->label('Matière')
@@ -119,203 +113,258 @@ class DossierResource extends Resource
                                         ->native(false)
                                         ->displayFormat('d/m/Y')
                                         ->helperText('Date à laquelle le défendeur/prévenu a été assigné'),
-                                ])->columns(2),
-                        ]),
 
-                    Forms\Components\Wizard\Step::make('Partie requérante')
-                        ->schema([
-                            Forms\Components\Section::make('Identité')
-                                ->description(fn(callable $get) => $get('type_section') === 'repressive'
-                                    ? 'Ministère Public (Partie poursuivante)'
-                                    : 'Demandeur (Partie requérante)')
-                                ->schema([
-                                    // Pour section répressive, afficher info Ministère Public
-                                    Forms\Components\Placeholder::make('ministere_public_info')
-                                        ->label('Ministère Public')
-                                        ->content('Le Ministère Public est représenté d\'office. Vous pouvez ajouter une partie civile dans les observations.')
-                                        ->visible(fn(callable $get) => $get('type_section') === 'repressive')
-                                        ->columnSpanFull(),
-
-                                    Forms\Components\Toggle::make('demandeur_est_personne_morale')
-                                        ->label('Personne morale')
-                                        ->live()
-                                        ->columnSpanFull()
-                                        ->visible(fn(callable $get) => $get('type_section') !== 'repressive'),
-
-                                    // Personne physique (non répressive uniquement)
-                                    Forms\Components\TextInput::make('demandeur_nom')
-                                        ->label('Nom')
-                                        ->required(fn(Get $get) => !$get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive')
-                                        ->maxLength(255)
-                                        ->visible(fn(Get $get) => !$get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive'),
-
-                                    Forms\Components\TextInput::make('demandeur_prenom')
-                                        ->label('Prénom')
-                                        ->maxLength(255)
-                                        ->visible(fn(Get $get) => !$get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive'),
-
-                                    Forms\Components\DatePicker::make('demandeur_date_naissance')
-                                        ->label('Date de naissance')
+                                    Forms\Components\DatePicker::make('date_premiere_audience')
+                                        ->label('Date de première audience')
                                         ->native(false)
                                         ->displayFormat('d/m/Y')
-                                        ->visible(fn(Get $get) => !$get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive'),
+                                        ->helperText('Date prévue pour la première audience')
+                                        ->after('date_assignation'),
 
-                                    Forms\Components\TextInput::make('demandeur_lieu_naissance')
-                                        ->label('Lieu de naissance')
+                                    Forms\Components\TextInput::make('numero_dossier_personnalise')
+                                        ->label('Numéro de dossier personnalisé (ancien système)')
                                         ->maxLength(255)
-                                        ->visible(fn(Get $get) => !$get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive'),
-
-                                    Forms\Components\TextInput::make('demandeur_profession')
-                                        ->label('Profession')
-                                        ->maxLength(255)
-                                        ->visible(fn(Get $get) => !$get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive'),
-
-                                    Forms\Components\TextInput::make('demandeur_nationalite')
-                                        ->label('Nationalité')
-                                        ->maxLength(255)
-                                        ->default('Camerounaise')
-                                        ->visible(fn(Get $get) => !$get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive'),
-
-                                    // Personne morale (non répressive uniquement)
-                                    Forms\Components\TextInput::make('demandeur_raison_sociale')
-                                        ->label('Raison sociale')
-                                        ->required(fn(Get $get) => $get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive')
-                                        ->maxLength(255)
-                                        ->visible(fn(Get $get) => $get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive'),
-
-                                    Forms\Components\TextInput::make('demandeur_representant_legal')
-                                        ->label('Représentant légal')
-                                        ->maxLength(255)
-                                        ->visible(fn(Get $get) => $get('demandeur_est_personne_morale') && $get('type_section') !== 'repressive'),
-                                ])->columns(2),
-
-                            Forms\Components\Section::make('Contact')
-                                ->visible(fn(callable $get) => $get('type_section') !== 'repressive')
-                                ->schema([
-                                    Forms\Components\Textarea::make('demandeur_adresse')
-                                        ->label('Adresse')
-                                        ->maxLength(65535)
-                                        ->rows(2)
+                                        ->helperText('Optionnel - Pour les dossiers avec ancienne numérotation')
+                                        ->placeholder('Ex: RG/2020/123')
                                         ->columnSpanFull(),
-
-                                    Forms\Components\TextInput::make('demandeur_telephone')
-                                        ->label('Téléphone')
-                                        ->tel()
-                                        ->maxLength(255),
-
-                                    Forms\Components\TextInput::make('demandeur_email')
-                                        ->label('Email')
-                                        ->email()
-                                        ->maxLength(255),
                                 ])->columns(2),
-
-                            Forms\Components\Section::make('Avocat')
-                                ->visible(fn(callable $get) => $get('type_section') !== 'repressive')
-                                ->schema([
-                                    Forms\Components\TextInput::make('avocat_demandeur_nom')
-                                        ->label('Nom de l\'avocat')
-                                        ->maxLength(255),
-
-                                    Forms\Components\TextInput::make('avocat_demandeur_contact')
-                                        ->label('Contact de l\'avocat')
-                                        ->maxLength(255),
-                                ])->columns(2)
-                                ->collapsible()
-                                ->collapsed(),
                         ]),
 
-                    Forms\Components\Wizard\Step::make('Partie adverse')
+                    // ✅ ÉTAPE 2 : PARTIES REQUÉRANTES (REPEATER)
+                    Forms\Components\Wizard\Step::make('Parties requérantes')
                         ->schema([
-                            Forms\Components\Section::make('Identité')
-                                ->description(fn(callable $get) => $get('type_section') === 'repressive'
-                                    ? 'Prévenu (Personne poursuivie)'
-                                    : 'Défendeur (Partie adverse)')
+                            Forms\Components\Placeholder::make('info_requérants')
+                                ->label('')
+                                ->content(fn(Get $get) => $get('type_section') === 'repressive'
+                                    ? '⚖️ Section répressive : Le Ministère Public est partie poursuivante. Vous pouvez ajouter une ou plusieurs parties civiles.'
+                                    : '📋 Section non répressive : Ajoutez un ou plusieurs demandeurs.')
+                                ->columnSpanFull(),
+
+                            Forms\Components\Repeater::make('parties_requerantes')
+                                ->label('')
+                                ->relationship(
+                                    'parties',
+                                    modifyQueryUsing: fn($query, Get $get) =>
+                                    $query->whereIn('type_partie', $get('type_section') === 'repressive'
+                                        ? ['partie_civile']
+                                        : ['demandeur'])
+                                )
                                 ->schema([
-                                    Forms\Components\Toggle::make('defendeur_est_personne_morale')
+                                    Forms\Components\Hidden::make('type_partie')
+                                        ->default(fn(Get $get) => $get('../../../type_section') === 'repressive' ? 'partie_civile' : 'demandeur'),
+
+                                    Forms\Components\Toggle::make('est_personne_morale')
                                         ->label('Personne morale')
                                         ->live()
                                         ->columnSpanFull(),
 
                                     // Personne physique
-                                    Forms\Components\TextInput::make('defendeur_nom')
-                                        ->label(fn(callable $get) => $get('type_section') === 'repressive' ? 'Nom du prévenu' : 'Nom')
-                                        ->required(fn(Get $get) => !$get('defendeur_est_personne_morale'))
+                                    Forms\Components\TextInput::make('nom')
+                                        ->label('Nom')
+                                        ->required(fn(Get $get) => !$get('est_personne_morale'))
                                         ->maxLength(255)
-                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
 
-                                    Forms\Components\TextInput::make('defendeur_prenom')
-                                        ->label(fn(callable $get) => $get('type_section') === 'repressive' ? 'Prénom du prévenu' : 'Prénom')
+                                    Forms\Components\TextInput::make('prenom')
+                                        ->label('Prénom')
                                         ->maxLength(255)
-                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
 
-                                    Forms\Components\DatePicker::make('defendeur_date_naissance')
+                                    Forms\Components\DatePicker::make('date_naissance')
                                         ->label('Date de naissance')
                                         ->native(false)
                                         ->displayFormat('d/m/Y')
-                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
 
-                                    Forms\Components\TextInput::make('defendeur_lieu_naissance')
+                                    Forms\Components\TextInput::make('lieu_naissance')
                                         ->label('Lieu de naissance')
                                         ->maxLength(255)
-                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
 
-                                    Forms\Components\TextInput::make('defendeur_profession')
+                                    Forms\Components\TextInput::make('profession')
                                         ->label('Profession')
                                         ->maxLength(255)
-                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
 
-                                    Forms\Components\TextInput::make('defendeur_nationalite')
+                                    Forms\Components\TextInput::make('nationalite')
                                         ->label('Nationalité')
                                         ->maxLength(255)
                                         ->default('Camerounaise')
-                                        ->visible(fn(Get $get) => !$get('defendeur_est_personne_morale')),
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
 
                                     // Personne morale
-                                    Forms\Components\TextInput::make('defendeur_raison_sociale')
+                                    Forms\Components\TextInput::make('raison_sociale')
                                         ->label('Raison sociale')
-                                        ->required(fn(Get $get) => $get('defendeur_est_personne_morale'))
+                                        ->required(fn(Get $get) => $get('est_personne_morale'))
                                         ->maxLength(255)
-                                        ->visible(fn(Get $get) => $get('defendeur_est_personne_morale')),
+                                        ->visible(fn(Get $get) => $get('est_personne_morale')),
 
-                                    Forms\Components\TextInput::make('defendeur_representant_legal')
+                                    Forms\Components\TextInput::make('representant_legal')
                                         ->label('Représentant légal')
                                         ->maxLength(255)
-                                        ->visible(fn(Get $get) => $get('defendeur_est_personne_morale')),
-                                ])->columns(2),
+                                        ->visible(fn(Get $get) => $get('est_personne_morale')),
 
-                            Forms\Components\Section::make('Contact')
-                                ->schema([
-                                    Forms\Components\Textarea::make('defendeur_adresse')
+                                    // Contact
+                                    Forms\Components\Textarea::make('adresse')
                                         ->label('Adresse')
-                                        ->maxLength(65535)
                                         ->rows(2)
                                         ->columnSpanFull(),
 
-                                    Forms\Components\TextInput::make('defendeur_telephone')
+                                    Forms\Components\TextInput::make('telephone')
                                         ->label('Téléphone')
                                         ->tel()
                                         ->maxLength(255),
 
-                                    Forms\Components\TextInput::make('defendeur_email')
+                                    Forms\Components\TextInput::make('email')
                                         ->label('Email')
                                         ->email()
                                         ->maxLength(255),
-                                ])->columns(2),
 
-                            Forms\Components\Section::make('Avocat')
-                                ->schema([
-                                    Forms\Components\TextInput::make('avocat_defendeur_nom')
-                                        ->label('Nom de l\'avocat')
+                                    // Avocat
+                                    Forms\Components\TextInput::make('avocat_nom')
+                                        ->label('Avocat')
                                         ->maxLength(255),
 
-                                    Forms\Components\TextInput::make('avocat_defendeur_contact')
-                                        ->label('Contact de l\'avocat')
+                                    Forms\Components\TextInput::make('avocat_contact')
+                                        ->label('Contact avocat')
                                         ->maxLength(255),
-                                ])->columns(2)
+                                ])
+                                ->itemLabel(
+                                    fn(array $state): ?string =>
+                                    $state['est_personne_morale'] ?? false
+                                        ? ($state['raison_sociale'] ?? 'Nouvelle partie')
+                                        : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
+                                )
                                 ->collapsible()
-                                ->collapsed(),
+                                ->cloneable()
+                                ->reorderable()
+                                ->addActionLabel(fn(Get $get) => $get('type_section') === 'repressive'
+                                    ? 'Ajouter une partie civile'
+                                    : 'Ajouter un demandeur')
+                                ->minItems(fn(Get $get) => $get('type_section') === 'repressive' ? 0 : 1)
+                                ->defaultItems(fn(Get $get) => $get('type_section') === 'repressive' ? 0 : 1)
+                                ->columnSpanFull()
+                                ->columns(2),
                         ]),
 
+                    // ✅ ÉTAPE 3 : PARTIES ADVERSES (REPEATER)
+                    Forms\Components\Wizard\Step::make('Parties adverses')
+                        ->schema([
+                            Forms\Components\Placeholder::make('info_adverses')
+                                ->label('')
+                                ->content(fn(Get $get) => $get('type_section') === 'repressive'
+                                    ? '⚖️ Section répressive : Ajoutez un ou plusieurs prévenus.'
+                                    : '📋 Section non répressive : Ajoutez un ou plusieurs défendeurs.')
+                                ->columnSpanFull(),
+
+                            Forms\Components\Repeater::make('parties_adverses')
+                                ->label('')
+                                ->relationship(
+                                    'parties',
+                                    modifyQueryUsing: fn($query, Get $get) =>
+                                    $query->whereIn('type_partie', $get('type_section') === 'repressive'
+                                        ? ['prevenu']
+                                        : ['defendeur'])
+                                )
+                                ->schema([
+                                    Forms\Components\Hidden::make('type_partie')
+                                        ->default(fn(Get $get) => $get('../../../type_section') === 'repressive' ? 'prevenu' : 'defendeur'),
+
+                                    Forms\Components\Toggle::make('est_personne_morale')
+                                        ->label('Personne morale')
+                                        ->live()
+                                        ->columnSpanFull(),
+
+                                    // Personne physique
+                                    Forms\Components\TextInput::make('nom')
+                                        ->label('Nom')
+                                        ->required(fn(Get $get) => !$get('est_personne_morale'))
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('prenom')
+                                        ->label('Prénom')
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
+
+                                    Forms\Components\DatePicker::make('date_naissance')
+                                        ->label('Date de naissance')
+                                        ->native(false)
+                                        ->displayFormat('d/m/Y')
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('lieu_naissance')
+                                        ->label('Lieu de naissance')
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('profession')
+                                        ->label('Profession')
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('nationalite')
+                                        ->label('Nationalité')
+                                        ->maxLength(255)
+                                        ->default('Camerounaise')
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale')),
+
+                                    // Personne morale
+                                    Forms\Components\TextInput::make('raison_sociale')
+                                        ->label('Raison sociale')
+                                        ->required(fn(Get $get) => $get('est_personne_morale'))
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => $get('est_personne_morale')),
+
+                                    Forms\Components\TextInput::make('representant_legal')
+                                        ->label('Représentant légal')
+                                        ->maxLength(255)
+                                        ->visible(fn(Get $get) => $get('est_personne_morale')),
+
+                                    // Contact
+                                    Forms\Components\Textarea::make('adresse')
+                                        ->label('Adresse')
+                                        ->rows(2)
+                                        ->columnSpanFull(),
+
+                                    Forms\Components\TextInput::make('telephone')
+                                        ->label('Téléphone')
+                                        ->tel()
+                                        ->maxLength(255),
+
+                                    Forms\Components\TextInput::make('email')
+                                        ->label('Email')
+                                        ->email()
+                                        ->maxLength(255),
+
+                                    // Avocat
+                                    Forms\Components\TextInput::make('avocat_nom')
+                                        ->label('Avocat')
+                                        ->maxLength(255),
+
+                                    Forms\Components\TextInput::make('avocat_contact')
+                                        ->label('Contact avocat')
+                                        ->maxLength(255),
+                                ])
+                                ->itemLabel(
+                                    fn(array $state): ?string =>
+                                    $state['est_personne_morale'] ?? false
+                                        ? ($state['raison_sociale'] ?? 'Nouvelle partie')
+                                        : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
+                                )
+                                ->collapsible()
+                                ->cloneable()
+                                ->reorderable()
+                                ->addActionLabel(fn(Get $get) => $get('type_section') === 'repressive'
+                                    ? 'Ajouter un prévenu'
+                                    : 'Ajouter un défendeur')
+                                ->minItems(1)
+                                ->defaultItems(1)
+                                ->columnSpanFull()
+                                ->columns(2),
+                        ]),
+
+                    // ✅ ÉTAPE 4 : OBJET DU DIFFÉREND
                     Forms\Components\Wizard\Step::make('Objet du différend')
                         ->schema([
                             Forms\Components\Section::make('Infractions / Nature du différend')
@@ -349,12 +398,13 @@ class DossierResource extends Resource
                                                 ->rows(2),
                                         ])
                                         ->helperText(fn(callable $get) => $get('type_section') === 'repressive'
-                                            ? 'Sélectionnez les infractions reprochées au prévenu'
+                                            ? 'Sélectionnez les infractions reprochées'
                                             : 'Sélectionnez ou décrivez la nature du différend')
                                         ->columnSpanFull(),
                                 ]),
                         ]),
 
+                    // ✅ ÉTAPE 5 : OBSERVATIONS
                     Forms\Components\Wizard\Step::make('Observations')
                         ->schema([
                             Forms\Components\Textarea::make('observations')
@@ -362,7 +412,7 @@ class DossierResource extends Resource
                                 ->maxLength(65535)
                                 ->rows(4)
                                 ->columnSpanFull()
-                                ->helperText('Remarques complémentaires, partie civile (pour section répressive), etc.'),
+                                ->helperText('Remarques complémentaires, notes spéciales, etc.'),
                         ]),
                 ])
                     ->columnSpanFull()
@@ -382,17 +432,28 @@ class DossierResource extends Resource
                     ->weight('bold')
                     ->color('primary'),
 
-                Tables\Columns\TextColumn::make('demandeur_nom_complet')
-                    ->label('Demandeur / MP')
-                    ->getStateUsing(fn($record) => $record->type_section === 'repressive' ? 'Ministère Public' : $record->demandeur_nom_complet)
-                    ->searchable(['demandeur_nom', 'demandeur_prenom', 'demandeur_raison_sociale'])
+                Tables\Columns\TextColumn::make('numero_dossier_personnalise')
+                    ->label('N° Ancien')
+                    ->searchable()
+                    ->badge()
+                    ->color('gray')
+                    ->placeholder('-')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('demandeurs_liste')
+                    ->label('Requérants')
+                    ->getStateUsing(function ($record) {
+                        if ($record->section?->type === 'repressive') {
+                            return 'Ministère Public';
+                        }
+                        return $record->demandeurs_liste ?: $record->demandeur_nom_complet;
+                    })
                     ->wrap()
                     ->limit(30),
 
-                Tables\Columns\TextColumn::make('defendeur_nom_complet')
-                    ->label('Défendeur / Prévenu')
-                    ->getStateUsing(fn($record) => $record->defendeur_nom_complet ?: '-')
-                    ->searchable(['defendeur_nom', 'defendeur_prenom', 'defendeur_raison_sociale'])
+                Tables\Columns\TextColumn::make('defendeurs_liste')
+                    ->label('Parties adverses')
+                    ->getStateUsing(fn($record) => $record->defendeurs_liste ?: $record->defendeur_nom_complet ?: '-')
                     ->wrap()
                     ->limit(30)
                     ->toggleable(),
@@ -428,6 +489,15 @@ class DossierResource extends Resource
                     ->sortable()
                     ->toggleable(),
 
+                Tables\Columns\TextColumn::make('date_premiere_audience')
+                    ->label('1ère audience')
+                    ->date('d/m/Y')
+                    ->placeholder('-')
+                    ->sortable()
+                    ->badge()
+                    ->color('info')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('statut')
                     ->label('Statut')
                     ->badge()
@@ -455,7 +525,6 @@ class DossierResource extends Resource
                     ->badge()
                     ->color(fn($state) => $state > 0 ? 'success' : 'gray')
                     ->formatStateUsing(fn($state) => $state > 0 ? $state : 'Aucune'),
-
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('tribunal_id')
@@ -470,13 +539,6 @@ class DossierResource extends Resource
                     ->label('Matière')
                     ->relationship('matiere', 'designation'),
 
-                Tables\Filters\SelectFilter::make('type_section')
-                    ->label('Type de section')
-                    ->options([
-                        'repressive' => 'Répressive',
-                        'non_repressive' => 'Non Répressive',
-                    ]),
-
                 Tables\Filters\SelectFilter::make('statut')
                     ->label('Statut')
                     ->options([
@@ -487,56 +549,29 @@ class DossierResource extends Resource
                         'clos' => 'Clos',
                     ]),
 
-                Tables\Filters\Filter::make('date_enrolement')
+                Tables\Filters\Filter::make('date_premiere_audience')
                     ->form([
-                        Forms\Components\DatePicker::make('enrole_du')
-                            ->label('Enrôlé du')
+                        Forms\Components\DatePicker::make('audience_du')
+                            ->label('Audience du')
                             ->native(false)
                             ->displayFormat('d/m/Y'),
-                        Forms\Components\DatePicker::make('enrole_au')
+                        Forms\Components\DatePicker::make('audience_au')
                             ->label('Au')
                             ->native(false)
                             ->displayFormat('d/m/Y'),
                     ])
                     ->query(function ($query, array $data) {
                         return $query
-                            ->when($data['enrole_du'], fn($q, $date) => $q->whereDate('date_enrolement', '>=', $date))
-                            ->when($data['enrole_au'], fn($q, $date) => $q->whereDate('date_enrolement', '<=', $date));
+                            ->when($data['audience_du'], fn($q, $date) => $q->whereDate('date_premiere_audience', '>=', $date))
+                            ->when($data['audience_au'], fn($q, $date) => $q->whereDate('date_premiere_audience', '<=', $date));
                     })
                     ->indicateUsing(function (array $data): array {
                         $indicators = [];
-                        if ($data['enrole_du'] ?? null) {
-                            $indicators[] = 'Enrôlé du ' . \Carbon\Carbon::parse($data['enrole_du'])->format('d/m/Y');
+                        if ($data['audience_du'] ?? null) {
+                            $indicators[] = 'Audience du ' . \Carbon\Carbon::parse($data['audience_du'])->format('d/m/Y');
                         }
-                        if ($data['enrole_au'] ?? null) {
-                            $indicators[] = 'Au ' . \Carbon\Carbon::parse($data['enrole_au'])->format('d/m/Y');
-                        }
-                        return $indicators;
-                    }),
-
-                Tables\Filters\Filter::make('date_assignation')
-                    ->form([
-                        Forms\Components\DatePicker::make('assigne_du')
-                            ->label('Assigné du')
-                            ->native(false)
-                            ->displayFormat('d/m/Y'),
-                        Forms\Components\DatePicker::make('assigne_au')
-                            ->label('Au')
-                            ->native(false)
-                            ->displayFormat('d/m/Y'),
-                    ])
-                    ->query(function ($query, array $data) {
-                        return $query
-                            ->when($data['assigne_du'], fn($q, $date) => $q->whereDate('date_assignation', '>=', $date))
-                            ->when($data['assigne_au'], fn($q, $date) => $q->whereDate('date_assignation', '<=', $date));
-                    })
-                    ->indicateUsing(function (array $data): array {
-                        $indicators = [];
-                        if ($data['assigne_du'] ?? null) {
-                            $indicators[] = 'Assigné du ' . \Carbon\Carbon::parse($data['assigne_du'])->format('d/m/Y');
-                        }
-                        if ($data['assigne_au'] ?? null) {
-                            $indicators[] = 'Au ' . \Carbon\Carbon::parse($data['assigne_au'])->format('d/m/Y');
+                        if ($data['audience_au'] ?? null) {
+                            $indicators[] = 'Au ' . \Carbon\Carbon::parse($data['audience_au'])->format('d/m/Y');
                         }
                         return $indicators;
                     }),
@@ -548,8 +583,7 @@ class DossierResource extends Resource
                         ->icon('heroicon-o-scale')
                         ->color('success')
                         ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
-                        ->url(fn($record) => \App\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id]))
-                        ->openUrlInNewTab(false),
+                        ->url(fn($record) => \App\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id])),
 
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),
@@ -560,9 +594,7 @@ class DossierResource extends Resource
                     ->size('sm')
                     ->color('primary')
                     ->button(),
-
             ])
-
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

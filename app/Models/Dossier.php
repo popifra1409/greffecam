@@ -18,6 +18,7 @@ class Dossier extends Model
         'matiere_id',
         'annee_judiciaire_id',
         'numero_dossier',
+        'numero_dossier_personnalise',
         //demandeur
         'demandeur_est_personne_morale',
         'demandeur_nom',
@@ -50,6 +51,7 @@ class Dossier extends Model
         'avocat_defendeur_contact',
         'date_enrolement',
         'date_assignation',
+        'date_premiere_audience',
         'date_cloture',
         'statut',
         'observations',
@@ -59,6 +61,7 @@ class Dossier extends Model
     protected $casts = [
         'date_enrolement' => 'date',
         'date_assignation' => 'date',
+        'date_premiere_audience' => 'date',
         'date_cloture' => 'date',
         'demandeur_date_naissance' => 'date',
         'defendeur_date_naissance' => 'date',
@@ -75,6 +78,37 @@ class Dossier extends Model
     }
 
     // Relations
+    public function parties()
+    {
+        return $this->hasMany(DossierPartie::class);
+    }
+
+    public function demandeurs()
+    {
+        return $this->hasMany(DossierPartie::class)->where('type_partie', 'demandeur');
+    }
+
+    public function defendeurs()
+    {
+        return $this->hasMany(DossierPartie::class)->where('type_partie', 'defendeur');
+    }
+
+    public function partiesCiviles()
+    {
+        return $this->hasMany(DossierPartie::class)->where('type_partie', 'partie_civile');
+    }
+
+    public function prevenus()
+    {
+        return $this->hasMany(DossierPartie::class)->where('type_partie', 'prevenu');
+    }
+
+    public function temoins()
+    {
+        return $this->hasMany(DossierPartie::class)->where('type_partie', 'temoin');
+    }
+
+
     // Relation avec les infractions
     public function infractions()
     {
@@ -84,6 +118,14 @@ class Dossier extends Model
     // Accesseur pour le nom complet du défendeur
     public function getDefendeurNomCompletAttribute()
     {
+        // Utiliser la nouvelle structure si elle existe
+        $premierDefendeur = $this->defendeurs()->first();
+
+        if ($premierDefendeur) {
+            return $premierDefendeur->nom_complet;
+        }
+
+        // Sinon utiliser l'ancien système
         if ($this->defendeur_est_personne_morale) {
             return $this->defendeur_raison_sociale;
         }
@@ -128,6 +170,14 @@ class Dossier extends Model
     // Accesseurs
     public function getDemandeurNomCompletAttribute()
     {
+        // Utiliser la nouvelle structure si elle existe
+        $premierDemandeur = $this->demandeurs()->first();
+
+        if ($premierDemandeur) {
+            return $premierDemandeur->nom_complet;
+        }
+
+        // Sinon utiliser l'ancien système
         if ($this->demandeur_est_personne_morale) {
             return $this->demandeur_raison_sociale;
         }
@@ -152,6 +202,16 @@ class Dossier extends Model
         // Un dossier peut être clos si toutes ses décisions sont archivées
         // ou si la grosse est délivrée et aucun recours en cours
         return in_array($this->statut, ['grosse_delivree', 'en_instance']);
+    }
+
+    public function getDemandeursListeAttribute()
+    {
+        return $this->demandeurs->pluck('nom_complet')->join(', ');
+    }
+
+    public function getDefendeursListeAttribute()
+    {
+        return $this->defendeurs->pluck('nom_complet')->join(', ');
     }
 
     // Générer un numéro de dossier unique
