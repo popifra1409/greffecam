@@ -629,6 +629,15 @@ class DecisionResource extends Resource
                     ->relationship('tribunal', 'nom'),
             ])
             ->actions([
+
+                // ✅ APERÇU PDF RAPIDE
+                Tables\Actions\Action::make('apercu_pdf')
+                    ->label('PDF')
+                    ->icon('heroicon-o-document-text')
+                    ->color('info')
+                    ->url(fn($record) => route('decisions.etat.apercu', ['decision' => $record]))
+                    ->openUrlInNewTab(),
+
                 // ✅ ACTIONS DE WORKFLOW
                 Tables\Actions\Action::make('valider')
                     ->label('Valider')
@@ -649,6 +658,13 @@ class DecisionResource extends Resource
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make()
                         ->visible(fn($record) => $record->estModifiable()),
+                    // ✅ TÉLÉCHARGER PDF
+                    Tables\Actions\Action::make('telecharger_pdf')
+                        ->label('Télécharger PDF')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->url(fn($record) => route('decisions.etat.telecharger', ['decision' => $record]))
+                        ->openUrlInNewTab(),
                     Tables\Actions\DeleteAction::make()
                         ->visible(fn($record) => $record->estModifiable()),
                 ])

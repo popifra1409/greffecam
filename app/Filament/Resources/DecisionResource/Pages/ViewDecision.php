@@ -7,7 +7,7 @@ use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
-use Filament\Forms; 
+use Filament\Forms;
 
 class ViewDecision extends ViewRecord
 {
@@ -16,6 +16,22 @@ class ViewDecision extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            // ✅ ACTION PDF : APERÇU
+            Actions\Action::make('apercu_pdf')
+                ->label('Aperçu PDF')
+                ->icon('heroicon-o-eye')
+                ->color('info')
+                ->url(fn($record) => route('decisions.etat.apercu', ['decision' => $record]))
+                ->openUrlInNewTab(),
+
+            // ✅ ACTION PDF : TÉLÉCHARGER
+            Actions\Action::make('telecharger_pdf')
+                ->label('Télécharger PDF')
+                ->icon('heroicon-o-arrow-down-tray')
+                ->color('success')
+                ->url(fn($record) => route('decisions.etat.telecharger', ['decision' => $record]))
+                ->openUrlInNewTab(),
+
             Actions\EditAction::make()
                 ->visible(fn($record) => $record->estModifiable()),
 
