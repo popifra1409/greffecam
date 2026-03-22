@@ -25,7 +25,7 @@ class DecisionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Décisions';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 11;
 
     public static function form(Form $form): Form
     {
@@ -44,9 +44,9 @@ class DecisionResource extends Resource
                                     })
                                     ->getOptionLabelFromRecordUsing(
                                         fn($record) =>
-                                        "{$record->numero_dossier} - {$record->demandeur_nom_complet} vs {$record->defendeur_nom_complet}"
+                                        "{$record->numero_dossier} - {$record->demandeurs_liste} vs {$record->defendeurs_liste}"
                                     )
-                                    ->searchable(['numero_dossier', 'demandeur_nom', 'defendeur_nom'])
+                                    ->searchable(['numero_dossier'])
                                     ->required()
                                     ->live()
                                     ->afterStateUpdated(function ($state, callable $set) {
@@ -63,7 +63,6 @@ class DecisionResource extends Resource
                                     ->helperText('Sélectionnez le dossier pour lequel vous rendez cette décision')
                                     ->columnSpanFull(),
 
-                                // ✅ INFOS DU DOSSIER (LECTURE SEULE)
                                 Forms\Components\Section::make('Informations héritées du dossier')
                                     ->schema([
                                         Forms\Components\Placeholder::make('dossier_info')
@@ -88,8 +87,8 @@ class DecisionResource extends Resource
                                                         '<strong>Tribunal :</strong> ' . ($dossier->tribunal?->nom ?? 'N/A') . '<br>' .
                                                         '<strong>Section :</strong> ' . ($dossier->section?->libelle ?? 'N/A') . '<br>' .
                                                         '<strong>Matière :</strong> ' . ($dossier->matiere?->designation ?? 'N/A') . '<br>' .
-                                                        '<strong>Demandeur :</strong> ' . $dossier->demandeur_nom_complet . '<br>' .
-                                                        '<strong>Défendeur :</strong> ' . $dossier->defendeur_nom_complet . '<br>' .
+                                                        '<strong>Requérants :</strong> ' . ($dossier->demandeurs_liste ?: $dossier->demandeur_nom_complet) . '<br>' .
+                                                        '<strong>Parties adverses :</strong> ' . ($dossier->defendeurs_liste ?: $dossier->defendeur_nom_complet) . '<br>' .
                                                         '<strong>Infractions :</strong> ' . $dossier->infractions->pluck('libelle')->join(', ') . '<br>' .
                                                         '<strong>Date enrôlement :</strong> ' . $dossier->date_enrolement?->format('d/m/Y') .
                                                         '</div>'
@@ -100,25 +99,17 @@ class DecisionResource extends Resource
                                     ->visible(fn(Get $get) => $get('dossier_id'))
                                     ->collapsible(),
 
-                                // Champs cachés pour stocker les IDs
                                 Forms\Components\Hidden::make('tribunal_id'),
                                 Forms\Components\Hidden::make('section_id'),
                                 Forms\Components\Hidden::make('matiere_id'),
                                 Forms\Components\Hidden::make('annee_judiciaire_id'),
                             ]),
 
-                        // ✅ ONGLET 2 : NUMÉROS ET DATES
+                        // ✅ ONGLET 2 : IDENTIFICATION
                         Forms\Components\Tabs\Tab::make('Identification')
                             ->schema([
                                 Forms\Components\Section::make('Numéros')
                                     ->schema([
-                                        Forms\Components\TextInput::make('numero_rg')
-                                            ->label('Numéro RG')
-                                            ->required()
-                                            ->unique(ignoreRecord: true)
-                                            ->maxLength(255)
-                                            ->placeholder('Ex: RG/2025/001'),
-
                                         Forms\Components\TextInput::make('numero_repertoire')
                                             ->label('N° Répertoire / N° Décision')
                                             ->maxLength(255)
@@ -128,9 +119,17 @@ class DecisionResource extends Resource
                                             ->label('Numéro Parquet')
                                             ->maxLength(255)
                                             ->placeholder('Référence du parquet'),
+
+                                        Forms\Components\Select::make('nature_decision_id')
+                                            ->label('Nature de décision')
+                                            ->relationship('natureDecision', 'libelle')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required(),
                                     ])->columns(3),
 
                                 Forms\Components\Section::make('Dates')
+                                    ->description('Ordre : Décision → Factum → Saisie → Signature → Enregistrement')
                                     ->schema([
                                         Forms\Components\DatePicker::make('date_decision')
                                             ->label('Date de décision')
@@ -139,51 +138,64 @@ class DecisionResource extends Resource
                                             ->displayFormat('d/m/Y')
                                             ->default(now()),
 
-                                        Forms\Components\DateTimePicker::make('date_saisie')
-                                            ->label('Date de saisie')
-                                            ->native(false)
-                                            ->displayFormat('d/m/Y H:i')
-                                            ->default(now()),
-
                                         Forms\Components\DatePicker::make('date_factum')
                                             ->label('Date du factum')
                                             ->native(false)
                                             ->displayFormat('d/m/Y'),
 
+                                        Forms\Components\DatePicker::make('date_premiere_audience')
+                                            ->label('Date de première audience')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y')
+                                            ->helperText('Date prévue pour la première audience'),
+
+                                        // ✅ Les dates suivantes selon le statut
+                                        Forms\Components\DatePicker::make('date_saisie')
+                                            ->label('Date de saisie')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y')
+                                            ->visible(fn(Get $get) => in_array($get('statut'), ['saisie', 'signee', 'enregistree', 'archivee']))
+                                            ->required(fn(Get $get) => $get('statut') === 'saisie'),
+
+                                        Forms\Components\DatePicker::make('date_modification')
+                                            ->label('Date de modification')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y')
+                                            ->visible(fn(Get $get) => in_array($get('statut'), ['saisie', 'signee', 'enregistree', 'archivee']))
+                                            ->helperText('Si le fichier saisi a été modifié'),
+
                                         Forms\Components\DatePicker::make('date_signature')
                                             ->label('Date de signature')
                                             ->native(false)
-                                            ->displayFormat('d/m/Y'),
+                                            ->displayFormat('d/m/Y')
+                                            ->visible(fn(Get $get) => in_array($get('statut'), ['signee', 'enregistree', 'archivee']))
+                                            ->required(fn(Get $get) => $get('statut') === 'signee'),
 
                                         Forms\Components\DatePicker::make('date_enregistrement')
                                             ->label('Date d\'enregistrement')
                                             ->native(false)
-                                            ->displayFormat('d/m/Y'),
+                                            ->displayFormat('d/m/Y')
+                                            ->visible(fn(Get $get) => in_array($get('statut'), ['enregistree', 'archivee']))
+                                            ->required(fn(Get $get) => $get('statut') === 'enregistree'),
                                     ])->columns(3),
 
-                                Forms\Components\Section::make('Nature de la décision')
+                                Forms\Components\Section::make('Statut')
                                     ->schema([
-                                        Forms\Components\Select::make('nature_decision_id')
-                                            ->label('Nature de décision')
-                                            ->relationship('natureDecision', 'libelle')
-                                            ->searchable()
-                                            ->preload()
-                                            ->required(),
-
                                         Forms\Components\Select::make('statut')
                                             ->label('Statut')
                                             ->options([
                                                 'brouillon' => 'Brouillon',
-                                                'transmise_chef' => 'Transmise au chef',
+                                                'validee' => 'Validée',
+                                                'saisie' => 'Saisie',
                                                 'signee' => 'Signée',
                                                 'enregistree' => 'Enregistrée',
-                                                'annulee' => 'Annulée',
                                                 'archivee' => 'Archivée',
                                             ])
                                             ->default('brouillon')
                                             ->required()
+                                            ->live()
                                             ->disabled(fn($record) => $record && $record->statut !== 'brouillon'),
-                                    ])->columns(2),
+                                    ])->columns(1),
                             ]),
 
                         // ✅ ONGLET 3 : COMPOSITION DU TRIBUNAL
@@ -200,7 +212,6 @@ class DecisionResource extends Resource
                                     ->live()
                                     ->columnSpanFull(),
 
-                                // ✅ SI JUGE UNIQUE
                                 Forms\Components\Section::make('Juge unique')
                                     ->schema([
                                         Forms\Components\Select::make('juge_unique_id')
@@ -220,7 +231,6 @@ class DecisionResource extends Resource
                                     ])
                                     ->visible(fn(Get $get) => $get('mode_composition') === 'juge_unique'),
 
-                                // ✅ SI COLLÈGE
                                 Forms\Components\Section::make('Collège de juges')
                                     ->schema([
                                         Forms\Components\Select::make('college_juge_id')
@@ -240,7 +250,6 @@ class DecisionResource extends Resource
                                     ])
                                     ->visible(fn(Get $get) => $get('mode_composition') === 'college'),
 
-                                // ✅ GREFFIER
                                 Forms\Components\Section::make('Greffier')
                                     ->schema([
                                         Forms\Components\Select::make('greffier_id')
@@ -260,7 +269,7 @@ class DecisionResource extends Resource
                                     ]),
                             ]),
 
-                        // ✅ ONGLET 4 : CONTENU DE LA DÉCISION
+                        // ✅ ONGLET 4 : DÉCISION
                         Forms\Components\Tabs\Tab::make('Décision')
                             ->schema([
                                 Forms\Components\Section::make('Faits et dispositif')
@@ -310,7 +319,196 @@ class DecisionResource extends Resource
                                     ->collapsed(),
                             ]),
 
-                        // ✅ ONGLET 5 : GESTION
+                        // ✅ ONGLET 5 : FICHIERS (Selon statut)
+                        Forms\Components\Tabs\Tab::make('Fichiers')
+                            ->schema([
+                                // FICHIER SAISI
+                                Forms\Components\Section::make('Saisie')
+                                    ->schema([
+                                        Forms\Components\FileUpload::make('fichier_saisi')
+                                            ->label('Fichier saisi (Word, etc.)')
+                                            ->acceptedFileTypes(['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/saisies')
+                                            ->required(fn(Get $get) => $get('statut') === 'saisie'),
+
+                                        Forms\Components\FileUpload::make('fichier_saisi_modifie')
+                                            ->label('Fichier saisi modifié')
+                                            ->acceptedFileTypes(['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword', 'application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/saisies')
+                                            ->helperText('Si modification après première saisie'),
+                                    ])
+                                    ->visible(fn(Get $get) => in_array($get('statut'), ['saisie', 'signee', 'enregistree', 'archivee']))
+                                    ->columns(2)
+                                    ->collapsible(),
+
+                                // FICHIER SIGNÉ
+                                Forms\Components\Section::make('Signature')
+                                    ->schema([
+                                        Forms\Components\FileUpload::make('fichier_signe')
+                                            ->label('Fichier signé (PDF)')
+                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/signees')
+                                            ->required(fn(Get $get) => $get('statut') === 'signee'),
+                                    ])
+                                    ->visible(fn(Get $get) => in_array($get('statut'), ['signee', 'enregistree', 'archivee']))
+                                    ->collapsible(),
+
+                                // FICHIER ENREGISTRÉ
+                                Forms\Components\Section::make('Enregistrement')
+                                    ->schema([
+                                        Forms\Components\FileUpload::make('fichier_enregistre')
+                                            ->label('Fichier enregistré (PDF)')
+                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/enregistrees')
+                                            ->required(fn(Get $get) => $get('statut') === 'enregistree'),
+                                    ])
+                                    ->visible(fn(Get $get) => in_array($get('statut'), ['enregistree', 'archivee']))
+                                    ->collapsible(),
+
+                                Forms\Components\FileUpload::make('fichier_scan')
+                                    ->label('Autre fichier scanné')
+                                    ->acceptedFileTypes(['application/pdf'])
+                                    ->maxSize(10240)
+                                    ->directory('decisions/scans')
+                                    ->columnSpanFull(),
+                            ]),
+                        // ✅ ONGLET 6 : ENREGISTREMENT
+                        Forms\Components\Tabs\Tab::make('Enregistrement')
+                            ->schema([
+                                Forms\Components\Section::make('Références d\'enregistrement')
+                                    ->description('À remplir lors du statut "Enregistrée"')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('numero_volume')
+                                            ->label('N° Volume')
+                                            ->maxLength(255)
+                                            ->required(fn(Get $get) => $get('statut') === 'enregistree'),
+
+                                        Forms\Components\TextInput::make('numero_folio')
+                                            ->label('N° Folio')
+                                            ->maxLength(255)
+                                            ->required(fn(Get $get) => $get('statut') === 'enregistree'),
+
+                                        Forms\Components\TextInput::make('numero_case_bd')
+                                            ->label('N° Case BD')
+                                            ->maxLength(255)
+                                            ->required(fn(Get $get) => $get('statut') === 'enregistree'),
+
+                                        Forms\Components\TextInput::make('numero_quittance')
+                                            ->label('N° Quittance')
+                                            ->maxLength(255)
+                                            ->required(fn(Get $get) => $get('statut') === 'enregistree'),
+
+                                        Forms\Components\TextInput::make('montant_quittance')
+                                            ->label('Montant de la quittance')
+                                            ->numeric()
+                                            ->suffix('FCFA')
+                                            ->required(fn(Get $get) => $get('statut') === 'enregistree'),
+                                    ])
+                                    ->columns(3)
+                                    ->visible(fn(Get $get) => in_array($get('statut'), ['enregistree', 'archivee'])),
+                            ]),
+
+                        // ✅ ONGLET 7 : CERTIFICAT & GROSSE (Sans opposition)
+                        Forms\Components\Tabs\Tab::make('Certificat & Grosse')
+                            ->schema([
+                                Forms\Components\Toggle::make('a_opposition')
+                                    ->label('Cette décision a fait l\'objet d\'une opposition')
+                                    ->helperText('Cochez si une opposition a été déposée')
+                                    ->live()
+                                    ->columnSpanFull(),
+
+                                // SI PAS D'OPPOSITION
+                                Forms\Components\Section::make('Certificat de non-appel')
+                                    ->description('À remplir uniquement s\'il n\'y a pas d\'opposition')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('certificat_non_appel_reference')
+                                            ->label('Référence du certificat')
+                                            ->maxLength(255),
+
+                                        Forms\Components\DatePicker::make('certificat_non_appel_date')
+                                            ->label('Date du certificat')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y'),
+
+                                        Forms\Components\FileUpload::make('certificat_non_appel_fichier')
+                                            ->label('Fichier du certificat (PDF)')
+                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/certificats')
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn(Get $get) => !$get('a_opposition'))
+                                    ->collapsible(),
+
+                                Forms\Components\Section::make('Grosse')
+                                    ->description('À remplir uniquement s\'il n\'y a pas d\'opposition')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('grosse_reference')
+                                            ->label('Référence de la grosse')
+                                            ->maxLength(255),
+
+                                        Forms\Components\DatePicker::make('grosse_date')
+                                            ->label('Date de la grosse')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y'),
+
+                                        Forms\Components\FileUpload::make('grosse_fichier')
+                                            ->label('Fichier de la grosse (PDF)')
+                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/grosses')
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn(Get $get) => !$get('a_opposition'))
+                                    ->collapsible(),
+
+                                // SI OPPOSITION
+                                Forms\Components\Section::make('Lettre d\'opposition')
+                                    ->description('Références de la lettre d\'opposition')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('lettre_opposition_reference')
+                                            ->label('Référence de la lettre')
+                                            ->maxLength(255)
+                                            ->required(fn(Get $get) => $get('a_opposition')),
+
+                                        Forms\Components\DatePicker::make('lettre_opposition_date')
+                                            ->label('Date de la lettre')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y')
+                                            ->required(fn(Get $get) => $get('a_opposition')),
+
+                                        Forms\Components\FileUpload::make('lettre_opposition_fichier')
+                                            ->label('Fichier de la lettre (PDF)')
+                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/oppositions')
+                                            ->required(fn(Get $get) => $get('a_opposition'))
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn(Get $get) => $get('a_opposition'))
+                                    ->collapsible(),
+
+                                Forms\Components\Placeholder::make('info_recours')
+                                    ->label('')
+                                    ->content(new \Illuminate\Support\HtmlString(
+                                        '<div style="padding: 1rem; background: #fee2e2; border-left: 4px solid #dc2626; border-radius: 0.5rem;">' .
+                                            '<strong>⚠️ Opposition détectée</strong><br>' .
+                                            'Le module Recours sera activé pour traiter cette opposition.' .
+                                            '</div>'
+                                    ))
+                                    ->visible(fn(Get $get) => $get('a_opposition'))
+                                    ->columnSpanFull(),
+                            ])
+                            ->visible(fn(Get $get) => in_array($get('statut'), ['enregistree', 'archivee'])),
+
+                        // ✅ ONGLET 8 : GESTION
                         Forms\Components\Tabs\Tab::make('Gestion')
                             ->schema([
                                 Forms\Components\Select::make('greffier_responsable_id')
@@ -320,17 +518,16 @@ class DecisionResource extends Resource
                                     ->preload()
                                     ->helperText('Greffier chargé du suivi de la décision'),
 
-                                Forms\Components\FileUpload::make('fichier_scan')
-                                    ->label('Fichier scanné (PDF)')
-                                    ->acceptedFileTypes(['application/pdf'])
-                                    ->maxSize(10240)
-                                    ->directory('decisions/scans')
-                                    ->columnSpanFull(),
+                                Forms\Components\Toggle::make('is_archived')
+                                    ->label('Archiver cette décision')
+                                    ->helperText('Une fois archivée, la décision ne peut plus être modifiée')
+                                    ->visible(fn(Get $get) => $get('statut') === 'enregistree'),
                             ])->columns(2),
                     ])->columnSpanFull(),
             ]);
     }
 
+    // ✅ TABLE
     public static function table(Table $table): Table
     {
         return $table
@@ -342,16 +539,11 @@ class DecisionResource extends Resource
                     ->badge()
                     ->color('primary'),
 
-                Tables\Columns\TextColumn::make('numero_rg')
-                    ->label('N° RG')
-                    ->searchable()
-                    ->sortable()
-                    ->copyable(),
-
                 Tables\Columns\TextColumn::make('numero_repertoire')
                     ->label('N° Décision')
                     ->searchable()
-                    ->toggleable(),
+                    ->badge()
+                    ->copyable(),
 
                 Tables\Columns\TextColumn::make('date_decision')
                     ->label('Date')
@@ -368,12 +560,6 @@ class DecisionResource extends Resource
                     ->label('Composition')
                     ->getStateUsing(fn($record) => $record->composition)
                     ->wrap()
-                    ->toggleable(),
-
-                Tables\Columns\TextColumn::make('tribunal.nom')
-                    ->label('Tribunal')
-                    ->searchable()
-                    ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('statut')
@@ -381,23 +567,32 @@ class DecisionResource extends Resource
                     ->badge()
                     ->color(fn(string $state): string => match ($state) {
                         'brouillon' => 'gray',
-                        'transmise_chef' => 'warning',
-                        'signee' => 'info',
+                        'validee' => 'info',
+                        'saisie' => 'warning',
+                        'signee' => 'primary',
                         'enregistree' => 'success',
-                        'annulee' => 'danger',
                         'archivee' => 'secondary',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn(string $state): string => match ($state) {
                         'brouillon' => 'Brouillon',
-                        'transmise_chef' => 'Transmise',
+                        'validee' => 'Validée',
+                        'saisie' => 'Saisie',
                         'signee' => 'Signée',
                         'enregistree' => 'Enregistrée',
-                        'annulee' => 'Annulée',
                         'archivee' => 'Archivée',
                         default => $state,
                     })
                     ->sortable(),
+
+                Tables\Columns\IconColumn::make('a_opposition')
+                    ->label('Opposition')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-exclamation-triangle')
+                    ->falseIcon('heroicon-o-check-circle')
+                    ->trueColor('danger')
+                    ->falseColor('success')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Créé le')
@@ -409,11 +604,18 @@ class DecisionResource extends Resource
                 Tables\Filters\SelectFilter::make('statut')
                     ->options([
                         'brouillon' => 'Brouillon',
-                        'transmise_chef' => 'Transmise au chef',
+                        'validee' => 'Validée',
+                        'saisie' => 'Saisie',
                         'signee' => 'Signée',
                         'enregistree' => 'Enregistrée',
                         'archivee' => 'Archivée',
                     ]),
+
+                Tables\Filters\TernaryFilter::make('a_opposition')
+                    ->label('Opposition')
+                    ->placeholder('Tous')
+                    ->trueLabel('Avec opposition')
+                    ->falseLabel('Sans opposition'),
 
                 Tables\Filters\SelectFilter::make('mode_composition')
                     ->label('Mode de composition')
@@ -425,32 +627,36 @@ class DecisionResource extends Resource
                 Tables\Filters\SelectFilter::make('tribunal_id')
                     ->label('Tribunal')
                     ->relationship('tribunal', 'nom'),
-
-                Tables\Filters\Filter::make('date_decision')
-                    ->form([
-                        Forms\Components\DatePicker::make('date_from')
-                            ->label('Du'),
-                        Forms\Components\DatePicker::make('date_to')
-                            ->label('Au'),
-                    ])
-                    ->query(function ($query, array $data) {
-                        return $query
-                            ->when($data['date_from'], fn($q, $date) => $q->whereDate('date_decision', '>=', $date))
-                            ->when($data['date_to'], fn($q, $date) => $q->whereDate('date_decision', '<=', $date));
-                    }),
             ])
             ->actions([
-                Tables\Actions\Action::make('creer_decision')
-                    ->label('Créer une décision')
-                    ->icon('heroicon-o-scale')
+                // ✅ ACTIONS DE WORKFLOW
+                Tables\Actions\Action::make('valider')
+                    ->label('Valider')
+                    ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
-                    ->url(fn($record) => DecisionResource::getUrl('create', ['dossier_id' => $record->id]))
-                    ->tooltip('Créer une décision pour ce dossier'),
+                    ->visible(fn($record) => $record->peutEtreValidee())
+                    ->requiresConfirmation()
+                    ->action(function ($record) {
+                        $record->update(['statut' => 'validee']);
 
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => $record->estModifiable()),
+                        \Filament\Notifications\Notification::make()
+                            ->title('Décision validée')
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\EditAction::make()
+                        ->visible(fn($record) => $record->estModifiable()),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn($record) => $record->estModifiable()),
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

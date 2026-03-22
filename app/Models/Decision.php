@@ -14,27 +14,36 @@ class Decision extends Model
 
     protected $fillable = [
         'dossier_id',
-        'numero_rg',
         'numero_repertoire',
         'numero_parquet',
+        //ENREGISTREMENT
+        'numero_volume',
+        'numero_folio',
+        'numero_case_bd',
+        'numero_quittance',
+        'montant_quittance',
+
         'nature_decision_id',
         'tribunal_id',
         'section_id',
         'matiere_id',
         'annee_judiciaire_id',
+        //DATES
         'date_decision',
-        'date_signature',
+        'date_premiere_audience',
         'date_factum',
-        'date_enregistrement',
         'date_saisie',
+        'date_modification',
+        'date_signature',
+        'date_enregistrement',
 
-        // ✅ NOUVELLE COMPOSITION
-        'mode_composition', // juge_unique ou college
+        //COMPOSITION
+        'mode_composition',
         'juge_unique_id',
         'college_juge_id',
         'greffier_id',
 
-        // Anciens champs gardés pour compatibilité si besoin
+        // Anciens champs compatibilité
         'president',
         'juge_1',
         'juge_2',
@@ -48,7 +57,25 @@ class Decision extends Model
         'montant_depens',
         'duree_peine',
         'statut',
+        //FICHIERS
         'fichier_scan',
+        'fichier_saisi',
+        'fichier_saisi_modifie',
+        'fichier_signe',
+        'fichier_enregistre',
+        //CERTIFICAT ET GROSSE
+        'certificat_non_appel_reference',
+        'certificat_non_appel_date',
+        'certificat_non_appel_fichier',
+        'grosse_reference',
+        'grosse_date',
+        'grosse_fichier',
+        //OPPOSITION
+        'a_opposition',
+        'lettre_opposition_reference',
+        'lettre_opposition_date',
+        'lettre_opposition_fichier',
+
         'greffier_responsable_id',
         'detenteur_actuel_id',
         'is_archived',
@@ -58,14 +85,21 @@ class Decision extends Model
 
     protected $casts = [
         'date_decision' => 'date',
-        'date_signature' => 'date',
+        'date_premiere_audience' => 'date',
         'date_factum' => 'date',
+        'date_saisie' => 'date',
+        'date_modification' => 'date',
+        'date_signature' => 'date',
         'date_enregistrement' => 'date',
-        'date_saisie' => 'datetime',
         'date_archivage' => 'date',
+        'certificat_non_appel_date' => 'date',
+        'grosse_date' => 'date',
+        'lettre_opposition_date' => 'date',
         'montant_amende' => 'decimal:2',
         'montant_depens' => 'decimal:2',
+        'montant_quittance' => 'decimal:2',
         'is_archived' => 'boolean',
+        'a_opposition' => 'boolean',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -163,10 +197,10 @@ class Decision extends Model
         return $this->collegeJuge?->designation ?? 'Collège non défini';
     }
 
-    // Helpers existants
+    // Helpers
     public function estModifiable(): bool
     {
-        return $this->statut === 'brouillon';
+        return in_array($this->statut, ['brouillon', 'validee']);
     }
 
     public function peutEtreValidee(): bool
@@ -174,24 +208,29 @@ class Decision extends Model
         return $this->statut === 'brouillon';
     }
 
-    public function peutEtreAnnulee(): bool
+    public function peutEtreSaisie(): bool
     {
-        return in_array($this->statut, ['validee', 'transmise_chef', 'signee']);
-    }
-
-    public function peutEtreTransmise(): bool
-    {
-        return $this->statut === 'brouillon';
+        return $this->statut === 'validee';
     }
 
     public function peutEtreSignee(): bool
     {
-        return $this->statut === 'transmise_chef';
+        return $this->statut === 'saisie';
     }
 
     public function peutEtreEnregistree(): bool
     {
         return $this->statut === 'signee';
+    }
+
+    public function peutEtreArchivee(): bool
+    {
+        return $this->statut === 'enregistree';
+    }
+
+    public function peutEtreTransmise(): bool
+    {
+        return $this->statut === 'brouillon';
     }
 
     public function estVisiblePar(User $user): bool
