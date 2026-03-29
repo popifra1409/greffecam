@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Widgets;
+namespace App\Modules\DecisionRecours\Filament\Widgets;
 
 use App\Models\TransmissionDecision;
 use Filament\Tables;

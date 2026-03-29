@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Widgets;
+namespace App\Modules\DecisionRecours\Filament\Widgets;
 
 use App\Models\Decision;
 use App\Models\AnneeJudiciaire;

@@ -39,12 +39,16 @@ class DecisionRecoursPanelProvider extends PanelProvider
                 for: 'App\\Modules\\DecisionRecours\\Filament\\Pages'
             )
             ->pages([
-                Pages\Dashboard::class,
+                \App\Modules\DecisionRecours\Filament\Pages\Dashboard::class, // ✅ Dashboard personnalisé
             ])
             ->discoverWidgets(
                 in: app_path('Modules/DecisionRecours/Filament/Widgets'),
                 for: 'App\\Modules\\DecisionRecours\\Filament\\Widgets'
             )
+            ->widgets([
+                    // Les widgets sont chargés automatiquement par le Dashboard
+                Widgets\AccountWidget::class,
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

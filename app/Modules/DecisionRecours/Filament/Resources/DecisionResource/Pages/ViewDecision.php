@@ -345,9 +345,9 @@ class ViewDecision extends ViewRecord
                         ->label('')
                         ->content(new \Illuminate\Support\HtmlString(
                             '<div style="padding: 1rem; background: #fee2e2; border-left: 4px solid #dc2626; border-radius: 0.5rem;">' .
-                                '<strong>⚠️ Attention</strong><br>' .
-                                'En déclarant une opposition, le module Recours sera activé pour traiter cette affaire.' .
-                                '</div>'
+                            '<strong>⚠️ Attention</strong><br>' .
+                            'En déclarant une opposition, le module Recours sera activé pour traiter cette affaire.' .
+                            '</div>'
                         ))
                         ->columnSpanFull(),
                 ])
@@ -411,7 +411,7 @@ class ViewDecision extends ViewRecord
                             ->size('lg')
                             ->weight('bold')
                             ->url(fn($record) => $record->dossier
-                                ? \App\Filament\Resources\DossierResource::getUrl('view', ['record' => $record->dossier])
+                                ? \App\Modules\DecisionRecours\Filament\Resources\DossierResource::getUrl('view', ['record' => $record->dossier])
                                 : null)
                             ->icon('heroicon-o-arrow-top-right-on-square'),
 
@@ -450,9 +450,9 @@ class ViewDecision extends ViewRecord
                             ->html()
                             ->formatStateUsing(fn() => new \Illuminate\Support\HtmlString(
                                 '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
-                                    '<strong>⚖️ Ministère Public</strong><br>' .
-                                    'Le Ministère Public est partie poursuivante d\'office.' .
-                                    '</div>'
+                                '<strong>⚖️ Ministère Public</strong><br>' .
+                                'Le Ministère Public est partie poursuivante d\'office.' .
+                                '</div>'
                             ))
                             ->visible(fn($record) => $record->dossier?->section?->type === 'repressive')
                             ->columnSpanFull(),
@@ -850,9 +850,9 @@ class ViewDecision extends ViewRecord
                             ->html()
                             ->formatStateUsing(fn() => new \Illuminate\Support\HtmlString(
                                 '<div style="padding: 1rem; background: #fee2e2; border-left: 4px solid #dc2626; border-radius: 0.5rem;">' .
-                                    '<strong>⚠️ Opposition enregistrée</strong><br>' .
-                                    'Cette décision a fait l\'objet d\'une opposition. Le module Recours doit être activé.' .
-                                    '</div>'
+                                '<strong>⚠️ Opposition enregistrée</strong><br>' .
+                                'Cette décision a fait l\'objet d\'une opposition. Le module Recours doit être activé.' .
+                                '</div>'
                             ))
                             ->columnSpanFull(),
 

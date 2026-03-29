@@ -17,6 +17,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Modules\Portal\Filament\Pages\Dashboard;
 
 class PortalPanelProvider extends PanelProvider
 {
@@ -31,6 +32,11 @@ class PortalPanelProvider extends PanelProvider
                 'primary' => Color::Blue,
             ])
             ->sidebarCollapsibleOnDesktop()
+
+            // ✅ Désactiver la navigation (pas de menu sidebar)
+            ->navigation(false)
+
+            // ✅ OU garder seulement le dashboard
             ->discoverResources(
                 in: app_path('Modules/Portal/Filament/Resources'),
                 for: 'App\\Modules\\Portal\\Filament\\Resources'
@@ -40,7 +46,8 @@ class PortalPanelProvider extends PanelProvider
                 for: 'App\\Modules\\Portal\\Filament\\Pages'
             )
             ->pages([
-                Pages\Dashboard::class,
+                    // Pages\Dashboard::class,
+                Dashboard::class,
             ])
             ->discoverWidgets(
                 in: app_path('Modules/Portal/Filament/Widgets'),

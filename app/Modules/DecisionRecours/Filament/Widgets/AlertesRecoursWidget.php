@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Widgets;
+namespace App\Modules\DecisionRecours\Filament\Widgets;
 
 use App\Models\AlerteRecours;
 use Filament\Tables;

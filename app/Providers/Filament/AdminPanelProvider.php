@@ -28,34 +28,26 @@ class AdminPanelProvider extends PanelProvider
             ->path('admin')
             ->login()
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Blue,
             ])
-            // ===================================
-            // SIDEBAR CONFIGURATION
-            // ===================================
             ->sidebarCollapsibleOnDesktop()
-
-            // 📂 ORDRE DES GROUPES DE NAVIGATION
             ->navigationGroups([
-                'Gestion Judiciaire',
-                'Référentiels',
-                'Paramétrage',
                 'Administration',
             ])
+            // Pas de resources (tout est dans les modules)
+            ->resources([])
 
-            ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([
                 Pages\Dashboard::class,
             ])
+
+            // ✅ Pas de widgets (déplacés vers les modules)
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                \App\Filament\Widgets\TransmissionsEnAttenteWidget::class,
-                \App\Filament\Widgets\AlertesRecoursWidget::class,
-                \App\Filament\Widgets\DecisionsStatsWidget::class,
                 Widgets\AccountWidget::class,
-                //Widgets\FilamentInfoWidget::class,
             ])
+
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -69,6 +61,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ]);
+            ])
+            ->brandName('Administration');
     }
 }
