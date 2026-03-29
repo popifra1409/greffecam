@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Modules\DecisionRecours\Filament\Resources\UserResource\Pages;
+namespace App\Modules\Portal\Filament\Resources\UserResource\Pages;
 
-use App\Modules\DecisionRecours\Filament\Resources\UserResource;
+use App\Modules\Portal\Filament\Resources\UserResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 

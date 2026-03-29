@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Modules\DecisionRecours\Filament\Resources\PermissionResource\Pages;
+namespace App\Modules\Portal\Filament\Resources\PermissionResource\Pages;
 
-use App\Modules\DecisionRecours\Filament\Resources\PermissionResource;
+use App\Modules\Portal\Filament\Resources\PermissionResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
