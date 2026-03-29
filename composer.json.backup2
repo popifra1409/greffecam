@@ -32,8 +32,7 @@
       "App\\": "app/",
       "Database\\Factories\\": "database/factories/",
       "Database\\Seeders\\": "database/seeders/",
-      "App\\Modules\\DecisionRecours\\": "app/Modules/DecisionRecours/",
-      "App\\Modules\\Portal\\": "app/Modules/Portal/"
+      "App\\Modules\\DecisionRecours\\": "app/Modules/DecisionRecours/"
     }
   },
   "autoload-dev": {
