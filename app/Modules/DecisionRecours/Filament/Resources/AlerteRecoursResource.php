@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\AlerteRecoursResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\AlerteRecoursResource\Pages;
 use App\Models\AlerteRecours;
 use Filament\Forms;
 use Filament\Forms\Form;

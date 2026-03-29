@@ -1,42 +1,41 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\GreffierResource\Pages;
-use App\Models\Greffier;
+use App\Modules\DecisionRecours\Filament\Resources\JugeResource\Pages;
+use App\Models\Juge;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-class GreffierResource extends Resource
+class JugeResource extends Resource
 {
-    protected static ?string $model = Greffier::class;
+    protected static ?string $model = Juge::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-identification';
+    protected static ?string $navigationIcon = 'heroicon-o-scale';
 
     protected static ?string $navigationGroup = 'Paramétrage';
 
-    protected static ?string $modelLabel = 'Greffier';
+    protected static ?string $modelLabel = 'Juge';
 
-    protected static ?string $pluralModelLabel = 'Greffiers';
+    protected static ?string $pluralModelLabel = 'Juges';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Informations du greffier')
+                Forms\Components\Section::make('Informations du juge')
                     ->schema([
                         Forms\Components\Select::make('tribunal_id')
                             ->label('Tribunal')
                             ->relationship('tribunal', 'nom')
                             ->required()
                             ->searchable()
-                            ->preload()
-                            ->live(),
+                            ->preload(),
 
                         Forms\Components\TextInput::make('matricule')
                             ->label('Matricule')
@@ -49,6 +48,7 @@ class GreffierResource extends Resource
                             ->options([
                                 'M.' => 'Monsieur',
                                 'Mme' => 'Madame',
+                                'Me' => 'Maître',
                             ])
                             ->default('M.'),
 
@@ -62,15 +62,10 @@ class GreffierResource extends Resource
                             ->required()
                             ->maxLength(255),
 
-                        Forms\Components\Select::make('grade')
+                        Forms\Components\TextInput::make('grade')
                             ->label('Grade')
-                            ->options([
-                                'Greffier en Chef' => 'Greffier en Chef',
-                                'Greffier Principal' => 'Greffier Principal',
-                                'Greffier' => 'Greffier',
-                                'Greffier Adjoint' => 'Greffier Adjoint',
-                            ])
-                            ->searchable(),
+                            ->maxLength(255)
+                            ->placeholder('Ex: Magistrat 1er grade'),
 
                         Forms\Components\TextInput::make('email')
                             ->label('Email')
@@ -82,35 +77,10 @@ class GreffierResource extends Resource
                             ->tel()
                             ->maxLength(255),
 
-                        Forms\Components\Toggle::make('est_chef')
-                            ->label('Greffier en Chef')
-                            ->helperText('Cochez si ce greffier est le greffier en chef du tribunal')
-                            ->default(false),
-
                         Forms\Components\Toggle::make('is_active')
                             ->label('Actif')
                             ->default(true),
                     ])->columns(2),
-
-                Forms\Components\Section::make('Affectations')
-                    ->schema([
-                        Forms\Components\Select::make('sections')
-                            ->label('Sections affectées')
-                            ->relationship('sections', 'libelle', function ($query, callable $get) {
-                                $tribunalId = $get('tribunal_id');
-                                if ($tribunalId) {
-                                    // Filtrer les sections par le tribunal sélectionné
-                                    // Note: Si vos sections sont globales, retirez ce filtre
-                                    return $query->where('is_active', true);
-                                }
-                                return $query->where('is_active', true);
-                            })
-                            ->multiple()
-                            ->searchable()
-                            ->preload()
-                            ->helperText('Sélectionnez les sections auxquelles ce greffier est affecté')
-                            ->columnSpanFull(),
-                    ]),
             ]);
     }
 
@@ -137,29 +107,15 @@ class GreffierResource extends Resource
                     ->badge()
                     ->color('info'),
 
-                Tables\Columns\IconColumn::make('est_chef')
-                    ->label('Chef')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-star')
-                    ->falseIcon('heroicon-o-user')
-                    ->trueColor('warning')
-                    ->falseColor('gray'),
-
                 Tables\Columns\TextColumn::make('tribunal.nom')
                     ->label('Tribunal')
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('sections_count')
-                    ->label('Sections')
-                    ->counts('sections')
-                    ->badge()
-                    ->color('success'),
-
                 Tables\Columns\TextColumn::make('email')
                     ->label('Email')
                     ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actif')
@@ -171,12 +127,6 @@ class GreffierResource extends Resource
                     ->label('Tribunal')
                     ->relationship('tribunal', 'nom'),
 
-                Tables\Filters\TernaryFilter::make('est_chef')
-                    ->label('Greffier en Chef')
-                    ->placeholder('Tous')
-                    ->trueLabel('Greffiers en Chef uniquement')
-                    ->falseLabel('Greffiers ordinaires'),
-
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Statut')
                     ->placeholder('Tous')
@@ -184,7 +134,6 @@ class GreffierResource extends Resource
                     ->falseLabel('Inactifs uniquement'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -192,24 +141,15 @@ class GreffierResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ])
-            ->defaultSort('nom');
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
+            ]);
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListGreffiers::route('/'),
-            'create' => Pages\CreateGreffier::route('/create'),
-            'edit' => Pages\EditGreffier::route('/{record}/edit'),
-            'view' => Pages\ViewGreffier::route('/{record}'),
+            'index' => Pages\ListJuges::route('/'),
+            'create' => Pages\CreateJuge::route('/create'),
+            'edit' => Pages\EditJuge::route('/{record}/edit'),
         ];
     }
 }

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\TribunalResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\TribunalResource\Pages;
 use App\Models\Tribunal;
 use Filament\Forms;
 use Filament\Forms\Form;

@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\NatureDecisionResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\NatureDecisionResource\Pages;
 use App\Models\NatureDecision;
 use Filament\Forms;
 use Filament\Forms\Form;

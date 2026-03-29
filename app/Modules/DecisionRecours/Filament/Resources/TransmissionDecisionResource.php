@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\TransmissionDecisionResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\TransmissionDecisionResource\Pages;
 use App\Models\TransmissionDecision;
 use Filament\Forms;
 use Filament\Forms\Form;

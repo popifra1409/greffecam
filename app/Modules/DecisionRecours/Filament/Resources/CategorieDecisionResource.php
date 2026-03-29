@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\CategorieDecisionResource\Pages;
-use App\Filament\Resources\CategorieDecisionResource\RelationManagers;
+use App\Modules\DecisionRecours\Filament\Resources\CategorieDecisionResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\CategorieDecisionResource\RelationManagers;
 use App\Models\CategorieDecision;
 use Filament\Forms;
 use Filament\Forms\Form;

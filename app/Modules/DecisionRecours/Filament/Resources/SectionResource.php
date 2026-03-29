@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\SectionResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\SectionResource\Pages;
 use App\Models\Section;
 use Filament\Forms;
 use Filament\Forms\Form;

@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\InfractionResource\Pages;
-use App\Filament\Resources\InfractionResource\RelationManagers;
+use App\Modules\DecisionRecours\Filament\Resources\InfractionResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\InfractionResource\RelationManagers;
 use App\Models\Infraction;
 use Filament\Forms;
 use Filament\Forms\Form;

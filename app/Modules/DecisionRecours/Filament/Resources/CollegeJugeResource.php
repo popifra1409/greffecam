@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\CollegeJugeResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\CollegeJugeResource\Pages;
 use App\Models\CollegeJuge;
 use Filament\Forms;
 use Filament\Forms\Form;

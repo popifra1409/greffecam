@@ -1,28 +1,28 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\TypeDecisionResource\Pages;
-use App\Models\TypeDecision;
+use App\Modules\DecisionRecours\Filament\Resources\MatiereResource\Pages;
+use App\Models\Matiere;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 
-class TypeDecisionResource extends Resource
+class MatiereResource extends Resource
 {
-    protected static ?string $model = TypeDecision::class;
+    protected static ?string $model = Matiere::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-document-text';
+    protected static ?string $navigationIcon = 'heroicon-o-folder';
 
-    protected static ?string $navigationGroup = 'Référentiels';
+    protected static ?string $navigationGroup = 'Paramétrage';
 
-    protected static ?string $modelLabel = 'Type de décision';
+    protected static ?string $modelLabel = 'Matière';
 
-    protected static ?string $pluralModelLabel = 'Types de décisions';
+    protected static ?string $pluralModelLabel = 'Matières';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 4;
 
     public static function form(Form $form): Form
     {
@@ -30,9 +30,9 @@ class TypeDecisionResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Informations')
                     ->schema([
-                        Forms\Components\Select::make('categorie_decision_id')
-                            ->label('Catégorie de décision')
-                            ->relationship('categorieDecision', 'libelle')
+                        Forms\Components\Select::make('section_id')
+                            ->label('Section')
+                            ->relationship('section', 'libelle')
                             ->required()
                             ->searchable()
                             ->preload()
@@ -44,23 +44,13 @@ class TypeDecisionResource extends Resource
                                     ->label('Code')
                                     ->required()
                                     ->maxLength(20),
-                                Forms\Components\Textarea::make('description')
-                                    ->label('Description')
-                                    ->rows(2),
                             ]),
 
-                        Forms\Components\TextInput::make('libelle')
-                            ->label('Libellé')
+                        Forms\Components\TextInput::make('designation')
+                            ->label('Désignation')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Ex: Jugement au fond, Ordonnance de référé'),
-
-                        Forms\Components\TextInput::make('code')
-                            ->label('Code')
-                            ->required()
-                            ->maxLength(20)
-                            ->unique(ignoreRecord: true)
-                            ->placeholder('Ex: JUG_FOND, ORD_REF'),
+                            ->placeholder('Ex: Droit du travail, Accidents de circulation'),
 
                         Forms\Components\Textarea::make('description')
                             ->label('Description')
@@ -80,22 +70,15 @@ class TypeDecisionResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('categorieDecision.libelle')
-                    ->label('Catégorie')
+                Tables\Columns\TextColumn::make('section.libelle')
+                    ->label('Section')
                     ->searchable()
                     ->sortable()
                     ->badge()
                     ->color('info'),
 
-                Tables\Columns\TextColumn::make('code')
-                    ->label('Code')
-                    ->searchable()
-                    ->sortable()
-                    ->badge()
-                    ->color('primary'),
-
-                Tables\Columns\TextColumn::make('libelle')
-                    ->label('Libellé')
+                Tables\Columns\TextColumn::make('designation')
+                    ->label('Désignation')
                     ->searchable()
                     ->sortable()
                     ->wrap(),
@@ -105,6 +88,12 @@ class TypeDecisionResource extends Resource
                     ->boolean()
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('decisions_count')
+                    ->label('Nb. Décisions')
+                    ->counts('decisions')
+                    ->badge()
+                    ->color('primary'),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Créé le')
                     ->dateTime('d/m/Y H:i')
@@ -112,9 +101,9 @@ class TypeDecisionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('categorie_decision_id')
-                    ->label('Catégorie')
-                    ->relationship('categorieDecision', 'libelle'),
+                Tables\Filters\SelectFilter::make('section_id')
+                    ->label('Section')
+                    ->relationship('section', 'libelle'),
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Statut')
@@ -131,15 +120,15 @@ class TypeDecisionResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('categorieDecision.libelle');
+            ->defaultSort('section.libelle');
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ListTypeDecisions::route('/'),
-            'create' => Pages\CreateTypeDecision::route('/create'),
-            'edit' => Pages\EditTypeDecision::route('/{record}/edit'),
+            'index' => Pages\ListMatieres::route('/'),
+            'create' => Pages\CreateMatiere::route('/create'),
+            'edit' => Pages\EditMatiere::route('/{record}/edit'),
         ];
     }
 }

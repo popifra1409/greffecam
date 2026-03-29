@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\DossierResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\DossierResource\Pages;
 use App\Models\Dossier;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -28,7 +28,7 @@ class DossierResource extends Resource
     public static function getRelations(): array
     {
         return [
-            \App\Filament\Resources\DossierResource\RelationManagers\DecisionsRelationManager::class,
+            \App\Modules\DecisionRecours\Filament\Resources\DossierResource\RelationManagers\DecisionsRelationManager::class,
         ];
     }
 
@@ -583,7 +583,7 @@ class DossierResource extends Resource
                         ->icon('heroicon-o-scale')
                         ->color('success')
                         ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
-                        ->url(fn($record) => \App\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id])),
+                        ->url(fn($record) => \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id])),
 
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make(),

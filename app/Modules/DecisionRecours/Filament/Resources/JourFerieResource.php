@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Filament\Resources;
+namespace App\Modules\DecisionRecours\Filament\Resources;
 
-use App\Filament\Resources\JourFerieResource\Pages;
+use App\Modules\DecisionRecours\Filament\Resources\JourFerieResource\Pages;
 use App\Models\JourFerie;
 use Filament\Forms;
 use Filament\Forms\Form;
