@@ -97,7 +97,7 @@ class ViewDecision extends ViewRecord
                         ->send();
                 }),
 
-            // ✅ ACTION 3 : MODIFIER LE FICHIER SAISI (optionnel, statut saisie)
+            // ✅ ACTION 3 : MODIFIER LE FICHIER SAISI
             Actions\Action::make('modifier_fichier_saisi')
                 ->label('Modifier le fichier saisi')
                 ->icon('heroicon-o-pencil-square')
@@ -120,8 +120,7 @@ class ViewDecision extends ViewRecord
                         ])
                         ->maxSize(10240)
                         ->directory('decisions/saisies')
-                        ->required()
-                        ->helperText('Uploadez la nouvelle version du fichier'),
+                        ->required(),
                 ])
                 ->modalHeading('Modifier le fichier saisi')
                 ->modalSubmitActionLabel('Enregistrer la modification')
@@ -157,8 +156,7 @@ class ViewDecision extends ViewRecord
                         ->acceptedFileTypes(['application/pdf'])
                         ->maxSize(10240)
                         ->directory('decisions/signees')
-                        ->required()
-                        ->helperText('Uploadez le fichier PDF de la décision signée'),
+                        ->required(),
                 ])
                 ->modalHeading('Marquer la décision comme signée')
                 ->modalSubmitActionLabel('Enregistrer')
@@ -198,12 +196,10 @@ class ViewDecision extends ViewRecord
                                 ->maxSize(10240)
                                 ->directory('decisions/enregistrees')
                                 ->required()
-                                ->helperText('Uploadez le fichier PDF de la décision enregistrée')
                                 ->columnSpanFull(),
                         ])->columns(2),
 
                     Forms\Components\Section::make('Références d\'enregistrement')
-                        ->description('Tous les champs sont obligatoires')
                         ->schema([
                             Forms\Components\TextInput::make('numero_volume')
                                 ->label('N° Volume')
@@ -249,17 +245,260 @@ class ViewDecision extends ViewRecord
 
                     \Filament\Notifications\Notification::make()
                         ->title('📋 Décision enregistrée')
-                        ->body('La décision est enregistrée. Vous pouvez maintenant ajouter le certificat/grosse ou déclarer une opposition.')
+                        ->body('Vous pouvez maintenant enregistrer la signification et les recours.')
                         ->success()
                         ->send();
                 }),
 
-            // ✅ ACTION 6 : CERTIFICAT & GROSSE (statut enregistree, sans opposition)
+            // ✅ NOUVEAU : ACTION 6 : SIGNIFIER LA DÉCISION
+            Actions\Action::make('signifier')
+                ->label('Enregistrer la signification')
+                ->icon('heroicon-o-bell-alert')
+                ->color('warning')
+                ->visible(fn($record) => in_array($record->statut, ['signee', 'enregistree']) && !$record->est_signifiee)
+                ->form([
+                    Forms\Components\DatePicker::make('date_signification')
+                        ->label('Date de signification')
+                        ->required()
+                        ->native(false)
+                        ->displayFormat('d/m/Y')
+                        ->default(now())
+                        ->helperText('Date de remise de la copie par huissier'),
+
+                    Forms\Components\TextInput::make('reference_acte_huissier')
+                        ->label('Référence acte d\'huissier')
+                        ->maxLength(255),
+
+                    Forms\Components\FileUpload::make('fichier_signification')
+                        ->label('Acte de signification (PDF)')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(10240)
+                        ->directory('decisions/significations')
+                        ->columnSpanFull(),
+                ])
+                ->modalHeading('Enregistrer la signification')
+                ->modalSubmitActionLabel('Enregistrer')
+                ->action(function ($record, array $data) {
+                    $record->update([
+                        'est_signifiee' => true,
+                        'date_signification' => $data['date_signification'],
+                        'reference_acte_huissier' => $data['reference_acte_huissier'],
+                        'fichier_signification' => $data['fichier_signification'],
+                    ]);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('📬 Signification enregistrée')
+                        ->body('La décision a été signifiée. Vous pouvez maintenant enregistrer un recours.')
+                        ->success()
+                        ->send();
+                }),
+
+            // ✅ NOUVEAU : ACTION 7 : DÉCLARER UN APPEL
+            // Dans ViewDecision.php, remplacez l'action declarer_appel par :
+
+            Actions\Action::make('declarer_appel')
+                ->label('Déclarer un appel')
+                ->icon('heroicon-o-scale')
+                ->color('danger')
+                ->visible(
+                    fn($record) =>
+                    in_array($record->statut, ['validee', 'saisie', 'signee', 'enregistree']) &&
+                    !$record->type_recours
+                )
+                ->form([
+                    Forms\Components\Placeholder::make('info_appel')
+                        ->label('')
+                        ->content(new \Illuminate\Support\HtmlString(
+                            '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
+                            '<strong>✅ APPEL (Décision contradictoire)</strong><br>' .
+                            'Peut être déclaré DÈS LE PRONONCÉ, même avant saisie/signature.' .
+                            '</div>'
+                        ))
+                        ->columnSpanFull(),
+
+                    Forms\Components\TextInput::make('lettre_appel_reference')
+                        ->label('Référence de la lettre d\'appel')
+                        ->required()
+                        ->maxLength(255),
+
+                    Forms\Components\DatePicker::make('lettre_appel_date')
+                        ->label('Date de déclaration d\'appel')
+                        ->required()
+                        ->native(false)
+                        ->displayFormat('d/m/Y')
+                        ->default(now())
+                        ->after('date_decision'),
+
+                    Forms\Components\FileUpload::make('lettre_appel_fichier')
+                        ->label('Lettre de déclaration d\'appel (PDF)')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(10240)
+                        ->directory('decisions/appels')
+                        ->required()
+                        ->columnSpanFull(),
+
+                    // ✅ NOUVEAU : Informations du recours
+                    Forms\Components\Section::make('Informations du recours')
+                        ->schema([
+                            Forms\Components\Select::make('type_recours_detail')
+                                ->label('Type de recours en appel')
+                                ->options([
+                                    'appel' => 'Appel',
+                                    'appel_incident' => 'Appel incident',
+                                    'appel_principal' => 'Appel principal',
+                                ])
+                                ->default('appel')
+                                ->required(),
+
+                            Forms\Components\Textarea::make('motifs_recours')
+                                ->label('Motifs du recours')
+                                ->rows(3)
+                                ->columnSpanFull()
+                                ->helperText('Résumé des motifs invoqués par l\'appelant'),
+                        ])
+                        ->collapsible(),
+                ])
+                ->modalHeading('Déclarer un appel')
+                ->modalSubmitActionLabel('Enregistrer l\'appel')
+                ->modalWidth('2xl')
+                ->action(function ($record, array $data) {
+                    // ✅ 1. Mettre à jour la décision
+                    $record->update([
+                        'type_recours' => 'appel',
+                        'lettre_appel_reference' => $data['lettre_appel_reference'],
+                        'lettre_appel_date' => $data['lettre_appel_date'],
+                        'lettre_appel_fichier' => $data['lettre_appel_fichier'],
+                    ]);
+
+                    // ✅ 2. Créer automatiquement l'enregistrement dans la table recours
+                    $recours = \App\Models\Recours::create([
+                        'decision_id' => $record->id,
+                        'dossier_id' => $record->dossier_id,
+                        'type_recours_id' => \App\Models\TypeRecours::where('code', 'appel')->first()?->id,
+                        'type_recours_detail' => $data['type_recours_detail'] ?? 'appel',
+                        'date_declaration' => $data['lettre_appel_date'],
+                        'reference_lettre' => $data['lettre_appel_reference'],
+                        'fichier_lettre' => $data['lettre_appel_fichier'],
+                        'motifs' => $data['motifs_recours'] ?? null,
+                        'statut' => 'en_cours',
+                        'est_dans_delai' => true, // À calculer selon les délais légaux
+                        'createur_id' => auth()->id(),
+                    ]);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('⚖️ Appel enregistré')
+                        ->body('Le recours N°' . $recours->id . ' a été créé automatiquement.')
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('voir_recours')
+                                ->label('Voir le recours')
+                                ->url(\App\Modules\DecisionRecours\Filament\Resources\RecoursResource::getUrl('view', ['record' => $recours]))
+                                ->button(),
+                        ])
+                        ->success()
+                        ->send();
+                }),
+
+            // ✅ NOUVEAU : ACTION 8 : DÉCLARER UNE OPPOSITION
+            // Remplacez l'action declarer_opposition par :
+
+            Actions\Action::make('declarer_opposition')
+                ->label('Déclarer une opposition')
+                ->icon('heroicon-o-exclamation-triangle')
+                ->color('danger')
+                ->visible(
+                    fn($record) =>
+                    $record->est_signifiee &&
+                    in_array($record->statut, ['signee', 'enregistree']) &&
+                    !$record->type_recours
+                )
+                ->form([
+                    Forms\Components\Placeholder::make('info_opposition')
+                        ->label('')
+                        ->content(new \Illuminate\Support\HtmlString(
+                            '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
+                            '<strong>⚠️ OPPOSITION (Décision par défaut)</strong><br>' .
+                            'Uniquement APRÈS SIGNIFICATION de la décision.' .
+                            '</div>'
+                        ))
+                        ->columnSpanFull(),
+
+                    Forms\Components\TextInput::make('lettre_opposition_reference')
+                        ->label('Référence de la lettre d\'opposition')
+                        ->required()
+                        ->maxLength(255),
+
+                    Forms\Components\DatePicker::make('lettre_opposition_date')
+                        ->label('Date de dépôt de l\'opposition')
+                        ->required()
+                        ->native(false)
+                        ->displayFormat('d/m/Y')
+                        ->default(now())
+                        ->after('date_signification'),
+
+                    Forms\Components\FileUpload::make('lettre_opposition_fichier')
+                        ->label('Lettre d\'opposition (PDF)')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->maxSize(10240)
+                        ->directory('decisions/oppositions')
+                        ->required()
+                        ->columnSpanFull(),
+
+                    Forms\Components\Section::make('Informations du recours')
+                        ->schema([
+                            Forms\Components\Textarea::make('motifs_recours')
+                                ->label('Motifs de l\'opposition')
+                                ->rows(3)
+                                ->columnSpanFull()
+                                ->helperText('Résumé des motifs invoqués'),
+                        ])
+                        ->collapsible(),
+                ])
+                ->modalHeading('Déclarer une opposition')
+                ->modalSubmitActionLabel('Enregistrer l\'opposition')
+                ->modalWidth('2xl')
+                ->action(function ($record, array $data) {
+                    // ✅ 1. Mettre à jour la décision
+                    $record->update([
+                        'type_recours' => 'opposition',
+                        'lettre_opposition_reference' => $data['lettre_opposition_reference'],
+                        'lettre_opposition_date' => $data['lettre_opposition_date'],
+                        'lettre_opposition_fichier' => $data['lettre_opposition_fichier'],
+                    ]);
+
+                    // ✅ 2. Créer automatiquement l'enregistrement dans la table recours
+                    $recours = \App\Models\Recours::create([
+                        'decision_id' => $record->id,
+                        'dossier_id' => $record->dossier_id,
+                        'type_recours_id' => \App\Models\TypeRecours::where('code', 'opposition')->first()?->id,
+                        'type_recours_detail' => 'opposition',
+                        'date_declaration' => $data['lettre_opposition_date'],
+                        'reference_lettre' => $data['lettre_opposition_reference'],
+                        'fichier_lettre' => $data['lettre_opposition_fichier'],
+                        'motifs' => $data['motifs_recours'] ?? null,
+                        'statut' => 'en_cours',
+                        'est_dans_delai' => true, // À calculer selon les délais légaux
+                        'createur_id' => auth()->id(),
+                    ]);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('⚠️ Opposition enregistrée')
+                        ->body('Le recours N°' . $recours->id . ' a été créé automatiquement.')
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('voir_recours')
+                                ->label('Voir le recours')
+                                ->url(\App\Modules\DecisionRecours\Filament\Resources\RecoursResource::getUrl('view', ['record' => $recours]))
+                                ->button(),
+                        ])
+                        ->warning()
+                        ->send();
+                }),
+
+            // ✅ ACTION 9 : CERTIFICAT & GROSSE (si pas de recours)
             Actions\Action::make('certificat_grosse')
                 ->label('Certificat & Grosse')
                 ->icon('heroicon-o-document-check')
                 ->color('info')
-                ->visible(fn($record) => $record->statut === 'enregistree' && !$record->a_opposition)
+                ->visible(fn($record) => $record->statut === 'enregistree' && !$record->type_recours)
                 ->form([
                     Forms\Components\Section::make('Certificat de non-appel')
                         ->schema([
@@ -301,7 +540,7 @@ class ViewDecision extends ViewRecord
                         ])->columns(2)
                         ->collapsible(),
                 ])
-                ->modalHeading('Ajouter le certificat de non-appel et la grosse')
+                ->modalHeading('Ajouter certificat et grosse')
                 ->modalSubmitActionLabel('Enregistrer')
                 ->modalWidth('3xl')
                 ->action(function ($record, array $data) {
@@ -309,67 +548,11 @@ class ViewDecision extends ViewRecord
 
                     \Filament\Notifications\Notification::make()
                         ->title('✅ Certificat et grosse enregistrés')
-                        ->body('Les documents ont été ajoutés à la décision.')
                         ->success()
                         ->send();
                 }),
 
-            // ✅ ACTION 7 : DÉCLARER OPPOSITION (statut enregistree)
-            Actions\Action::make('declarer_opposition')
-                ->label('Déclarer une opposition')
-                ->icon('heroicon-o-exclamation-triangle')
-                ->color('danger')
-                ->visible(fn($record) => $record->statut === 'enregistree' && !$record->a_opposition)
-                ->form([
-                    Forms\Components\TextInput::make('lettre_opposition_reference')
-                        ->label('Référence de la lettre d\'opposition')
-                        ->required()
-                        ->maxLength(255),
-
-                    Forms\Components\DatePicker::make('lettre_opposition_date')
-                        ->label('Date de la lettre')
-                        ->required()
-                        ->native(false)
-                        ->displayFormat('d/m/Y')
-                        ->default(now()),
-
-                    Forms\Components\FileUpload::make('lettre_opposition_fichier')
-                        ->label('Fichier de la lettre (PDF)')
-                        ->acceptedFileTypes(['application/pdf'])
-                        ->maxSize(10240)
-                        ->directory('decisions/oppositions')
-                        ->required()
-                        ->columnSpanFull(),
-
-                    Forms\Components\Placeholder::make('info')
-                        ->label('')
-                        ->content(new \Illuminate\Support\HtmlString(
-                            '<div style="padding: 1rem; background: #fee2e2; border-left: 4px solid #dc2626; border-radius: 0.5rem;">' .
-                            '<strong>⚠️ Attention</strong><br>' .
-                            'En déclarant une opposition, le module Recours sera activé pour traiter cette affaire.' .
-                            '</div>'
-                        ))
-                        ->columnSpanFull(),
-                ])
-                ->modalHeading('Déclarer une opposition')
-                ->modalSubmitActionLabel('Enregistrer l\'opposition')
-                ->modalWidth('2xl')
-                ->action(function ($record, array $data) {
-                    $record->update([
-                        'a_opposition' => true,
-                        'lettre_opposition_reference' => $data['lettre_opposition_reference'],
-                        'lettre_opposition_date' => $data['lettre_opposition_date'],
-                        'lettre_opposition_fichier' => $data['lettre_opposition_fichier'],
-                    ]);
-
-                    \Filament\Notifications\Notification::make()
-                        ->title('⚠️ Opposition enregistrée')
-                        ->body('Le module Recours doit être activé pour traiter cette opposition.')
-                        ->warning()
-                        ->send();
-                }),
-
-            // ✅ ACTION 8 : ARCHIVER (enregistree → archivee)
+            // ✅ ACTION 10 : ARCHIVER
             Actions\Action::make('archiver')
                 ->label('Archiver')
                 ->icon('heroicon-o-archive-box')
@@ -383,12 +566,10 @@ class ViewDecision extends ViewRecord
                     $record->update([
                         'statut' => 'archivee',
                         'is_archived' => true,
-                        'date_archivage' => now(),
                     ]);
 
                     \Filament\Notifications\Notification::make()
                         ->title('📦 Décision archivée')
-                        ->body('La décision a été archivée avec succès.')
                         ->success()
                         ->send();
                 }),
@@ -397,6 +578,7 @@ class ViewDecision extends ViewRecord
                 ->visible(fn($record) => $record->estModifiable()),
         ];
     }
+
     public function infolist(Infolist $infolist): Infolist
     {
         return $infolist
@@ -437,90 +619,29 @@ class ViewDecision extends ViewRecord
                     ])->columns(3)
                     ->collapsible(),
 
-                // ✅ SECTION 2 : PARTIES
-                Infolists\Components\Section::make(function ($record) {
-                    if ($record->dossier?->section?->type === 'repressive') {
-                        return 'Ministère Public et Parties Civiles';
-                    }
-                    return 'Demandeurs (Parties requérantes)';
-                })
+                // ✅ SECTION 2 : IDENTIFICATION (NOUVELLE HIÉRARCHIE)
+                Infolists\Components\Section::make('Classification de la décision')
                     ->schema([
-                        Infolists\Components\TextEntry::make('ministere_public_info')
-                            ->label('')
-                            ->html()
-                            ->formatStateUsing(fn() => new \Illuminate\Support\HtmlString(
-                                '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
-                                '<strong>⚖️ Ministère Public</strong><br>' .
-                                'Le Ministère Public est partie poursuivante d\'office.' .
-                                '</div>'
-                            ))
-                            ->visible(fn($record) => $record->dossier?->section?->type === 'repressive')
-                            ->columnSpanFull(),
+                        Infolists\Components\TextEntry::make('categorieDecision.libelle')
+                            ->label('Catégorie')
+                            ->badge()
+                            ->color('gray')
+                            ->size('lg'),
 
-                        Infolists\Components\RepeatableEntry::make('dossier.demandeurs')
-                            ->label(fn($record) => $record->dossier?->section?->type === 'repressive' ? 'Parties Civiles' : 'Demandeurs')
-                            ->schema([
-                                Infolists\Components\TextEntry::make('nom_complet')
-                                    ->label('Identité')
-                                    ->getStateUsing(fn($record) => $record->nom_complet)
-                                    ->weight('bold')
-                                    ->badge()
-                                    ->color('primary'),
+                        Infolists\Components\TextEntry::make('typeDecision.libelle')
+                            ->label('Type')
+                            ->badge()
+                            ->color('info')
+                            ->size('lg'),
 
-                                Infolists\Components\TextEntry::make('profession')
-                                    ->label('Profession')
-                                    ->visible(fn($record) => !$record->est_personne_morale && $record->profession),
+                        Infolists\Components\TextEntry::make('natureDecision.libelle')
+                            ->label('Nature')
+                            ->badge()
+                            ->color('warning')
+                            ->size('lg'),
 
-                                Infolists\Components\TextEntry::make('avocat_nom')
-                                    ->label('Avocat')
-                                    ->badge()
-                                    ->color('gray')
-                                    ->visible(fn($record) => $record->avocat_nom),
-                            ])
-                            ->columns(3)
-                            ->columnSpanFull(),
-                    ])
-                    ->collapsible()
-                    ->collapsed(),
-
-                Infolists\Components\Section::make(function ($record) {
-                    if ($record->dossier?->section?->type === 'repressive') {
-                        return 'Prévenus';
-                    }
-                    return 'Défendeurs (Parties adverses)';
-                })
-                    ->schema([
-                        Infolists\Components\RepeatableEntry::make('dossier.defendeurs')
-                            ->label('')
-                            ->schema([
-                                Infolists\Components\TextEntry::make('nom_complet')
-                                    ->label('Identité')
-                                    ->getStateUsing(fn($record) => $record->nom_complet)
-                                    ->weight('bold')
-                                    ->badge()
-                                    ->color('danger'),
-
-                                Infolists\Components\TextEntry::make('profession')
-                                    ->label('Profession')
-                                    ->visible(fn($record) => !$record->est_personne_morale && $record->profession),
-
-                                Infolists\Components\TextEntry::make('avocat_nom')
-                                    ->label('Avocat')
-                                    ->badge()
-                                    ->color('gray')
-                                    ->visible(fn($record) => $record->avocat_nom),
-                            ])
-                            ->columns(3)
-                            ->columnSpanFull(),
-                    ])
-                    ->collapsible()
-                    ->collapsed(),
-
-                // ✅ SECTION 3 : IDENTIFICATION
-                Infolists\Components\Section::make('Identification de la décision')
-                    ->schema([
                         Infolists\Components\TextEntry::make('numero_repertoire')
-                            ->label('N° Répertoire / Décision')
+                            ->label('N° Répertoire')
                             ->badge()
                             ->color('primary')
                             ->size('lg')
@@ -529,15 +650,9 @@ class ViewDecision extends ViewRecord
                             ->placeholder('Non renseigné'),
 
                         Infolists\Components\TextEntry::make('numero_parquet')
-                            ->label('Numéro Parquet')
+                            ->label('N° Parquet')
                             ->badge()
                             ->placeholder('Non renseigné'),
-
-                        Infolists\Components\TextEntry::make('natureDecision.libelle')
-                            ->label('Nature de la décision')
-                            ->badge()
-                            ->color('info')
-                            ->size('lg'),
 
                         Infolists\Components\TextEntry::make('statut')
                             ->label('Statut')
@@ -561,13 +676,13 @@ class ViewDecision extends ViewRecord
                                 'archivee' => 'Archivée',
                                 default => $state,
                             }),
-                    ])->columns(2),
+                    ])->columns(3),
 
-                // ✅ SECTION 4 : DATES WORKFLOW
+                // ✅ SECTION 3 : DATES
                 Infolists\Components\Section::make('Dates du workflow')
                     ->schema([
                         Infolists\Components\TextEntry::make('date_decision')
-                            ->label('📅 Date de décision')
+                            ->label('📅 Date de décision (Prononcé)')
                             ->date('d/m/Y')
                             ->badge()
                             ->color('primary'),
@@ -614,7 +729,108 @@ class ViewDecision extends ViewRecord
                     ])->columns(3)
                     ->collapsible(),
 
-                // ✅ SECTION 5 : COMPOSITION
+                // ✅ NOUVELLE SECTION : SIGNIFICATION
+                Infolists\Components\Section::make('Signification')
+                    ->schema([
+                        Infolists\Components\IconEntry::make('est_signifiee')
+                            ->label('Décision signifiée')
+                            ->boolean()
+                            ->trueIcon('heroicon-o-check-circle')
+                            ->falseIcon('heroicon-o-x-circle')
+                            ->trueColor('success')
+                            ->falseColor('gray')
+                            ->size('lg'),
+
+                        Infolists\Components\TextEntry::make('date_signification')
+                            ->label('Date de signification')
+                            ->date('d/m/Y')
+                            ->badge()
+                            ->color('warning')
+                            ->placeholder('Non signifiée')
+                            ->visible(fn($record) => $record->est_signifiee),
+
+                        Infolists\Components\TextEntry::make('reference_acte_huissier')
+                            ->label('Référence acte huissier')
+                            ->badge()
+                            ->placeholder('Non renseignée')
+                            ->visible(fn($record) => $record->est_signifiee),
+
+                        Infolists\Components\TextEntry::make('fichier_signification')
+                            ->label('📎 Acte de signification')
+                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
+                            ->openUrlInNewTab()
+                            ->badge()
+                            ->placeholder('Pas de fichier')
+                            ->visible(fn($record) => $record->fichier_signification),
+                    ])->columns(2)
+                    ->visible(fn($record) => $record->est_signifiee)
+                    ->collapsible(),
+
+                // ✅ NOUVELLE SECTION : RECOURS
+                Infolists\Components\Section::make('Voie de recours')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('type_recours')
+                            ->label('Type de recours')
+                            ->badge()
+                            ->size('lg')
+                            ->color(fn(?string $state): string => match ($state) {
+                                'appel' => 'danger',
+                                'opposition' => 'warning',
+                                default => 'gray',
+                            })
+                            ->formatStateUsing(fn(?string $state): string => match ($state) {
+                                'appel' => '⚖️ APPEL (Décision contradictoire)',
+                                'opposition' => '⚠️ OPPOSITION (Décision par défaut)',
+                                default => 'Aucun recours',
+                            })
+                            ->columnSpanFull(),
+
+                        // APPEL
+                        Infolists\Components\TextEntry::make('lettre_appel_reference')
+                            ->label('Référence lettre d\'appel')
+                            ->badge()
+                            ->color('danger')
+                            ->visible(fn($record) => $record->type_recours === 'appel'),
+
+                        Infolists\Components\TextEntry::make('lettre_appel_date')
+                            ->label('Date de déclaration')
+                            ->date('d/m/Y')
+                            ->badge()
+                            ->color('danger')
+                            ->visible(fn($record) => $record->type_recours === 'appel'),
+
+                        Infolists\Components\TextEntry::make('lettre_appel_fichier')
+                            ->label('📎 Lettre d\'appel')
+                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
+                            ->openUrlInNewTab()
+                            ->badge()
+                            ->visible(fn($record) => $record->lettre_appel_fichier),
+
+                        // OPPOSITION
+                        Infolists\Components\TextEntry::make('lettre_opposition_reference')
+                            ->label('Référence lettre d\'opposition')
+                            ->badge()
+                            ->color('warning')
+                            ->visible(fn($record) => $record->type_recours === 'opposition'),
+
+                        Infolists\Components\TextEntry::make('lettre_opposition_date')
+                            ->label('Date de dépôt')
+                            ->date('d/m/Y')
+                            ->badge()
+                            ->color('warning')
+                            ->visible(fn($record) => $record->type_recours === 'opposition'),
+
+                        Infolists\Components\TextEntry::make('lettre_opposition_fichier')
+                            ->label('📎 Lettre d\'opposition')
+                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
+                            ->openUrlInNewTab()
+                            ->badge()
+                            ->visible(fn($record) => $record->lettre_opposition_fichier),
+                    ])->columns(3)
+                    ->visible(fn($record) => $record->type_recours)
+                    ->collapsible(),
+
+                // ✅ COMPOSITION (inchangée)
                 Infolists\Components\Section::make('Composition du Tribunal')
                     ->schema([
                         Infolists\Components\TextEntry::make('mode_composition')
@@ -622,50 +838,21 @@ class ViewDecision extends ViewRecord
                             ->badge()
                             ->size('lg')
                             ->color(fn($state) => $state === 'juge_unique' ? 'info' : 'warning')
-                            ->formatStateUsing(fn($state) => $state === 'juge_unique' ? 'Juge unique' : 'Collège de juges')
-                            ->columnSpanFull(),
+                            ->formatStateUsing(fn($state) => $state === 'juge_unique' ? 'Juge unique' : 'Collège de juges'),
 
                         Infolists\Components\TextEntry::make('jugeUnique.nom_complet')
                             ->label('Juge')
                             ->badge()
                             ->color('primary')
-                            ->size('lg')
                             ->visible(fn($record) => $record->mode_composition === 'juge_unique')
                             ->placeholder('Non renseigné'),
 
                         Infolists\Components\TextEntry::make('collegeJuge.designation')
-                            ->label('Collège de juges')
+                            ->label('Collège')
                             ->badge()
                             ->color('warning')
-                            ->size('lg')
                             ->visible(fn($record) => $record->mode_composition === 'college')
                             ->placeholder('Non renseigné'),
-
-                        Infolists\Components\RepeatableEntry::make('collegeJuge.membres')
-                            ->label('Membres du collège')
-                            ->schema([
-                                Infolists\Components\TextEntry::make('nom_complet')
-                                    ->label('Juge')
-                                    ->getStateUsing(fn($record) => $record->nom_complet)
-                                    ->badge(),
-
-                                Infolists\Components\TextEntry::make('pivot.qualite')
-                                    ->label('Qualité')
-                                    ->badge()
-                                    ->color('info')
-                                    ->formatStateUsing(fn($state) => match ($state) {
-                                        'president' => 'Président',
-                                        'juge_1' => 'Juge 1',
-                                        'juge_2' => 'Juge 2',
-                                        'assesseur_1' => 'Assesseur 1',
-                                        'assesseur_2' => 'Assesseur 2',
-                                        'juge_suppleant' => 'Juge suppléant',
-                                        default => $state,
-                                    }),
-                            ])
-                            ->columns(2)
-                            ->visible(fn($record) => $record->mode_composition === 'college' && $record->collegeJuge)
-                            ->columnSpanFull(),
 
                         Infolists\Components\TextEntry::make('greffierDecision.nom_complet')
                             ->label('Greffier')
@@ -675,7 +862,7 @@ class ViewDecision extends ViewRecord
                     ])->columns(2)
                     ->collapsible(),
 
-                // ✅ SECTION 6 : DÉCISION
+                // ✅ DÉCISION (inchangée)
                 Infolists\Components\Section::make('Contenu de la décision')
                     ->schema([
                         Infolists\Components\TextEntry::make('resume')
@@ -692,30 +879,57 @@ class ViewDecision extends ViewRecord
                     ])
                     ->collapsible(),
 
-                // ✅ SECTION 7 : CONDAMNATIONS
-                Infolists\Components\Section::make('Condamnations')
+                // ✅ CERTIFICAT & GROSSE (si pas de recours)
+                Infolists\Components\Section::make('Certificat de non-appel & Grosse')
                     ->schema([
-                        Infolists\Components\TextEntry::make('montant_amende')
-                            ->label('Amende')
-                            ->money('XAF')
-                            ->placeholder('Aucune'),
+                        Infolists\Components\Grid::make(2)
+                            ->schema([
+                                Infolists\Components\Section::make('Certificat de non-appel')
+                                    ->schema([
+                                        Infolists\Components\TextEntry::make('certificat_non_appel_reference')
+                                            ->label('Référence')
+                                            ->badge()
+                                            ->placeholder('Non renseignée'),
 
-                        Infolists\Components\TextEntry::make('montant_depens')
-                            ->label('Dépens')
-                            ->money('XAF')
-                            ->placeholder('Aucun'),
+                                        Infolists\Components\TextEntry::make('certificat_non_appel_date')
+                                            ->label('Date')
+                                            ->date('d/m/Y')
+                                            ->placeholder('Non renseignée'),
 
-                        Infolists\Components\TextEntry::make('duree_peine')
-                            ->label('Peine privative de liberté')
-                            ->badge()
-                            ->color('danger')
-                            ->placeholder('Aucune'),
-                    ])->columns(3)
-                    ->visible(fn($record) => $record->montant_amende || $record->montant_depens || $record->duree_peine)
+                                        Infolists\Components\TextEntry::make('certificat_non_appel_fichier')
+                                            ->label('📎 Fichier')
+                                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
+                                            ->openUrlInNewTab()
+                                            ->badge()
+                                            ->placeholder('Pas de fichier'),
+                                    ]),
+
+                                Infolists\Components\Section::make('Grosse')
+                                    ->schema([
+                                        Infolists\Components\TextEntry::make('grosse_reference')
+                                            ->label('Référence')
+                                            ->badge()
+                                            ->placeholder('Non renseignée'),
+
+                                        Infolists\Components\TextEntry::make('grosse_date')
+                                            ->label('Date')
+                                            ->date('d/m/Y')
+                                            ->placeholder('Non renseignée'),
+
+                                        Infolists\Components\TextEntry::make('grosse_fichier')
+                                            ->label('📎 Fichier')
+                                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
+                                            ->openUrlInNewTab()
+                                            ->badge()
+                                            ->placeholder('Pas de fichier'),
+                                    ]),
+                            ]),
+                    ])
+                    ->visible(fn($record) => !$record->type_recours && in_array($record->statut, ['enregistree', 'archivee']))
                     ->collapsible()
                     ->collapsed(),
 
-                // ✅ SECTION 8 : FICHIERS
+                // ✅ FICHIERS (inchangée)
                 Infolists\Components\Section::make('Fichiers numériques')
                     ->schema([
                         Infolists\Components\TextEntry::make('fichier_saisi')
@@ -723,18 +937,8 @@ class ViewDecision extends ViewRecord
                             ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
                             ->openUrlInNewTab()
                             ->badge()
-                            ->color('warning')
                             ->placeholder('Pas de fichier')
                             ->visible(fn($record) => in_array($record->statut, ['saisie', 'signee', 'enregistree', 'archivee'])),
-
-                        Infolists\Components\TextEntry::make('fichier_saisi_modifie')
-                            ->label('📝 Fichier saisi modifié')
-                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
-                            ->openUrlInNewTab()
-                            ->badge()
-                            ->color('info')
-                            ->placeholder('Pas de modification')
-                            ->visible(fn($record) => $record->fichier_saisi_modifie),
 
                         Infolists\Components\TextEntry::make('fichier_signe')
                             ->label('✍️ Fichier signé')
@@ -753,18 +957,10 @@ class ViewDecision extends ViewRecord
                             ->color('success')
                             ->placeholder('Pas de fichier')
                             ->visible(fn($record) => in_array($record->statut, ['enregistree', 'archivee'])),
-
-                        Infolists\Components\TextEntry::make('fichier_scan')
-                            ->label('📎 Autre fichier scanné')
-                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
-                            ->openUrlInNewTab()
-                            ->badge()
-                            ->placeholder('Pas de fichier')
-                            ->visible(fn($record) => $record->fichier_scan),
-                    ])->columns(2)
+                    ])->columns(3)
                     ->collapsible(),
 
-                // ✅ SECTION 9 : ENREGISTREMENT
+                // ✅ ENREGISTREMENT (inchangée)
                 Infolists\Components\Section::make('Références d\'enregistrement')
                     ->schema([
                         Infolists\Components\TextEntry::make('numero_volume')
@@ -784,126 +980,11 @@ class ViewDecision extends ViewRecord
                             ->badge(),
 
                         Infolists\Components\TextEntry::make('montant_quittance')
-                            ->label('Montant quittance')
+                            ->label('Montant')
                             ->money('XAF'),
                     ])->columns(3)
                     ->visible(fn($record) => in_array($record->statut, ['enregistree', 'archivee']))
                     ->collapsible(),
-
-                // ✅ SECTION 10 : CERTIFICAT & GROSSE (si pas d'opposition)
-                Infolists\Components\Section::make('Certificat de non-appel & Grosse')
-                    ->schema([
-                        Infolists\Components\Grid::make(2)
-                            ->schema([
-                                Infolists\Components\Section::make('Certificat de non-appel')
-                                    ->schema([
-                                        Infolists\Components\TextEntry::make('certificat_non_appel_reference')
-                                            ->label('Référence')
-                                            ->badge()
-                                            ->placeholder('Non renseignée'),
-
-                                        Infolists\Components\TextEntry::make('certificat_non_appel_date')
-                                            ->label('Date')
-                                            ->date('d/m/Y')
-                                            ->placeholder('Non renseignée'),
-
-                                        Infolists\Components\TextEntry::make('certificat_non_appel_fichier')
-                                            ->label('Fichier')
-                                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
-                                            ->openUrlInNewTab()
-                                            ->badge()
-                                            ->placeholder('Pas de fichier'),
-                                    ])
-                                    ->columnSpan(1),
-
-                                Infolists\Components\Section::make('Grosse')
-                                    ->schema([
-                                        Infolists\Components\TextEntry::make('grosse_reference')
-                                            ->label('Référence')
-                                            ->badge()
-                                            ->placeholder('Non renseignée'),
-
-                                        Infolists\Components\TextEntry::make('grosse_date')
-                                            ->label('Date')
-                                            ->date('d/m/Y')
-                                            ->placeholder('Non renseignée'),
-
-                                        Infolists\Components\TextEntry::make('grosse_fichier')
-                                            ->label('Fichier')
-                                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
-                                            ->openUrlInNewTab()
-                                            ->badge()
-                                            ->placeholder('Pas de fichier'),
-                                    ])
-                                    ->columnSpan(1),
-                            ]),
-                    ])
-                    ->visible(fn($record) => !$record->a_opposition && in_array($record->statut, ['enregistree', 'archivee']))
-                    ->collapsible()
-                    ->collapsed(),
-
-                // ✅ SECTION 11 : OPPOSITION
-                Infolists\Components\Section::make('Opposition')
-                    ->schema([
-                        Infolists\Components\TextEntry::make('opposition_info')
-                            ->label('')
-                            ->html()
-                            ->formatStateUsing(fn() => new \Illuminate\Support\HtmlString(
-                                '<div style="padding: 1rem; background: #fee2e2; border-left: 4px solid #dc2626; border-radius: 0.5rem;">' .
-                                '<strong>⚠️ Opposition enregistrée</strong><br>' .
-                                'Cette décision a fait l\'objet d\'une opposition. Le module Recours doit être activé.' .
-                                '</div>'
-                            ))
-                            ->columnSpanFull(),
-
-                        Infolists\Components\TextEntry::make('lettre_opposition_reference')
-                            ->label('Référence de la lettre')
-                            ->badge()
-                            ->color('danger'),
-
-                        Infolists\Components\TextEntry::make('lettre_opposition_date')
-                            ->label('Date')
-                            ->date('d/m/Y')
-                            ->badge()
-                            ->color('danger'),
-
-                        Infolists\Components\TextEntry::make('lettre_opposition_fichier')
-                            ->label('Fichier')
-                            ->url(fn($state) => $state ? asset('storage/' . $state) : null, true)
-                            ->openUrlInNewTab()
-                            ->badge()
-                            ->color('danger')
-                            ->placeholder('Pas de fichier'),
-                    ])->columns(3)
-                    ->visible(fn($record) => $record->a_opposition)
-                    ->collapsible(),
-
-                // ✅ SECTION 12 : MÉTADONNÉES
-                Infolists\Components\Section::make('Gestion')
-                    ->schema([
-                        Infolists\Components\TextEntry::make('greffierResponsable.name')
-                            ->label('Greffier responsable')
-                            ->badge()
-                            ->placeholder('Non assigné'),
-
-                        Infolists\Components\IconEntry::make('is_archived')
-                            ->label('Archivée')
-                            ->boolean()
-                            ->trueIcon('heroicon-o-archive-box')
-                            ->falseIcon('heroicon-o-folder-open')
-                            ->trueColor('secondary')
-                            ->falseColor('success'),
-
-                        Infolists\Components\TextEntry::make('created_at')
-                            ->label('Créé le')
-                            ->dateTime('d/m/Y à H:i'),
-
-                        Infolists\Components\TextEntry::make('updated_at')
-                            ->label('Modifié le')
-                            ->dateTime('d/m/Y à H:i'),
-                    ])->columns(2)
-                    ->collapsible()
-                    ->collapsed(),
             ]);
     }
 }
