@@ -17,6 +17,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Filament\Navigation\MenuItem;
 
 class DecisionRecoursPanelProvider extends PanelProvider
 {
@@ -29,6 +30,30 @@ class DecisionRecoursPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+            ->userMenuItems([
+                'profile' => MenuItem::make()
+                    ->label('Mon Profil')
+                    ->url(fn() => '/decision-recours/profile')
+                    ->icon('heroicon-o-user-circle'),
+
+                MenuItem::make()
+                    ->label('Portail Principal')
+                    ->url('/portal')
+                    ->icon('heroicon-o-home')
+                    ->sort(10),
+
+                MenuItem::make()
+                    ->label('Administration')
+                    ->url('/portal/users')
+                    ->icon('heroicon-o-cog-6-tooth')
+                    ->visible(fn() => auth()->user()->hasAnyRole(['Super Administrateur', 'Administrateur']))
+                    ->sort(20),
+
+                'logout' => MenuItem::make()->label('Déconnexion'),
+            ])
+            ->globalSearch(true)
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
             ->sidebarCollapsibleOnDesktop()
             ->discoverResources(
                 in: app_path('Modules/DecisionRecours/Filament/Resources'),

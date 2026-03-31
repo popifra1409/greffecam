@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
@@ -28,6 +29,10 @@ class Decision extends Model
         'section_id',
         'matiere_id',
         'annee_judiciaire_id',
+
+        // Hiérarchie
+        'categorie_decision_id',
+        'type_decision_id',
         //DATES
         'date_decision',
         'date_premiere_audience',
@@ -36,6 +41,21 @@ class Decision extends Model
         'date_modification',
         'date_signature',
         'date_enregistrement',
+
+        // Signification
+        'est_signifiee',
+        'date_signification',
+        'reference_acte_huissier',
+        'fichier_signification',
+
+        // Recours 
+        'type_recours',
+        'lettre_appel_reference',
+        'lettre_appel_date',
+        'lettre_appel_fichier',
+        'lettre_opposition_reference',
+        'lettre_opposition_date',
+        'lettre_opposition_fichier',
 
         //COMPOSITION
         'mode_composition',
@@ -91,9 +111,12 @@ class Decision extends Model
         'date_modification' => 'date',
         'date_signature' => 'date',
         'date_enregistrement' => 'date',
+        'date_signification' => 'date',
+        'lettre_appel_date' => 'date',
         'date_archivage' => 'date',
         'certificat_non_appel_date' => 'date',
         'grosse_date' => 'date',
+        'est_signifiee' => 'boolean',
         'lettre_opposition_date' => 'date',
         'montant_amende' => 'decimal:2',
         'montant_depens' => 'decimal:2',
@@ -110,7 +133,16 @@ class Decision extends Model
             ->dontSubmitEmptyLogs();
     }
 
-    // ✅ NOUVELLES RELATIONS
+    public function categorieDecision(): BelongsTo
+    {
+        return $this->belongsTo(CategorieDecision::class);
+    }
+
+    public function typeDecision(): BelongsTo
+    {
+        return $this->belongsTo(TypeDecision::class);
+    }
+
     public function dossier()
     {
         return $this->belongsTo(Dossier::class);

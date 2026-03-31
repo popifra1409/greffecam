@@ -10,9 +10,11 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Get;
+use App\Traits\HasResourcePermissions;
 
 class DossierResource extends Resource
 {
+    use HasResourcePermissions;
     protected static ?string $model = Dossier::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-folder-open';
@@ -24,6 +26,28 @@ class DossierResource extends Resource
     protected static ?string $pluralModelLabel = 'Dossiers / Enrôlement';
 
     protected static ?int $navigationSort = 10;
+
+
+    // ✅ Définir les permissions
+    protected static function getViewPermission(): string
+    {
+        return 'view_dossiers';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'create_dossiers';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'edit_dossiers';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'delete_dossiers';
+    }
 
     public static function getRelations(): array
     {
@@ -232,8 +256,8 @@ class DossierResource extends Resource
                                 ->itemLabel(
                                     fn(array $state): ?string =>
                                     $state['est_personne_morale'] ?? false
-                                        ? ($state['raison_sociale'] ?? 'Nouvelle partie')
-                                        : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
+                                    ? ($state['raison_sociale'] ?? 'Nouvelle partie')
+                                    : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
                                 )
                                 ->collapsible()
                                 ->cloneable()
@@ -349,8 +373,8 @@ class DossierResource extends Resource
                                 ->itemLabel(
                                     fn(array $state): ?string =>
                                     $state['est_personne_morale'] ?? false
-                                        ? ($state['raison_sociale'] ?? 'Nouvelle partie')
-                                        : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
+                                    ? ($state['raison_sociale'] ?? 'Nouvelle partie')
+                                    : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
                                 )
                                 ->collapsible()
                                 ->cloneable()

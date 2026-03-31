@@ -108,6 +108,43 @@ class DecisionResource extends Resource
                         // ✅ ONGLET 2 : IDENTIFICATION
                         Forms\Components\Tabs\Tab::make('Identification')
                             ->schema([
+                                Forms\Components\Section::make('Classification')
+                                    ->schema([
+                                        // ✅ NOUVELLE HIÉRARCHIE : Catégorie > Type > Nature
+                                        Forms\Components\Select::make('categorie_decision_id')
+                                            ->label('Catégorie de décision')
+                                            ->relationship('categorieDecision', 'libelle')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->live()
+                                            ->afterStateUpdated(fn(callable $set) => $set('type_decision_id', null)),
+
+                                        Forms\Components\Select::make('type_decision_id')
+                                            ->label('Type de décision')
+                                            ->relationship(
+                                                'typeDecision',
+                                                'libelle',
+                                                fn(Builder $query, Get $get) => $query->when(
+                                                    $get('categorie_decision_id'),
+                                                    fn($q, $catId) => $q->where('categorie_decision_id', $catId)
+                                                )
+                                            )
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->disabled(fn(Get $get) => !$get('categorie_decision_id'))
+                                            ->helperText('Sélectionnez d\'abord une catégorie'),
+
+                                        Forms\Components\Select::make('nature_decision_id')
+                                            ->label('Nature de décision')
+                                            ->relationship('natureDecision', 'libelle')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->helperText('Contradictoire, Par défaut, etc.'),
+                                    ])->columns(3),
+
                                 Forms\Components\Section::make('Numéros')
                                     ->schema([
                                         Forms\Components\TextInput::make('numero_repertoire')
@@ -119,24 +156,18 @@ class DecisionResource extends Resource
                                             ->label('Numéro Parquet')
                                             ->maxLength(255)
                                             ->placeholder('Référence du parquet'),
-
-                                        Forms\Components\Select::make('nature_decision_id')
-                                            ->label('Nature de décision')
-                                            ->relationship('natureDecision', 'libelle')
-                                            ->searchable()
-                                            ->preload()
-                                            ->required(),
-                                    ])->columns(3),
+                                    ])->columns(2),
 
                                 Forms\Components\Section::make('Dates')
                                     ->description('Ordre : Décision → Factum → Saisie → Signature → Enregistrement')
                                     ->schema([
                                         Forms\Components\DatePicker::make('date_decision')
-                                            ->label('Date de décision')
+                                            ->label('Date de décision (Prononcé)')
                                             ->required()
                                             ->native(false)
                                             ->displayFormat('d/m/Y')
-                                            ->default(now()),
+                                            ->default(now())
+                                            ->helperText('Date du prononcé de la décision'),
 
                                         Forms\Components\DatePicker::make('date_factum')
                                             ->label('Date du factum')
@@ -376,6 +407,7 @@ class DecisionResource extends Resource
                                     ->directory('decisions/scans')
                                     ->columnSpanFull(),
                             ]),
+
                         // ✅ ONGLET 6 : ENREGISTREMENT
                         Forms\Components\Tabs\Tab::make('Enregistrement')
                             ->schema([
@@ -412,21 +444,153 @@ class DecisionResource extends Resource
                                     ->visible(fn(Get $get) => in_array($get('statut'), ['enregistree', 'archivee'])),
                             ]),
 
-                        // ✅ ONGLET 7 : CERTIFICAT & GROSSE (Sans opposition)
-                        Forms\Components\Tabs\Tab::make('Certificat & Grosse')
+                        // ✅ ONGLET 7 : SIGNIFICATION & RECOURS (NOUVEAU WORKFLOW)
+                        Forms\Components\Tabs\Tab::make('Signification & Recours')
                             ->schema([
-                                Forms\Components\Toggle::make('a_opposition')
-                                    ->label('Cette décision a fait l\'objet d\'une opposition')
-                                    ->helperText('Cochez si une opposition a été déposée')
-                                    ->live()
+                                // ✅ SECTION SIGNIFICATION
+                                Forms\Components\Section::make('Signification')
+                                    ->description('Remise de la copie de la décision à la partie adverse par acte d\'huissier')
+                                    ->schema([
+                                        Forms\Components\Toggle::make('est_signifiee')
+                                            ->label('Cette décision a été signifiée')
+                                            ->live()
+                                            ->columnSpanFull(),
+
+                                        Forms\Components\DatePicker::make('date_signification')
+                                            ->label('Date de signification')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y')
+                                            ->required(fn(Get $get) => $get('est_signifiee'))
+                                            ->visible(fn(Get $get) => $get('est_signifiee')),
+
+                                        Forms\Components\TextInput::make('reference_acte_huissier')
+                                            ->label('Référence acte d\'huissier')
+                                            ->maxLength(255)
+                                            ->visible(fn(Get $get) => $get('est_signifiee')),
+
+                                        Forms\Components\FileUpload::make('fichier_signification')
+                                            ->label('Acte de signification (PDF)')
+                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/significations')
+                                            ->visible(fn(Get $get) => $get('est_signifiee'))
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(2)
+                                    ->collapsible(),
+
+                                // ✅ SECTION TYPE DE RECOURS
+                                Forms\Components\Section::make('Voie de recours')
+                                    ->description('⚖️ Appel (décision contradictoire) ou Opposition (décision par défaut)')
+                                    ->schema([
+                                        Forms\Components\Select::make('type_recours')
+                                            ->label('Type de recours')
+                                            ->options([
+                                                'appel' => 'Appel (Décision contradictoire)',
+                                                'opposition' => 'Opposition (Décision par défaut)',
+                                            ])
+                                            ->live()
+                                            ->helperText(function (Get $get) {
+                                                $type = $get('type_recours');
+                                                if ($type === 'appel') {
+                                                    return '✅ APPEL : Peut être déclaré DÈS LE PRONONCÉ (même avant saisie/signature)';
+                                                } elseif ($type === 'opposition') {
+                                                    return '⚠️ OPPOSITION : Uniquement APRÈS SIGNIFICATION de la décision';
+                                                }
+                                                return 'Sélectionnez le type de recours si applicable';
+                                            })
+                                            ->columnSpanFull(),
+
+                                        // ✅ VÉRIFICATION : Opposition requiert signification
+                                        Forms\Components\Placeholder::make('warning_opposition')
+                                            ->label('')
+                                            ->content(new \Illuminate\Support\HtmlString(
+                                                '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
+                                                    '<strong>⚠️ Attention</strong><br>' .
+                                                    'Une opposition ne peut être faite que si la décision a été signifiée. Assurez-vous de remplir la section Signification ci-dessus.' .
+                                                    '</div>'
+                                            ))
+                                            ->visible(fn(Get $get) => $get('type_recours') === 'opposition' && !$get('est_signifiee'))
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->collapsible(),
+
+                                // ✅ APPEL (Décision contradictoire)
+                                Forms\Components\Section::make('Déclaration d\'appel')
+                                    ->description('Lettre de déclaration d\'appel')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('lettre_appel_reference')
+                                            ->label('Référence de la lettre d\'appel')
+                                            ->maxLength(255)
+                                            ->required(fn(Get $get) => $get('type_recours') === 'appel'),
+
+                                        Forms\Components\DatePicker::make('lettre_appel_date')
+                                            ->label('Date de déclaration d\'appel')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y')
+                                            ->required(fn(Get $get) => $get('type_recours') === 'appel')
+                                            ->after('date_decision')
+                                            ->helperText('Date de dépôt de la déclaration d\'appel'),
+
+                                        Forms\Components\FileUpload::make('lettre_appel_fichier')
+                                            ->label('Lettre de déclaration d\'appel (PDF)')
+                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/appels')
+                                            ->required(fn(Get $get) => $get('type_recours') === 'appel')
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn(Get $get) => $get('type_recours') === 'appel')
+                                    ->collapsible(),
+
+                                // ✅ OPPOSITION (Décision par défaut)
+                                Forms\Components\Section::make('Lettre d\'opposition')
+                                    ->description('Lettre d\'opposition à la décision')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('lettre_opposition_reference')
+                                            ->label('Référence de la lettre d\'opposition')
+                                            ->maxLength(255)
+                                            ->required(fn(Get $get) => $get('type_recours') === 'opposition'),
+
+                                        Forms\Components\DatePicker::make('lettre_opposition_date')
+                                            ->label('Date de dépôt de l\'opposition')
+                                            ->native(false)
+                                            ->displayFormat('d/m/Y')
+                                            ->required(fn(Get $get) => $get('type_recours') === 'opposition')
+                                            ->after('date_signification')
+                                            ->helperText('Date de dépôt de l\'opposition'),
+
+                                        Forms\Components\FileUpload::make('lettre_opposition_fichier')
+                                            ->label('Lettre d\'opposition (PDF)')
+                                            ->acceptedFileTypes(['application/pdf'])
+                                            ->maxSize(10240)
+                                            ->directory('decisions/oppositions')
+                                            ->required(fn(Get $get) => $get('type_recours') === 'opposition')
+                                            ->columnSpanFull(),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn(Get $get) => $get('type_recours') === 'opposition')
+                                    ->collapsible(),
+
+                                // ✅ INFO RECOURS DÉCLENCHÉ
+                                Forms\Components\Placeholder::make('info_recours_active')
+                                    ->label('')
+                                    ->content(fn(Get $get) => new \Illuminate\Support\HtmlString(
+                                        '<div style="padding: 1rem; background: #fee2e2; border-left: 4px solid #dc2626; border-radius: 0.5rem;">' .
+                                            '<strong>⚖️ Recours activé : ' . ($get('type_recours') === 'appel' ? 'APPEL' : 'OPPOSITION') . '</strong><br>' .
+                                            'Le module Recours sera automatiquement activé pour traiter ce ' . ($get('type_recours') === 'appel' ? 'recours en appel' : 'recours en opposition') . '.' .
+                                            '</div>'
+                                    ))
+                                    ->visible(fn(Get $get) => in_array($get('type_recours'), ['appel', 'opposition']))
                                     ->columnSpanFull(),
 
-                                // SI PAS D'OPPOSITION
-                                Forms\Components\Section::make('Certificat de non-appel')
-                                    ->description('À remplir uniquement s\'il n\'y a pas d\'opposition')
+                                // ✅ CERTIFICAT & GROSSE (Si pas de recours)
+                                Forms\Components\Section::make('Certificat de non-appel & Grosse')
+                                    ->description('À remplir uniquement s\'il n\'y a PAS de recours')
                                     ->schema([
                                         Forms\Components\TextInput::make('certificat_non_appel_reference')
-                                            ->label('Référence du certificat')
+                                            ->label('Référence du certificat de non-appel')
                                             ->maxLength(255),
 
                                         Forms\Components\DatePicker::make('certificat_non_appel_date')
@@ -435,19 +599,12 @@ class DecisionResource extends Resource
                                             ->displayFormat('d/m/Y'),
 
                                         Forms\Components\FileUpload::make('certificat_non_appel_fichier')
-                                            ->label('Fichier du certificat (PDF)')
+                                            ->label('Certificat de non-appel (PDF)')
                                             ->acceptedFileTypes(['application/pdf'])
                                             ->maxSize(10240)
                                             ->directory('decisions/certificats')
                                             ->columnSpanFull(),
-                                    ])
-                                    ->columns(2)
-                                    ->visible(fn(Get $get) => !$get('a_opposition'))
-                                    ->collapsible(),
 
-                                Forms\Components\Section::make('Grosse')
-                                    ->description('À remplir uniquement s\'il n\'y a pas d\'opposition')
-                                    ->schema([
                                         Forms\Components\TextInput::make('grosse_reference')
                                             ->label('Référence de la grosse')
                                             ->maxLength(255),
@@ -465,48 +622,11 @@ class DecisionResource extends Resource
                                             ->columnSpanFull(),
                                     ])
                                     ->columns(2)
-                                    ->visible(fn(Get $get) => !$get('a_opposition'))
-                                    ->collapsible(),
-
-                                // SI OPPOSITION
-                                Forms\Components\Section::make('Lettre d\'opposition')
-                                    ->description('Références de la lettre d\'opposition')
-                                    ->schema([
-                                        Forms\Components\TextInput::make('lettre_opposition_reference')
-                                            ->label('Référence de la lettre')
-                                            ->maxLength(255)
-                                            ->required(fn(Get $get) => $get('a_opposition')),
-
-                                        Forms\Components\DatePicker::make('lettre_opposition_date')
-                                            ->label('Date de la lettre')
-                                            ->native(false)
-                                            ->displayFormat('d/m/Y')
-                                            ->required(fn(Get $get) => $get('a_opposition')),
-
-                                        Forms\Components\FileUpload::make('lettre_opposition_fichier')
-                                            ->label('Fichier de la lettre (PDF)')
-                                            ->acceptedFileTypes(['application/pdf'])
-                                            ->maxSize(10240)
-                                            ->directory('decisions/oppositions')
-                                            ->required(fn(Get $get) => $get('a_opposition'))
-                                            ->columnSpanFull(),
-                                    ])
-                                    ->columns(2)
-                                    ->visible(fn(Get $get) => $get('a_opposition'))
-                                    ->collapsible(),
-
-                                Forms\Components\Placeholder::make('info_recours')
-                                    ->label('')
-                                    ->content(new \Illuminate\Support\HtmlString(
-                                        '<div style="padding: 1rem; background: #fee2e2; border-left: 4px solid #dc2626; border-radius: 0.5rem;">' .
-                                            '<strong>⚠️ Opposition détectée</strong><br>' .
-                                            'Le module Recours sera activé pour traiter cette opposition.' .
-                                            '</div>'
-                                    ))
-                                    ->visible(fn(Get $get) => $get('a_opposition'))
-                                    ->columnSpanFull(),
+                                    ->visible(fn(Get $get) => !$get('type_recours'))
+                                    ->collapsible()
+                                    ->collapsed(),
                             ])
-                            ->visible(fn(Get $get) => in_array($get('statut'), ['enregistree', 'archivee'])),
+                            ->visible(fn(Get $get) => in_array($get('statut'), ['signee', 'enregistree', 'archivee'])),
 
                         // ✅ ONGLET 8 : GESTION
                         Forms\Components\Tabs\Tab::make('Gestion')
@@ -527,7 +647,7 @@ class DecisionResource extends Resource
             ]);
     }
 
-    // ✅ TABLE
+    // ✅ TABLE (mise à jour pour afficher type_recours)
     public static function table(Table $table): Table
     {
         return $table
@@ -549,6 +669,21 @@ class DecisionResource extends Resource
                     ->label('Date')
                     ->date('d/m/Y')
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('categorieDecision.libelle')
+                    ->label('Catégorie')
+                    ->searchable()
+                    ->badge()
+                    ->color('gray')
+                    ->wrap()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('typeDecision.libelle')
+                    ->label('Type')
+                    ->searchable()
+                    ->badge()
+                    ->color('info')
+                    ->wrap(),
 
                 Tables\Columns\TextColumn::make('natureDecision.libelle')
                     ->label('Nature')
@@ -585,14 +720,30 @@ class DecisionResource extends Resource
                     })
                     ->sortable(),
 
-                Tables\Columns\IconColumn::make('a_opposition')
-                    ->label('Opposition')
+                Tables\Columns\IconColumn::make('est_signifiee')
+                    ->label('Signifiée')
                     ->boolean()
-                    ->trueIcon('heroicon-o-exclamation-triangle')
-                    ->falseIcon('heroicon-o-check-circle')
-                    ->trueColor('danger')
-                    ->falseColor('success')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('type_recours')
+                    ->label('Recours')
+                    ->badge()
+                    ->color(fn(?string $state): string => match ($state) {
+                        'appel' => 'danger',
+                        'opposition' => 'warning',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn(?string $state): string => match ($state) {
+                        'appel' => 'APPEL',
+                        'opposition' => 'OPPOSITION',
+                        default => 'Aucun',
+                    })
+                    ->placeholder('Aucun')
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Créé le')
@@ -611,11 +762,26 @@ class DecisionResource extends Resource
                         'archivee' => 'Archivée',
                     ]),
 
-                Tables\Filters\TernaryFilter::make('a_opposition')
-                    ->label('Opposition')
+                Tables\Filters\SelectFilter::make('type_recours')
+                    ->label('Type de recours')
+                    ->options([
+                        'appel' => 'Appel',
+                        'opposition' => 'Opposition',
+                    ]),
+
+                Tables\Filters\TernaryFilter::make('est_signifiee')
+                    ->label('Signification')
                     ->placeholder('Tous')
-                    ->trueLabel('Avec opposition')
-                    ->falseLabel('Sans opposition'),
+                    ->trueLabel('Signifiée')
+                    ->falseLabel('Non signifiée'),
+
+                Tables\Filters\SelectFilter::make('categorie_decision_id')
+                    ->label('Catégorie')
+                    ->relationship('categorieDecision', 'libelle'),
+
+                Tables\Filters\SelectFilter::make('type_decision_id')
+                    ->label('Type')
+                    ->relationship('typeDecision', 'libelle'),
 
                 Tables\Filters\SelectFilter::make('mode_composition')
                     ->label('Mode de composition')
@@ -629,7 +795,6 @@ class DecisionResource extends Resource
                     ->relationship('tribunal', 'nom'),
             ])
             ->actions([
-
                 // ✅ APERÇU PDF RAPIDE
                 Tables\Actions\Action::make('apercu_pdf')
                     ->label('PDF')
