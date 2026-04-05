@@ -20,7 +20,7 @@ class ViewDossier extends ViewRecord
                 ->icon('heroicon-o-scale')
                 ->color('success')
                 ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
-                ->url(fn($record) => \App\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id])),
+                ->url(fn($record) => \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id])),
 
             Actions\EditAction::make(),
             Actions\DeleteAction::make(),
@@ -128,9 +128,9 @@ class ViewDossier extends ViewRecord
                             ->html()
                             ->formatStateUsing(fn() => new \Illuminate\Support\HtmlString(
                                 '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
-                                    '<strong>⚖️ Ministère Public</strong><br>' .
-                                    'Le Ministère Public est partie poursuivante d\'office.' .
-                                    '</div>'
+                                '<strong>⚖️ Ministère Public</strong><br>' .
+                                'Le Ministère Public est partie poursuivante d\'office.' .
+                                '</div>'
                             ))
                             ->visible(fn($record) => $record->section?->type === 'repressive')
                             ->columnSpanFull(),

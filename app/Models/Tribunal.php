@@ -13,6 +13,7 @@ class Tribunal extends Model
 
     protected $fillable = [
         'nom',
+        'sigle',
         'ville',
         'adresse',
         'telephone',
@@ -35,5 +36,20 @@ class Tribunal extends Model
     public function decisions()
     {
         return $this->hasMany(Decision::class);
+    }
+
+    public function juges()
+    {
+        return $this->hasMany(Juge::class);
+    }
+
+    public function greffiers()
+    {
+        return $this->hasMany(Greffier::class);
+    }
+    
+    public function getFormatNomenclature(): string
+    {
+        return strtoupper($this->sigle);
     }
 }

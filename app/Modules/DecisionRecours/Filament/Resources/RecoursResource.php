@@ -9,7 +9,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Forms\Get;
 
 class RecoursResource extends Resource
 {
@@ -29,219 +28,167 @@ class RecoursResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Tabs::make('Tabs')
-                    ->tabs([
-                        Forms\Components\Tabs\Tab::make('Informations Générales')
+                Forms\Components\Section::make('Identification du recours')
+                    ->schema([
+                        Forms\Components\Select::make('decision_id')
+                            ->label('Décision attaquée')
+                            ->options(function () {
+                                return \App\Models\Decision::query()
+                                    ->whereIn('statut', ['saisie', 'signee', 'enregistree', 'archivee'])
+                                    ->orderBy('created_at', 'desc')
+                                    ->limit(100) // Limiter pour performance
+                                    ->get()
+                                    ->mapWithKeys(function ($decision) {
+                                        $label = $decision->numero_repertoire
+                                            ?? $decision->numero_rg
+                                            ?? 'Décision #' . $decision->id;
+
+                                        $description = ' - ' . $decision->date_decision?->format('d/m/Y');
+
+                                        if ($decision->dossier) {
+                                            $description .= ' - ' . $decision->dossier->numero_dossier;
+                                        }
+
+                                        return [$decision->id => $label . $description];
+                                    });
+                            })
+                            ->searchable()
+                            ->required()
+                            ->helperText('Sélectionnez la décision faisant l\'objet du recours')
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state) {
+                                    $decision = \App\Models\Decision::find($state);
+                                    if ($decision && $decision->type_recours) {
+                                        $set('type_recours', $decision->type_recours);
+                                    }
+                                }
+                            }),
+
+                        Forms\Components\TextInput::make('numero_recours')
+                            ->label('Numéro du recours')
+                            ->required()
+                            ->unique(ignoreRecord: true)
+                            ->default(function () {
+                                $year = now()->year;
+                                $count = Recours::whereYear('created_at', $year)->count() + 1;
+                                return 'REC/' . $year . '/' . str_pad($count, 6, '0', STR_PAD_LEFT);
+                            })
+                            ->maxLength(255)
+                            ->helperText('Généré automatiquement, modifiable si nécessaire'),
+
+                        Forms\Components\Select::make('type_recours_id')
+                            ->label('Type de recours')
+                            ->relationship('typeRecours', 'libelle', function ($query) {
+                                return $query->where('is_active', true);
+                            })
+                            ->required()
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Type de voie de recours exercée')
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                if ($state) {
+                                    $typeRecours = \App\Models\TypeRecours::find($state);
+                                    if ($typeRecours) {
+                                        // Copier le code dans type_recours pour compatibilité
+                                        $set('type_recours', $typeRecours->code);
+                                    }
+                                }
+                            }),
+
+                        Forms\Components\DatePicker::make('date_recours')
+                            ->label('Date du recours')
+                            ->required()
+                            ->native(false)
+                            ->displayFormat('d/m/Y')
+                            ->default(now())
+                            ->helperText('Date de déclaration du recours'),
+
+                        Forms\Components\TextInput::make('reference_lettre')
+                            ->label('Référence de la lettre')
+                            ->maxLength(255)
+                            ->placeholder('Ex: LR/2024/001')
+                            ->helperText('Référence de la lettre de déclaration'),
+
+                        Forms\Components\FileUpload::make('fichier_lettre')
+                            ->label('Lettre de déclaration (PDF)')
+                            ->acceptedFileTypes(['application/pdf'])
+                            ->maxSize(10240)
+                            ->directory('recours/lettres')
+                            ->helperText('Document de déclaration du recours')
+                            ->columnSpanFull(),
+                    ])->columns(2),
+
+                Forms\Components\Section::make('Dates de traitement')
+                    ->schema([
+                        Forms\Components\DatePicker::make('date_enregistrement')
+                            ->label('Date d\'enregistrement')
+                            ->native(false)
+                            ->displayFormat('d/m/Y')
+                            ->helperText('Date d\'enregistrement au greffe de la Cour'),
+
+                        Forms\Components\DatePicker::make('date_transmission_cour_appel')
+                            ->label('Date de transmission à la Cour d\'Appel')
+                            ->native(false)
+                            ->displayFormat('d/m/Y')
+                            ->helperText('Date d\'envoi du dossier à la Cour d\'Appel'),
+                    ])->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
+
+                Forms\Components\Section::make('Mise en état du dossier')
+                    ->description('Documents de la procédure de mise en état')
+                    ->schema([
+                        Forms\Components\Repeater::make('documents_mise_en_etat')
+                            ->label('Documents')
                             ->schema([
-                                Forms\Components\Section::make('Identification du recours')
-                                    ->schema([
-                                        Forms\Components\TextInput::make('numero_recours')
-                                            ->label('Numéro du recours')
-                                            ->required()
-                                            ->unique(ignoreRecord: true)
-                                            ->default(fn() => 'REC/' . now()->year . '/' . str_pad(Recours::whereYear('created_at', now()->year)->count() + 1, 6, '0', STR_PAD_LEFT))
-                                            ->maxLength(255),
+                                Forms\Components\Select::make('type')
+                                    ->label('Type de document')
+                                    ->required()
+                                    ->options(function () {
+                                        return \App\Models\TypeDocument::where('is_active', true)
+                                            ->orderBy('libelle')
+                                            ->get()
+                                            ->mapWithKeys(fn($type) => [
+                                                $type->code => ($type->icone ? $type->icone . ' ' : '') . $type->libelle
+                                            ]);
+                                    })
+                                    ->searchable(),
 
-                                        Forms\Components\Select::make('annee_judiciaire_id')
-                                            ->label('Année judiciaire')
-                                            ->relationship('anneeJudiciaire', 'libelle', function ($query) {
-                                                return $query->where('is_active', true)
-                                                    ->orWhere('is_cloturee', false);
-                                            })
-                                            ->default(function () {
-                                                return \App\Models\AnneeJudiciaire::where('is_active', true)->first()?->id;
-                                            })
-                                            ->required()
-                                            ->searchable()
-                                            ->preload(),
+                                Forms\Components\DatePicker::make('date')
+                                    ->label('Date du document')
+                                    ->native(false)
+                                    ->displayFormat('d/m/Y')
+                                    ->default(now()),
 
-                                        Forms\Components\Select::make('decision_id')
-                                            ->label('Décision attaquée')
-                                            ->relationship('decision', 'numero_rg', function ($query) {
-                                                return $query->where('statut', 'enregistree')
-                                                    ->orWhere('statut', 'signee');
-                                            })
-                                            ->searchable()
-                                            ->preload()
-                                            ->required()
-                                            ->live()
-                                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                                if ($state) {
-                                                    $decision = \App\Models\Decision::find($state);
-                                                    if ($decision) {
-                                                        $set('date_decision_attaquee', $decision->date_decision);
+                                Forms\Components\TextInput::make('reference')
+                                    ->label('Référence')
+                                    ->maxLength(255)
+                                    ->placeholder('Ex: PV/2024/001'),
 
-                                                        // Recalculer la date limite si le type de recours est aussi défini
-                                                        $typeRecoursId = $get('type_recours_id');
-                                                        if ($typeRecoursId && $decision->date_decision) {
-                                                            $typeRecours = \App\Models\TypeRecours::find($typeRecoursId);
-                                                            if ($typeRecours) {
-                                                                $dateLimite = \App\Services\DelaiCalculator::calculerDateLimite(
-                                                                    \Carbon\Carbon::parse($decision->date_decision),
-                                                                    $typeRecours->delai_jours
-                                                                );
-                                                                $set('date_limite_recours', $dateLimite->format('Y-m-d'));
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            })
-                                            ->helperText('Seules les décisions enregistrées ou signées peuvent faire l\'objet d\'un recours'),
+                                Forms\Components\FileUpload::make('fichier')
+                                    ->label('Fichier (PDF)')
+                                    ->acceptedFileTypes(['application/pdf'])
+                                    ->maxSize(10240)
+                                    ->directory('recours/mise-en-etat')
+                                    ->required(),
 
-                                        Forms\Components\Select::make('type_recours_id')
-                                            ->label('Type de recours')
-                                            ->relationship('typeRecours', 'libelle')
-                                            ->searchable()
-                                            ->preload()
-                                            ->required()
-                                            ->live()
-                                            ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                                if ($state) {
-                                                    $dateDecisionAttaquee = $get('date_decision_attaquee');
-                                                    if ($dateDecisionAttaquee) {
-                                                        $typeRecours = \App\Models\TypeRecours::find($state);
-                                                        if ($typeRecours) {
-                                                            $dateLimite = \App\Services\DelaiCalculator::calculerDateLimite(
-                                                                \Carbon\Carbon::parse($dateDecisionAttaquee),
-                                                                $typeRecours->delai_jours
-                                                            );
-                                                            $set('date_limite_recours', $dateLimite->format('Y-m-d'));
-                                                        }
-                                                    }
-                                                }
-                                            }),
-                                    ])->columns(2),
-
-                                Forms\Components\Section::make('Parties au recours')
-                                    ->schema([
-                                        Forms\Components\TextInput::make('appelant')
-                                            ->label('Appelant / Requérant')
-                                            ->maxLength(255)
-                                            ->helperText('La partie qui interjette le recours'),
-
-                                        Forms\Components\TextInput::make('intime')
-                                            ->label('Intimé / Défendeur')
-                                            ->maxLength(255)
-                                            ->helperText('La partie adverse'),
-                                    ])->columns(2),
-
-                                Forms\Components\Section::make('Dates et délais')
-                                    ->schema([
-                                        Forms\Components\DatePicker::make('date_decision_attaquee')
-                                            ->label('Date de la décision attaquée')
-                                            ->required()
-                                            ->native(false)
-                                            ->displayFormat('d/m/Y')
-                                            ->live()
-                                            ->afterStateUpdated(function ($state, callable $get, callable $set) {
-                                                $typeRecoursId = $get('type_recours_id');
-                                                if ($state && $typeRecoursId) {
-                                                    $typeRecours = \App\Models\TypeRecours::find($typeRecoursId);
-                                                    if ($typeRecours) {
-                                                        $dateLimite = \App\Services\DelaiCalculator::calculerDateLimite(
-                                                            \Carbon\Carbon::parse($state),
-                                                            $typeRecours->delai_jours
-                                                        );
-                                                        $set('date_limite_recours', $dateLimite->format('Y-m-d'));
-                                                    }
-                                                }
-                                            }),
-
-                                        Forms\Components\DatePicker::make('date_interjetee')
-                                            ->label('Date d\'interjection du recours')
-                                            ->required()
-                                            ->native(false)
-                                            ->displayFormat('d/m/Y')
-                                            ->default(now()),
-
-                                        Forms\Components\DatePicker::make('date_limite_recours')
-                                            ->label('Date limite légale')
-                                            ->required()
-                                            ->native(false)
-                                            ->displayFormat('d/m/Y')
-                                            ->helperText('Calculée automatiquement selon le type de recours (hors week-ends et jours fériés)'),
-
-                                        Forms\Components\DatePicker::make('date_notification')
-                                            ->label('Date de notification')
-                                            ->native(false)
-                                            ->displayFormat('d/m/Y'),
-                                    ])->columns(2),
-                            ]),
-
-                        Forms\Components\Tabs\Tab::make('Recevabilité')
-                            ->schema([
-                                Forms\Components\Section::make('Examen de la recevabilité')
-                                    ->schema([
-                                        Forms\Components\Select::make('statut_recevabilite')
-                                            ->label('Statut de recevabilité')
-                                            ->options([
-                                                'en_cours_examen' => 'En cours d\'examen',
-                                                'recevable' => 'Recevable',
-                                                'irrecevable' => 'Irrecevable',
-                                            ])
-                                            ->default('en_cours_examen')
-                                            ->required()
-                                            ->live(),
-
-                                        Forms\Components\DatePicker::make('date_decision_recevabilite')
-                                            ->label('Date de décision sur la recevabilité')
-                                            ->native(false)
-                                            ->displayFormat('d/m/Y')
-                                            ->visible(fn(Get $get) => in_array($get('statut_recevabilite'), ['recevable', 'irrecevable'])),
-
-                                        Forms\Components\Textarea::make('motif_irrecevabilite')
-                                            ->label('Motif d\'irrecevabilité')
-                                            ->maxLength(65535)
-                                            ->rows(3)
-                                            ->visible(fn(Get $get) => $get('statut_recevabilite') === 'irrecevable')
-                                            ->required(fn(Get $get) => $get('statut_recevabilite') === 'irrecevable')
-                                            ->columnSpanFull(),
-                                    ])->columns(2),
-                            ]),
-
-                        Forms\Components\Tabs\Tab::make('Workflow & Observations')
-                            ->schema([
-                                Forms\Components\Section::make('État du recours')
-                                    ->schema([
-                                        Forms\Components\Select::make('statut_global')
-                                            ->label('Statut global')
-                                            ->options([
-                                                'en_cours' => 'En cours',
-                                                'cloture' => 'Clôturé',
-                                                'abandonne' => 'Abandonné',
-                                            ])
-                                            ->default('en_cours')
-                                            ->required(),
-
-                                        Forms\Components\TextInput::make('etape_actuelle')
-                                            ->label('Étape actuelle')
-                                            ->numeric()
-                                            ->default(1)
-                                            ->minValue(1)
-                                            ->maxValue(11)
-                                            ->helperText('Sera géré automatiquement via le workflow'),
-                                    ])->columns(2),
-
-                                Forms\Components\Section::make('Observations')
-                                    ->schema([
-                                        Forms\Components\Textarea::make('observations')
-                                            ->label('Observations générales')
-                                            ->maxLength(65535)
-                                            ->rows(4)
-                                            ->columnSpanFull(),
-                                    ]),
-
-                                Forms\Components\Section::make('Gestion')
-                                    ->schema([
-                                        Forms\Components\Select::make('greffier_responsable_id')
-                                            ->label('Greffier responsable')
-                                            ->relationship('greffierResponsable', 'name')
-                                            ->searchable()
-                                            ->preload()
-                                            ->default(auth()->id()),
-                                    ]),
-                            ]),
-                    ])->columnSpanFull(),
+                                Forms\Components\Textarea::make('notes')
+                                    ->label('Notes / Observations')
+                                    ->rows(2)
+                                    ->columnSpanFull(),
+                            ])
+                            ->columns(2)
+                            ->collapsible()
+                            ->defaultItems(0)
+                            ->addActionLabel('➕ Ajouter un document')
+                            ->reorderable()
+                            ->orderColumn('ordre')
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsible()
+                    ->collapsed(),
             ]);
     }
 
@@ -254,130 +201,131 @@ class RecoursResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->copyable()
-                    ->weight('bold'),
+                    ->weight('bold')
+                    ->icon('heroicon-o-scale'),
 
-                Tables\Columns\TextColumn::make('decision.numero_rg')
+                Tables\Columns\TextColumn::make('decision.numero_repertoire')
                     ->label('Décision attaquée')
                     ->searchable()
                     ->sortable()
-                    ->url(fn($record) => $record->decision_id ? route('filament.admin.resources.decisions.view', $record->decision_id) : null)
-                    ->color('primary'),
+                    ->badge()
+                    ->color('primary')
+                    ->url(fn($record) => $record->decision_id
+                        ? \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('view', ['record' => $record->decision_id])
+                        : null)
+                    ->tooltip('Cliquez pour voir la décision'),
 
-                Tables\Columns\TextColumn::make('typeRecours.libelle')
+                Tables\Columns\TextColumn::make('type_recours')
                     ->label('Type')
                     ->badge()
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'appel' => '⚖️ Appel',
+                        'opposition' => '⚠️ Opposition',
+                        'tierce_opposition' => '👥 Tierce opposition',
+                        'retractation' => '🔄 Rétractation',
+                        'revision' => '🔍 Révision',
+                        'pourvoi_cassation' => '⚖️ Pourvoi',
+                        default => $state,
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        'appel' => 'danger',
+                        'opposition' => 'warning',
+                        'pourvoi_cassation' => 'info',
+                        'tierce_opposition' => 'gray',
+                        'retractation' => 'secondary',
+                        'revision' => 'primary',
+                        default => 'gray',
+                    })
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('date_interjetee')
-                    ->label('Date interjetée')
+                Tables\Columns\TextColumn::make('date_recours')
+                    ->label('Date recours')
                     ->date('d/m/Y')
-                    ->sortable(),
+                    ->sortable()
+                    ->icon('heroicon-o-calendar'),
 
-                Tables\Columns\TextColumn::make('date_limite_recours')
-                    ->label('Date limite')
+                Tables\Columns\TextColumn::make('date_enregistrement')
+                    ->label('Enreg.')
                     ->date('d/m/Y')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('jours_restants')
-                    ->label('Délai')
-                    ->badge()
-                    ->getStateUsing(fn($record) => $record->jours_restants . ' j')
-                    ->color(fn($record) => match ($record->niveau_alerte) {
-                        'rouge' => 'danger',
-                        'orange' => 'warning',
-                        'jaune' => 'info',
-                        default => 'success',
-                    }),
-
-                Tables\Columns\TextColumn::make('statut_recevabilite')
-                    ->label('Recevabilité')
-                    ->badge()
-                    ->color(fn(string $state): string => match ($state) {
-                        'recevable' => 'success',
-                        'irrecevable' => 'danger',
-                        'en_cours_examen' => 'warning',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn(string $state): string => match ($state) {
-                        'recevable' => 'Recevable',
-                        'irrecevable' => 'Irrecevable',
-                        'en_cours_examen' => 'En examen',
-                        default => $state,
-                    })
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('etape_actuelle')
-                    ->label('Étape')
+                    ->sortable()
                     ->badge()
                     ->color('info')
-                    ->formatStateUsing(fn($state) => "Étape {$state}/11")
-                    ->sortable(),
+                    ->placeholder('-')
+                    ->toggleable(),
 
-                Tables\Columns\TextColumn::make('statut_global')
-                    ->label('Statut')
+                Tables\Columns\TextColumn::make('date_transmission_cour_appel')
+                    ->label('Transmission CA')
+                    ->date('d/m/Y')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
-                        'en_cours' => 'warning',
-                        'cloture' => 'success',
-                        'abandonne' => 'danger',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn(string $state): string => match ($state) {
-                        'en_cours' => 'En cours',
-                        'cloture' => 'Clôturé',
-                        'abandonne' => 'Abandonné',
-                        default => $state,
-                    })
-                    ->sortable(),
+                    ->color('success')
+                    ->icon('heroicon-o-paper-airplane')
+                    ->sortable()
+                    ->placeholder('-')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('nombre_documents')
+                    ->label('Docs')
+                    ->getStateUsing(fn($record) => count($record->documents_mise_en_etat ?? []))
+                    ->badge()
+                    ->color('warning')
+                    ->icon('heroicon-o-document-text')
+                    ->tooltip('Nombre de documents de mise en état'),
+
+                Tables\Columns\TextColumn::make('decision.tribunal.nom')
+                    ->label('Tribunal')
+                    ->searchable()
+                    ->badge()
+                    ->color('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('created_at')
+                    ->label('Créé le')
+                    ->dateTime('d/m/Y H:i')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('type_recours_id')
+                Tables\Filters\SelectFilter::make('type_recours')
                     ->label('Type de recours')
-                    ->relationship('typeRecours', 'libelle'),
-
-                Tables\Filters\SelectFilter::make('statut_recevabilite')
-                    ->label('Recevabilité')
                     ->options([
-                        'en_cours_examen' => 'En examen',
-                        'recevable' => 'Recevable',
-                        'irrecevable' => 'Irrecevable',
-                    ]),
+                        'appel' => 'Appel',
+                        'opposition' => 'Opposition',
+                        'tierce_opposition' => 'Tierce opposition',
+                        'retractation' => 'Rétractation',
+                        'revision' => 'Révision',
+                        'pourvoi_cassation' => 'Pourvoi en cassation',
+                    ])
+                    ->multiple(),
 
-                Tables\Filters\SelectFilter::make('statut_global')
-                    ->label('Statut')
-                    ->options([
-                        'en_cours' => 'En cours',
-                        'cloture' => 'Clôturé',
-                        'abandonne' => 'Abandonné',
-                    ]),
+                Tables\Filters\Filter::make('transmis')
+                    ->label('Transmis à la CA')
+                    ->query(fn($query) => $query->whereNotNull('date_transmission_cour_appel')),
 
-                Tables\Filters\Filter::make('alertes')
-                    ->label('Alertes délais')
-                    ->query(fn($query) => $query->whereHas('alertes', function ($q) {
-                        $q->where('est_lue', false);
+                Tables\Filters\Filter::make('non_transmis')
+                    ->label('Non transmis')
+                    ->query(fn($query) => $query->whereNull('date_transmission_cour_appel')),
+
+                Tables\Filters\Filter::make('sans_documents')
+                    ->label('Sans documents')
+                    ->query(fn($query) => $query->where(function ($q) {
+                        $q->whereNull('documents_mise_en_etat')
+                            ->orWhereRaw("json_array_length(documents_mise_en_etat) = 0");
                     })),
             ])
             ->actions([
-                Tables\Actions\Action::make('etape_suivante')
-                    ->label('Étape suivante')
-                    ->icon('heroicon-o-arrow-right-circle')
-                    ->color('success')
-                    ->visible(fn($record) => $record->statut_global === 'en_cours' && $record->etape_actuelle < 11)
-                    ->requiresConfirmation()
-                    ->modalHeading('Passer à l\'étape suivante')
-                    ->modalDescription(fn($record) => 'Voulez-vous compléter l\'étape ' . $record->etape_actuelle . ' et passer à l\'étape suivante ?')
-                    ->action(function ($record) {
-                        $record->passerEtapeSuivante();
-
-                        \Filament\Notifications\Notification::make()
-                            ->title('Étape complétée')
-                            ->success()
-                            ->send();
-                    }),
-
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+
+                Tables\Actions\Action::make('voir_decision')
+                    ->label('Voir décision')
+                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    ->color('primary')
+                    ->url(fn($record) => $record->decision_id
+                        ? \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('view', ['record' => $record->decision_id])
+                        : null)
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
@@ -385,7 +333,10 @@ class RecoursResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
+            ->defaultSort('created_at', 'desc')
+            ->emptyStateHeading('Aucun recours enregistré')
+            ->emptyStateDescription('Les recours seront listés ici une fois créés.')
+            ->emptyStateIcon('heroicon-o-arrow-path-rounded-square');
     }
 
     public static function getPages(): array
@@ -396,5 +347,29 @@ class RecoursResource extends Resource
             'edit' => Pages\EditRecours::route('/{record}/edit'),
             'view' => Pages\ViewRecours::route('/{record}'),
         ];
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return static::getModel()::count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        $count = static::getModel()::count();
+
+        if ($count === 0) {
+            return 'gray';
+        }
+
+        if ($count > 10) {
+            return 'danger';
+        }
+
+        if ($count > 5) {
+            return 'warning';
+        }
+
+        return 'success';
     }
 }

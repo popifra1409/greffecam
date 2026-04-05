@@ -4,203 +4,80 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Spatie\Activitylog\LogOptions;
-use App\Services\DelaiCalculator;
-use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Recours extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory;
 
     protected $table = 'recours';
 
     protected $fillable = [
-        'numero_recours',
         'decision_id',
-        'type_recours_id',
-        'annee_judiciaire_id',
-        'appelant',
-        'intime',
-        'date_decision_attaquee',
-        'date_interjetee',
-        'date_limite_recours',
-        'date_notification',
-        'statut_recevabilite',
-        'motif_irrecevabilite',
-        'date_decision_recevabilite',
-        'etape_actuelle',
-        'statut_global',
-        'observations',
-        'greffier_responsable_id',
-        'is_archived',
+        'numero_recours',
+        'type_recours',
+        'type_recours_id', 
+        'date_recours',
+        'reference_lettre',
+        'fichier_lettre',
+        'date_enregistrement',
+        'date_transmission_cour_appel',
+        'documents_mise_en_etat',
     ];
 
     protected $casts = [
-        'date_decision_attaquee' => 'date',
-        'date_interjetee' => 'date',
-        'date_limite_recours' => 'date',
-        'date_notification' => 'date',
-        'date_decision_recevabilite' => 'date',
-        'etape_actuelle' => 'integer',
-        'is_archived' => 'boolean',
+        'date_recours' => 'date',
+        'date_enregistrement' => 'date',
+        'date_transmission_cour_appel' => 'date',
+        'documents_mise_en_etat' => 'array',
     ];
 
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logAll()
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
-    }
-
     // Relations
-    public function decision()
+    public function decision(): BelongsTo
     {
         return $this->belongsTo(Decision::class);
     }
 
-    public function typeRecours()
+    public function typeRecours(): BelongsTo
     {
         return $this->belongsTo(TypeRecours::class);
     }
 
-    public function anneeJudiciaire()
+    // Méthodes helper
+    public function getTypeLabelAttribute(): string
     {
-        return $this->belongsTo(AnneeJudiciaire::class);
-    }
-
-    public function etapes()
-    {
-        return $this->hasMany(EtapeRecours::class)->orderBy('numero_etape');
-    }
-
-    public function actes()
-    {
-        return $this->hasMany(ActeRecours::class);
-    }
-
-    public function alertes()
-    {
-        return $this->hasMany(AlerteRecours::class);
-    }
-
-    public function greffierResponsable()
-    {
-        return $this->belongsTo(User::class, 'greffier_responsable_id');
-    }
-
-    // Helpers pour le calcul des délais
-    public function calculerDateLimite(): void
-    {
-        if ($this->date_decision_attaquee && $this->typeRecours) {
-            $delaiJours = $this->typeRecours->delai_jours;
-            $dateLimite = DelaiCalculator::calculerDateLimite(
-                Carbon::parse($this->date_decision_attaquee),
-                $delaiJours
-            );
-
-            $this->date_limite_recours = $dateLimite;
-            $this->save();
-        }
-    }
-
-    public function getJoursRestantsAttribute(): int
-    {
-        if (!$this->date_limite_recours) {
-            return 0;
+        if ($this->typeRecours) {
+            return ($this->typeRecours->icone ?? '⚖️') . ' ' . $this->typeRecours->libelle;
         }
 
-        return DelaiCalculator::calculerJoursRestants(
-            Carbon::parse($this->date_limite_recours)
-        );
+        // Fallback sur type_recours string
+        return match ($this->type_recours) {
+            'appel' => '⚖️ Appel',
+            'opposition' => '⚠️ Opposition',
+            'tierce_opposition' => '👥 Tierce opposition',
+            'retractation' => '🔄 Rétractation',
+            'revision' => '🔍 Révision',
+            'pourvoi_cassation' => '⚖️ Pourvoi en cassation',
+            default => $this->type_recours ?? 'Non défini',
+        };
     }
 
-    public function getNiveauAlerteAttribute(): ?string
+    public function getNombreDocumentsAttribute(): int
     {
-        return DelaiCalculator::determinerNiveauAlerte($this->jours_restants);
+        return count($this->documents_mise_en_etat ?? []);
     }
 
-    public function estRecevable(): bool
+    // Boot - générer numéro automatique
+    protected static function boot()
     {
-        if (!$this->date_interjetee || !$this->date_limite_recours) {
-            return false;
-        }
+        parent::boot();
 
-        return Carbon::parse($this->date_interjetee)->lessThanOrEqualTo(
-            Carbon::parse($this->date_limite_recours)
-        );
-    }
-
-    public function marquerRecevabilite(): void
-    {
-        $this->statut_recevabilite = $this->estRecevable() ? 'recevable' : 'irrecevable';
-
-        if (!$this->estRecevable()) {
-            $this->motif_irrecevabilite = 'Recours interjeté hors délai légal';
-        }
-
-        $this->date_decision_recevabilite = now();
-        $this->save();
-    }
-
-    // Initialiser les 11 étapes du workflow
-    public function initialiserEtapes(): void
-    {
-        $etapes = [
-            1 => 'Dépôt du recours',
-            2 => 'Enregistrement au greffe',
-            3 => 'Transmission au président',
-            4 => 'Désignation du rapporteur',
-            5 => 'Communication aux parties',
-            6 => 'Dépôt des mémoires',
-            7 => 'Réplique et duplique',
-            8 => 'Clôture de l\'instruction',
-            9 => 'Fixation de l\'audience',
-            10 => 'Audience et plaidoiries',
-            11 => 'Mise en délibéré',
-        ];
-
-        foreach ($etapes as $numero => $libelle) {
-            EtapeRecours::create([
-                'recours_id' => $this->id,
-                'numero_etape' => $numero,
-                'libelle' => $libelle,
-                'statut' => $numero === 1 ? 'en_cours' : 'en_attente',
-            ]);
-        }
-    }
-
-    // Passer à l'étape suivante
-    public function passerEtapeSuivante(): void
-    {
-        if ($this->etape_actuelle < 11) {
-            // Compléter l'étape actuelle
-            $etapeActuelle = $this->etapes()->where('numero_etape', $this->etape_actuelle)->first();
-            if ($etapeActuelle) {
-                $etapeActuelle->update([
-                    'statut' => 'completee',
-                    'date_completion' => now(),
-                    'completee_par' => auth()->id(),
-                ]);
+        static::creating(function ($recours) {
+            if (empty($recours->numero_recours)) {
+                $year = now()->year;
+                $count = self::whereYear('created_at', $year)->count() + 1;
+                $recours->numero_recours = 'REC/' . $year . '/' . str_pad($count, 6, '0', STR_PAD_LEFT);
             }
-
-            // Activer l'étape suivante
-            $this->etape_actuelle++;
-            $this->save();
-
-            $etapeSuivante = $this->etapes()->where('numero_etape', $this->etape_actuelle)->first();
-            if ($etapeSuivante) {
-                $etapeSuivante->update([
-                    'statut' => 'en_cours',
-                    'date_debut' => now(),
-                ]);
-            }
-        } else {
-            // Toutes les étapes complétées
-            $this->statut_global = 'cloture';
-            $this->save();
-        }
+        });
     }
 }

@@ -29,12 +29,24 @@ class TribunalResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Informations du tribunal')
+                    ->description('Le sigle est utilisé dans la génération automatique des numéros de dossier')
                     ->schema([
                         Forms\Components\TextInput::make('nom')
                             ->label('Nom du tribunal')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('Ex: Tribunal de Première Instance de Yaoundé'),
+                            ->placeholder('Ex: Tribunal de Première Instance de Yaoundé')
+                            ->columnSpan(2),
+
+                        Forms\Components\TextInput::make('sigle')
+                            ->label('Sigle / Abréviation')
+                            ->required() // ✅ OBLIGATOIRE
+                            ->unique(ignoreRecord: true) // ✅ UNIQUE
+                            ->maxLength(50)
+                            ->placeholder('Ex: TPI-CA')
+                            ->helperText('⚠️ Obligatoire - Utilisé dans la nomenclature des dossiers (ex: TPI-CA/TPD)')
+                            ->rule('alpha_dash') // Seulement lettres, chiffres, tirets et underscores
+                            ->columnSpan(1),
 
                         Forms\Components\TextInput::make('ville')
                             ->label('Ville')
@@ -44,6 +56,7 @@ class TribunalResource extends Resource
                         Forms\Components\Textarea::make('adresse')
                             ->label('Adresse complète')
                             ->maxLength(65535)
+                            ->rows(3)
                             ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('telephone')
@@ -60,7 +73,7 @@ class TribunalResource extends Resource
                             ->label('Actif')
                             ->default(true)
                             ->required(),
-                    ])->columns(2),
+                    ])->columns(3),
             ]);
     }
 
@@ -68,33 +81,57 @@ class TribunalResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('sigle')
+                    ->label('Sigle')
+                    ->searchable()
+                    ->sortable()
+                    ->badge()
+                    ->color('primary')
+                    ->size('lg')
+                    ->weight('bold')
+                    ->copyable()
+                    ->tooltip('Utilisé dans la nomenclature des dossiers'),
+
                 Tables\Columns\TextColumn::make('nom')
                     ->label('Nom')
                     ->searchable()
                     ->sortable()
-                    ->wrap(),
+                    ->wrap()
+                    ->description(fn($record) => $record->ville),
 
                 Tables\Columns\TextColumn::make('ville')
                     ->label('Ville')
                     ->searchable()
                     ->sortable()
-                    ->badge(),
+                    ->badge()
+                    ->color('info')
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('telephone')
                     ->label('Téléphone')
-                    ->searchable(),
+                    ->searchable()
+                    ->toggleable(),
 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Actif')
                     ->boolean()
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('dossiers_count')
+                    ->label('Nb. Dossiers')
+                    ->counts('dossiers')
+                    ->sortable()
+                    ->badge()
+                    ->color('warning')
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('decisions_count')
                     ->label('Nb. Décisions')
                     ->counts('decisions')
                     ->sortable()
                     ->badge()
-                    ->color('info'),
+                    ->color('success')
+                    ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Créé le')
@@ -111,13 +148,15 @@ class TribunalResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => $record->dossiers_count == 0 && $record->decisions_count == 0),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->defaultSort('sigle');
     }
 
     public static function getPages(): array

@@ -89,7 +89,7 @@ class DecisionResource extends Resource
                                                         '<strong>Matière :</strong> ' . ($dossier->matiere?->designation ?? 'N/A') . '<br>' .
                                                         '<strong>Requérants :</strong> ' . ($dossier->demandeurs_liste ?: $dossier->demandeur_nom_complet) . '<br>' .
                                                         '<strong>Parties adverses :</strong> ' . ($dossier->defendeurs_liste ?: $dossier->defendeur_nom_complet) . '<br>' .
-                                                        '<strong>Infractions :</strong> ' . $dossier->infractions->pluck('libelle')->join(', ') . '<br>' .
+                                                        '<strong>Nature du différend :</strong> ' . $dossier->infractions->pluck('libelle')->join(', ') . '<br>' .
                                                         '<strong>Date enrôlement :</strong> ' . $dossier->date_enrolement?->format('d/m/Y') .
                                                         '</div>'
                                                 );
@@ -106,7 +106,7 @@ class DecisionResource extends Resource
                             ]),
 
                         // ✅ ONGLET 2 : IDENTIFICATION
-                        Forms\Components\Tabs\Tab::make('Identification')
+                        Forms\Components\Tabs\Tab::make('Identification de Décision')
                             ->schema([
                                 Forms\Components\Section::make('Classification')
                                     ->schema([

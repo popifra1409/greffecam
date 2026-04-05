@@ -302,4 +302,22 @@ class Decision extends Model
     {
         return $query->whereYear('date_decision', $annee);
     }
+
+    // Accesseur pour affichage dans les selects
+    public function getIdentificationAttribute(): string
+    {
+        // Priorité : numero_repertoire > numero_rg > "Décision #ID"
+        if ($this->numero_repertoire) {
+            return $this->numero_repertoire;
+        }
+
+        if ($this->numero_rg) {
+            return $this->numero_rg;
+        }
+
+        return 'Décision #' . $this->id . ' du ' . $this->date_decision?->format('d/m/Y');
+    }
+
+    // Ajouter dans $appends pour que ce soit toujours disponible
+    protected $appends = ['identification'];
 }

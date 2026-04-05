@@ -35,27 +35,22 @@ class ViewDecision extends ViewRecord
             Actions\EditAction::make()
                 ->visible(fn($record) => $record->estModifiable()),
 
-            // ✅ ACTION 1 : VALIDER (brouillon → validee)
+            // ACTION 1 : VALIDER
             Actions\Action::make('valider')
                 ->label('Valider la décision')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
                 ->visible(fn($record) => $record->peutEtreValidee())
                 ->requiresConfirmation()
-                ->modalHeading('Valider cette décision')
-                ->modalDescription('La décision passera au statut "Validée" et pourra être saisie.')
-                ->modalSubmitActionLabel('Valider')
                 ->action(function ($record) {
                     $record->update(['statut' => 'validee']);
-
                     \Filament\Notifications\Notification::make()
                         ->title('✅ Décision validée')
-                        ->body('La décision peut maintenant être saisie.')
                         ->success()
                         ->send();
                 }),
 
-            // ✅ ACTION 2 : SAISIR (validee → saisie)
+            // ACTION 2 : SAISIR
             Actions\Action::make('saisir')
                 ->label('Marquer comme saisie')
                 ->icon('heroicon-o-document-text')
@@ -66,38 +61,25 @@ class ViewDecision extends ViewRecord
                         ->label('Date de saisie')
                         ->required()
                         ->native(false)
-                        ->displayFormat('d/m/Y')
                         ->default(now()),
-
                     Forms\Components\FileUpload::make('fichier_saisi')
-                        ->label('Fichier saisi (Word, etc.)')
-                        ->acceptedFileTypes([
-                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            'application/msword',
-                            'application/pdf'
-                        ])
-                        ->maxSize(10240)
-                        ->directory('decisions/saisies')
+                        ->label('Fichier saisi')
                         ->required()
-                        ->helperText('Uploadez le fichier de la décision saisie'),
+                        ->directory('decisions/saisies'),
                 ])
-                ->modalHeading('Marquer la décision comme saisie')
-                ->modalSubmitActionLabel('Enregistrer')
                 ->action(function ($record, array $data) {
                     $record->update([
                         'statut' => 'saisie',
                         'date_saisie' => $data['date_saisie'],
                         'fichier_saisi' => $data['fichier_saisi'],
                     ]);
-
                     \Filament\Notifications\Notification::make()
                         ->title('⌨️ Décision saisie')
-                        ->body('La décision peut maintenant être signée.')
                         ->success()
                         ->send();
                 }),
 
-            // ✅ ACTION 3 : MODIFIER LE FICHIER SAISI
+            // ACTION 3 : MODIFIER FICHIER SAISI
             Actions\Action::make('modifier_fichier_saisi')
                 ->label('Modifier le fichier saisi')
                 ->icon('heroicon-o-pencil-square')
@@ -105,39 +87,22 @@ class ViewDecision extends ViewRecord
                 ->visible(fn($record) => $record->statut === 'saisie')
                 ->form([
                     Forms\Components\DatePicker::make('date_modification')
-                        ->label('Date de modification')
                         ->required()
                         ->native(false)
-                        ->displayFormat('d/m/Y')
                         ->default(now()),
-
                     Forms\Components\FileUpload::make('fichier_saisi_modifie')
-                        ->label('Fichier saisi modifié')
-                        ->acceptedFileTypes([
-                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                            'application/msword',
-                            'application/pdf'
-                        ])
-                        ->maxSize(10240)
-                        ->directory('decisions/saisies')
-                        ->required(),
+                        ->required()
+                        ->directory('decisions/saisies'),
                 ])
-                ->modalHeading('Modifier le fichier saisi')
-                ->modalSubmitActionLabel('Enregistrer la modification')
                 ->action(function ($record, array $data) {
-                    $record->update([
-                        'date_modification' => $data['date_modification'],
-                        'fichier_saisi_modifie' => $data['fichier_saisi_modifie'],
-                    ]);
-
+                    $record->update($data);
                     \Filament\Notifications\Notification::make()
                         ->title('🔄 Fichier modifié')
-                        ->body('Le fichier saisi a été mis à jour.')
                         ->success()
                         ->send();
                 }),
 
-            // ✅ ACTION 4 : SIGNER (saisie → signee)
+            // ACTION 4 : SIGNER
             Actions\Action::make('signer')
                 ->label('Marquer comme signée')
                 ->icon('heroicon-o-pencil')
@@ -145,36 +110,26 @@ class ViewDecision extends ViewRecord
                 ->visible(fn($record) => $record->peutEtreSignee())
                 ->form([
                     Forms\Components\DatePicker::make('date_signature')
-                        ->label('Date de signature')
                         ->required()
                         ->native(false)
-                        ->displayFormat('d/m/Y')
                         ->default(now()),
-
                     Forms\Components\FileUpload::make('fichier_signe')
-                        ->label('Fichier signé (PDF)')
-                        ->acceptedFileTypes(['application/pdf'])
-                        ->maxSize(10240)
-                        ->directory('decisions/signees')
-                        ->required(),
+                        ->required()
+                        ->directory('decisions/signees'),
                 ])
-                ->modalHeading('Marquer la décision comme signée')
-                ->modalSubmitActionLabel('Enregistrer')
                 ->action(function ($record, array $data) {
                     $record->update([
                         'statut' => 'signee',
                         'date_signature' => $data['date_signature'],
                         'fichier_signe' => $data['fichier_signe'],
                     ]);
-
                     \Filament\Notifications\Notification::make()
                         ->title('✍️ Décision signée')
-                        ->body('La décision peut maintenant être enregistrée.')
                         ->success()
                         ->send();
                 }),
 
-            // ✅ ACTION 5 : ENREGISTRER (signee → enregistree)
+            // ACTION 5 : ENREGISTRER
             Actions\Action::make('enregistrer')
                 ->label('Marquer comme enregistrée')
                 ->icon('heroicon-o-clipboard-document-check')
@@ -184,316 +139,33 @@ class ViewDecision extends ViewRecord
                     Forms\Components\Section::make('Date et fichier')
                         ->schema([
                             Forms\Components\DatePicker::make('date_enregistrement')
-                                ->label('Date d\'enregistrement')
                                 ->required()
                                 ->native(false)
-                                ->displayFormat('d/m/Y')
                                 ->default(now()),
-
                             Forms\Components\FileUpload::make('fichier_enregistre')
-                                ->label('Fichier enregistré (PDF)')
-                                ->acceptedFileTypes(['application/pdf'])
-                                ->maxSize(10240)
-                                ->directory('decisions/enregistrees')
                                 ->required()
+                                ->directory('decisions/enregistrees')
                                 ->columnSpanFull(),
                         ])->columns(2),
-
-                    Forms\Components\Section::make('Références d\'enregistrement')
+                    Forms\Components\Section::make('Références')
                         ->schema([
-                            Forms\Components\TextInput::make('numero_volume')
-                                ->label('N° Volume')
-                                ->required()
-                                ->maxLength(255),
-
-                            Forms\Components\TextInput::make('numero_folio')
-                                ->label('N° Folio')
-                                ->required()
-                                ->maxLength(255),
-
-                            Forms\Components\TextInput::make('numero_case_bd')
-                                ->label('N° Case BD')
-                                ->required()
-                                ->maxLength(255),
-
-                            Forms\Components\TextInput::make('numero_quittance')
-                                ->label('N° Quittance')
-                                ->required()
-                                ->maxLength(255),
-
-                            Forms\Components\TextInput::make('montant_quittance')
-                                ->label('Montant de la quittance')
-                                ->numeric()
-                                ->suffix('FCFA')
-                                ->required(),
+                            Forms\Components\TextInput::make('numero_volume')->required(),
+                            Forms\Components\TextInput::make('numero_folio')->required(),
+                            Forms\Components\TextInput::make('numero_case_bd')->required(),
+                            Forms\Components\TextInput::make('numero_quittance')->required(),
+                            Forms\Components\TextInput::make('montant_quittance')->numeric()->required(),
                         ])->columns(3),
                 ])
-                ->modalHeading('Enregistrer la décision')
-                ->modalSubmitActionLabel('Enregistrer')
                 ->modalWidth('3xl')
                 ->action(function ($record, array $data) {
-                    $record->update([
-                        'statut' => 'enregistree',
-                        'date_enregistrement' => $data['date_enregistrement'],
-                        'fichier_enregistre' => $data['fichier_enregistre'],
-                        'numero_volume' => $data['numero_volume'],
-                        'numero_folio' => $data['numero_folio'],
-                        'numero_case_bd' => $data['numero_case_bd'],
-                        'numero_quittance' => $data['numero_quittance'],
-                        'montant_quittance' => $data['montant_quittance'],
-                    ]);
-
+                    $record->update(array_merge(['statut' => 'enregistree'], $data));
                     \Filament\Notifications\Notification::make()
                         ->title('📋 Décision enregistrée')
-                        ->body('Vous pouvez maintenant enregistrer la signification et les recours.')
                         ->success()
                         ->send();
                 }),
 
-            // ✅ NOUVEAU : ACTION 6 : SIGNIFIER LA DÉCISION
-            Actions\Action::make('signifier')
-                ->label('Enregistrer la signification')
-                ->icon('heroicon-o-bell-alert')
-                ->color('warning')
-                ->visible(fn($record) => in_array($record->statut, ['signee', 'enregistree']) && !$record->est_signifiee)
-                ->form([
-                    Forms\Components\DatePicker::make('date_signification')
-                        ->label('Date de signification')
-                        ->required()
-                        ->native(false)
-                        ->displayFormat('d/m/Y')
-                        ->default(now())
-                        ->helperText('Date de remise de la copie par huissier'),
-
-                    Forms\Components\TextInput::make('reference_acte_huissier')
-                        ->label('Référence acte d\'huissier')
-                        ->maxLength(255),
-
-                    Forms\Components\FileUpload::make('fichier_signification')
-                        ->label('Acte de signification (PDF)')
-                        ->acceptedFileTypes(['application/pdf'])
-                        ->maxSize(10240)
-                        ->directory('decisions/significations')
-                        ->columnSpanFull(),
-                ])
-                ->modalHeading('Enregistrer la signification')
-                ->modalSubmitActionLabel('Enregistrer')
-                ->action(function ($record, array $data) {
-                    $record->update([
-                        'est_signifiee' => true,
-                        'date_signification' => $data['date_signification'],
-                        'reference_acte_huissier' => $data['reference_acte_huissier'],
-                        'fichier_signification' => $data['fichier_signification'],
-                    ]);
-
-                    \Filament\Notifications\Notification::make()
-                        ->title('📬 Signification enregistrée')
-                        ->body('La décision a été signifiée. Vous pouvez maintenant enregistrer un recours.')
-                        ->success()
-                        ->send();
-                }),
-
-            // ✅ NOUVEAU : ACTION 7 : DÉCLARER UN APPEL
-            // Dans ViewDecision.php, remplacez l'action declarer_appel par :
-
-            Actions\Action::make('declarer_appel')
-                ->label('Déclarer un appel')
-                ->icon('heroicon-o-scale')
-                ->color('danger')
-                ->visible(
-                    fn($record) =>
-                    in_array($record->statut, ['validee', 'saisie', 'signee', 'enregistree']) &&
-                    !$record->type_recours
-                )
-                ->form([
-                    Forms\Components\Placeholder::make('info_appel')
-                        ->label('')
-                        ->content(new \Illuminate\Support\HtmlString(
-                            '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
-                            '<strong>✅ APPEL (Décision contradictoire)</strong><br>' .
-                            'Peut être déclaré DÈS LE PRONONCÉ, même avant saisie/signature.' .
-                            '</div>'
-                        ))
-                        ->columnSpanFull(),
-
-                    Forms\Components\TextInput::make('lettre_appel_reference')
-                        ->label('Référence de la lettre d\'appel')
-                        ->required()
-                        ->maxLength(255),
-
-                    Forms\Components\DatePicker::make('lettre_appel_date')
-                        ->label('Date de déclaration d\'appel')
-                        ->required()
-                        ->native(false)
-                        ->displayFormat('d/m/Y')
-                        ->default(now())
-                        ->after('date_decision'),
-
-                    Forms\Components\FileUpload::make('lettre_appel_fichier')
-                        ->label('Lettre de déclaration d\'appel (PDF)')
-                        ->acceptedFileTypes(['application/pdf'])
-                        ->maxSize(10240)
-                        ->directory('decisions/appels')
-                        ->required()
-                        ->columnSpanFull(),
-
-                    // ✅ NOUVEAU : Informations du recours
-                    Forms\Components\Section::make('Informations du recours')
-                        ->schema([
-                            Forms\Components\Select::make('type_recours_detail')
-                                ->label('Type de recours en appel')
-                                ->options([
-                                    'appel' => 'Appel',
-                                    'appel_incident' => 'Appel incident',
-                                    'appel_principal' => 'Appel principal',
-                                ])
-                                ->default('appel')
-                                ->required(),
-
-                            Forms\Components\Textarea::make('motifs_recours')
-                                ->label('Motifs du recours')
-                                ->rows(3)
-                                ->columnSpanFull()
-                                ->helperText('Résumé des motifs invoqués par l\'appelant'),
-                        ])
-                        ->collapsible(),
-                ])
-                ->modalHeading('Déclarer un appel')
-                ->modalSubmitActionLabel('Enregistrer l\'appel')
-                ->modalWidth('2xl')
-                ->action(function ($record, array $data) {
-                    // ✅ 1. Mettre à jour la décision
-                    $record->update([
-                        'type_recours' => 'appel',
-                        'lettre_appel_reference' => $data['lettre_appel_reference'],
-                        'lettre_appel_date' => $data['lettre_appel_date'],
-                        'lettre_appel_fichier' => $data['lettre_appel_fichier'],
-                    ]);
-
-                    // ✅ 2. Créer automatiquement l'enregistrement dans la table recours
-                    $recours = \App\Models\Recours::create([
-                        'decision_id' => $record->id,
-                        'dossier_id' => $record->dossier_id,
-                        'type_recours_id' => \App\Models\TypeRecours::where('code', 'appel')->first()?->id,
-                        'type_recours_detail' => $data['type_recours_detail'] ?? 'appel',
-                        'date_declaration' => $data['lettre_appel_date'],
-                        'reference_lettre' => $data['lettre_appel_reference'],
-                        'fichier_lettre' => $data['lettre_appel_fichier'],
-                        'motifs' => $data['motifs_recours'] ?? null,
-                        'statut' => 'en_cours',
-                        'est_dans_delai' => true, // À calculer selon les délais légaux
-                        'createur_id' => auth()->id(),
-                    ]);
-
-                    \Filament\Notifications\Notification::make()
-                        ->title('⚖️ Appel enregistré')
-                        ->body('Le recours N°' . $recours->id . ' a été créé automatiquement.')
-                        ->actions([
-                            \Filament\Notifications\Actions\Action::make('voir_recours')
-                                ->label('Voir le recours')
-                                ->url(\App\Modules\DecisionRecours\Filament\Resources\RecoursResource::getUrl('view', ['record' => $recours]))
-                                ->button(),
-                        ])
-                        ->success()
-                        ->send();
-                }),
-
-            // ✅ NOUVEAU : ACTION 8 : DÉCLARER UNE OPPOSITION
-            // Remplacez l'action declarer_opposition par :
-
-            Actions\Action::make('declarer_opposition')
-                ->label('Déclarer une opposition')
-                ->icon('heroicon-o-exclamation-triangle')
-                ->color('danger')
-                ->visible(
-                    fn($record) =>
-                    $record->est_signifiee &&
-                    in_array($record->statut, ['signee', 'enregistree']) &&
-                    !$record->type_recours
-                )
-                ->form([
-                    Forms\Components\Placeholder::make('info_opposition')
-                        ->label('')
-                        ->content(new \Illuminate\Support\HtmlString(
-                            '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
-                            '<strong>⚠️ OPPOSITION (Décision par défaut)</strong><br>' .
-                            'Uniquement APRÈS SIGNIFICATION de la décision.' .
-                            '</div>'
-                        ))
-                        ->columnSpanFull(),
-
-                    Forms\Components\TextInput::make('lettre_opposition_reference')
-                        ->label('Référence de la lettre d\'opposition')
-                        ->required()
-                        ->maxLength(255),
-
-                    Forms\Components\DatePicker::make('lettre_opposition_date')
-                        ->label('Date de dépôt de l\'opposition')
-                        ->required()
-                        ->native(false)
-                        ->displayFormat('d/m/Y')
-                        ->default(now())
-                        ->after('date_signification'),
-
-                    Forms\Components\FileUpload::make('lettre_opposition_fichier')
-                        ->label('Lettre d\'opposition (PDF)')
-                        ->acceptedFileTypes(['application/pdf'])
-                        ->maxSize(10240)
-                        ->directory('decisions/oppositions')
-                        ->required()
-                        ->columnSpanFull(),
-
-                    Forms\Components\Section::make('Informations du recours')
-                        ->schema([
-                            Forms\Components\Textarea::make('motifs_recours')
-                                ->label('Motifs de l\'opposition')
-                                ->rows(3)
-                                ->columnSpanFull()
-                                ->helperText('Résumé des motifs invoqués'),
-                        ])
-                        ->collapsible(),
-                ])
-                ->modalHeading('Déclarer une opposition')
-                ->modalSubmitActionLabel('Enregistrer l\'opposition')
-                ->modalWidth('2xl')
-                ->action(function ($record, array $data) {
-                    // ✅ 1. Mettre à jour la décision
-                    $record->update([
-                        'type_recours' => 'opposition',
-                        'lettre_opposition_reference' => $data['lettre_opposition_reference'],
-                        'lettre_opposition_date' => $data['lettre_opposition_date'],
-                        'lettre_opposition_fichier' => $data['lettre_opposition_fichier'],
-                    ]);
-
-                    // ✅ 2. Créer automatiquement l'enregistrement dans la table recours
-                    $recours = \App\Models\Recours::create([
-                        'decision_id' => $record->id,
-                        'dossier_id' => $record->dossier_id,
-                        'type_recours_id' => \App\Models\TypeRecours::where('code', 'opposition')->first()?->id,
-                        'type_recours_detail' => 'opposition',
-                        'date_declaration' => $data['lettre_opposition_date'],
-                        'reference_lettre' => $data['lettre_opposition_reference'],
-                        'fichier_lettre' => $data['lettre_opposition_fichier'],
-                        'motifs' => $data['motifs_recours'] ?? null,
-                        'statut' => 'en_cours',
-                        'est_dans_delai' => true, // À calculer selon les délais légaux
-                        'createur_id' => auth()->id(),
-                    ]);
-
-                    \Filament\Notifications\Notification::make()
-                        ->title('⚠️ Opposition enregistrée')
-                        ->body('Le recours N°' . $recours->id . ' a été créé automatiquement.')
-                        ->actions([
-                            \Filament\Notifications\Actions\Action::make('voir_recours')
-                                ->label('Voir le recours')
-                                ->url(\App\Modules\DecisionRecours\Filament\Resources\RecoursResource::getUrl('view', ['record' => $recours]))
-                                ->button(),
-                        ])
-                        ->warning()
-                        ->send();
-                }),
-
-            // ✅ ACTION 9 : CERTIFICAT & GROSSE (si pas de recours)
+            // ACTION 6 : CERTIFICAT & GROSSE
             Actions\Action::make('certificat_grosse')
                 ->label('Certificat & Grosse')
                 ->icon('heroicon-o-document-check')
@@ -502,74 +174,119 @@ class ViewDecision extends ViewRecord
                 ->form([
                     Forms\Components\Section::make('Certificat de non-appel')
                         ->schema([
-                            Forms\Components\TextInput::make('certificat_non_appel_reference')
-                                ->label('Référence')
-                                ->maxLength(255),
-
-                            Forms\Components\DatePicker::make('certificat_non_appel_date')
-                                ->label('Date')
-                                ->native(false)
-                                ->displayFormat('d/m/Y'),
-
+                            Forms\Components\TextInput::make('certificat_non_appel_reference'),
+                            Forms\Components\DatePicker::make('certificat_non_appel_date')->native(false),
                             Forms\Components\FileUpload::make('certificat_non_appel_fichier')
-                                ->label('Fichier (PDF)')
-                                ->acceptedFileTypes(['application/pdf'])
-                                ->maxSize(10240)
                                 ->directory('decisions/certificats')
                                 ->columnSpanFull(),
-                        ])->columns(2)
-                        ->collapsible(),
-
+                        ])->columns(2)->collapsible(),
                     Forms\Components\Section::make('Grosse')
                         ->schema([
-                            Forms\Components\TextInput::make('grosse_reference')
-                                ->label('Référence')
-                                ->maxLength(255),
-
-                            Forms\Components\DatePicker::make('grosse_date')
-                                ->label('Date')
-                                ->native(false)
-                                ->displayFormat('d/m/Y'),
-
+                            Forms\Components\TextInput::make('grosse_reference'),
+                            Forms\Components\DatePicker::make('grosse_date')->native(false),
                             Forms\Components\FileUpload::make('grosse_fichier')
-                                ->label('Fichier (PDF)')
-                                ->acceptedFileTypes(['application/pdf'])
-                                ->maxSize(10240)
                                 ->directory('decisions/grosses')
                                 ->columnSpanFull(),
-                        ])->columns(2)
-                        ->collapsible(),
+                        ])->columns(2)->collapsible(),
                 ])
-                ->modalHeading('Ajouter certificat et grosse')
-                ->modalSubmitActionLabel('Enregistrer')
                 ->modalWidth('3xl')
                 ->action(function ($record, array $data) {
                     $record->update($data);
-
                     \Filament\Notifications\Notification::make()
                         ->title('✅ Certificat et grosse enregistrés')
                         ->success()
                         ->send();
                 }),
 
-            // ✅ ACTION 10 : ARCHIVER
+            // ACTION 7 : ARCHIVER
             Actions\Action::make('archiver')
                 ->label('Archiver')
                 ->icon('heroicon-o-archive-box')
                 ->color('secondary')
                 ->visible(fn($record) => $record->peutEtreArchivee())
                 ->requiresConfirmation()
-                ->modalHeading('Archiver cette décision')
-                ->modalDescription('Une fois archivée, la décision ne pourra plus être modifiée.')
-                ->modalSubmitActionLabel('Archiver')
                 ->action(function ($record) {
                     $record->update([
                         'statut' => 'archivee',
                         'is_archived' => true,
                     ]);
-
                     \Filament\Notifications\Notification::make()
                         ->title('📦 Décision archivée')
+                        ->success()
+                        ->send();
+                }),
+
+            // ✅ ACTION 8 : DÉCLARATION DE VOIE DE RECOURS (APRÈS ARCHIVER)
+            Actions\Action::make('declarer_recours')
+                ->label('Déclaration de voie de recours')
+                ->icon('heroicon-o-scale')
+                ->color('danger')
+                ->visible(
+                    fn($record) =>
+                    in_array($record->statut, ['saisie', 'signee', 'enregistree', 'archivee']) &&
+                    !$record->type_recours
+                )
+                ->form([
+                    Forms\Components\Select::make('type_recours_id')
+                        ->label('Type de recours')
+                        ->required()
+                        ->relationship('typeRecours', 'libelle', function ($query) {
+                            return $query->where('is_active', true);
+                        })
+                        ->getOptionLabelFromRecordUsing(
+                            fn($record) =>
+                            ($record->icone ?? '⚖️') . ' ' . $record->libelle
+                        )
+                        ->searchable()
+                        ->preload()
+                        ->live(),
+
+                    Forms\Components\DatePicker::make('date_recours')
+                        ->label('Date du recours')
+                        ->required()
+                        ->native(false)
+                        ->default(now()),
+
+                    Forms\Components\TextInput::make('reference_lettre')
+                        ->label('Référence de la lettre')
+                        ->required(),
+
+                    Forms\Components\FileUpload::make('fichier_lettre')
+                        ->label('Lettre de déclaration (PDF)')
+                        ->acceptedFileTypes(['application/pdf'])
+                        ->directory('decisions/recours')
+                        ->required(),
+                ])
+                ->modalHeading('Déclaration de voie de recours')
+                ->modalWidth('2xl')
+                ->action(function ($record, array $data) {
+                    // Récupérer le TypeRecours
+                    $typeRecours = \App\Models\TypeRecours::find($data['type_recours_id']);
+
+                    // Mettre à jour la décision
+                    $record->update([
+                        'type_recours' => $typeRecours->code, // Pour compatibilité
+                    ]);
+
+                    // Créer le recours
+                    $recours = \App\Models\Recours::create([
+                        'decision_id' => $record->id,
+                        'type_recours_id' => $data['type_recours_id'],
+                        'type_recours' => $typeRecours->code,
+                        'date_recours' => $data['date_recours'],
+                        'reference_lettre' => $data['reference_lettre'],
+                        'fichier_lettre' => $data['fichier_lettre'],
+                    ]);
+
+                    \Filament\Notifications\Notification::make()
+                        ->title('⚖️ Recours enregistré')
+                        ->body('Le recours N°' . $recours->id . ' a été créé.')
+                        ->actions([
+                            \Filament\Notifications\Actions\Action::make('voir')
+                                ->label('Voir le recours')
+                                ->url(\App\Modules\DecisionRecours\Filament\Resources\RecoursResource::getUrl('edit', ['record' => $recours]))
+                                ->button(),
+                        ])
                         ->success()
                         ->send();
                 }),

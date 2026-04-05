@@ -215,32 +215,55 @@ class Dossier extends Model
     }
 
     // Générer un numéro de dossier unique
+    /**
+     * Générer un numéro de dossier unique
+     * Format: SIGLE_TRIBUNAL/3LETTRES_SECTION/3LETTRES_MATIERE/2CHIFFRES_ANNEE/8CHIFFRES_NUMERO
+     * Exemple: TPI-CA/TPD/COM/26/00000001
+     */
     public static function genererNumeroDossier($tribunalId, $sectionId, $matiereId, $annee)
     {
         $tribunal = Tribunal::find($tribunalId);
         $section = Section::find($sectionId);
         $matiere = Matiere::find($matiereId);
 
-        // Format: CODE_TRIBUNAL/CODE_SECTION/CODE_MATIERE/ANNEE/NUMERO
-        // Ex: TPI-YDE/CIV/TRAV/2025/00001
+        if (!$tribunal || !$section || !$matiere) {
+            throw new \Exception('Tribunal, Section ou Matière introuvable pour la génération du numéro');
+        }
 
+        // ✅ 1. SIGLE DU TRIBUNAL (obligatoire maintenant)
+        $tribunalCode = strtoupper($tribunal->sigle);
+
+        // ✅ 2. CODE SECTION (3 premières lettres)
+        // Si la section a un code défini, on l'utilise, sinon on prend les 3 premières lettres du libellé
+        $sectionCode = $section->code
+            ? strtoupper(substr($section->code, 0, 3))
+            : strtoupper(substr(str_replace([' ', '-', "'"], '', $section->libelle), 0, 3));
+
+        // ✅ 3. CODE MATIÈRE (3 premières lettres)
+        // Si la matière a un code défini, on l'utilise, sinon on prend les 3 premières lettres de la désignation
+        $matiereCode = $matiere->code
+            ? strtoupper(substr($matiere->code, 0, 3))
+            : strtoupper(substr(str_replace([' ', '-', "'"], '', $matiere->designation), 0, 3));
+
+        // ✅ 4. ANNÉE (2 derniers chiffres)
+        $anneeCode = substr($annee, -2);
+
+        // ✅ 5. COMPTEUR (8 chiffres avec zéros devant)
+        // Compter les dossiers existants pour cette combinaison tribunal/section/matière/année
         $count = self::where('tribunal_id', $tribunalId)
             ->where('section_id', $sectionId)
             ->where('matiere_id', $matiereId)
             ->whereYear('date_enrolement', $annee)
             ->count() + 1;
 
-        $tribunalCode = strtoupper(substr($tribunal->nom, 0, 3));
-        $sectionCode = $section->code;
-        $matiereCode = strtoupper(substr($matiere->designation, 0, 4));
-
+        // ✅ Générer le numéro final
         return sprintf(
-            '%s/%s/%s/%s/%05d',
-            $tribunalCode,
-            $sectionCode,
-            $matiereCode,
-            $annee,
-            $count
+            '%s/%s/%s/%s/%08d',
+            $tribunalCode,    // TPI-CA
+            $sectionCode,     // TPD
+            $matiereCode,     // COM
+            $anneeCode,       // 26
+            $count            // 00000001
         );
     }
 }
