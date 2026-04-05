@@ -2,82 +2,87 @@
 
 namespace App\Modules\DecisionRecours\Filament\Widgets;
 
-use App\Models\AlerteRecours;
+use App\Models\Recours;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 
 class AlertesRecoursWidget extends BaseWidget
 {
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 3;
 
-    protected int | string | array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 'full';
 
     public function table(Table $table): Table
     {
         return $table
-            ->heading('🔔 Alertes Délais Recours')
+            ->heading('📋 Recours récents')
+            ->description('Liste des derniers recours enregistrés')
             ->query(
-                AlerteRecours::query()
-                    ->where('est_lue', false)
-                    ->whereHas('recours', function ($query) {
-                        $query->where('statut_global', 'en_cours');
-                    })
-                    ->latest('date_declenchement')
+                Recours::query()
+                    ->with(['decision', 'typeRecours'])
+                    ->whereNull('date_transmission_cour_appel') // Recours non encore transmis
+                    ->latest()
                     ->limit(10)
             )
             ->columns([
-                Tables\Columns\TextColumn::make('niveau')
-                    ->label('Niveau')
-                    ->badge()
-                    ->color(fn(string $state): string => match ($state) {
-                        'rouge' => 'danger',
-                        'orange' => 'warning',
-                        'jaune' => 'info',
-                        default => 'gray',
-                    })
-                    ->formatStateUsing(fn(string $state): string => match ($state) {
-                        'rouge' => 'URGENT',
-                        'orange' => 'ATTENTION',
-                        'jaune' => 'INFO',
-                        default => $state,
-                    }),
-
-                Tables\Columns\TextColumn::make('recours.numero_recours')
-                    ->label('Recours')
+                Tables\Columns\TextColumn::make('numero_recours')
+                    ->label('N° Recours')
                     ->searchable()
-                    ->url(fn($record) => route('filament.admin.resources.recours.view', $record->recours_id))
+                    ->badge()
                     ->color('primary'),
 
-                Tables\Columns\TextColumn::make('titre')
-                    ->label('Titre')
-                    ->wrap()
-                    ->weight('bold'),
+                Tables\Columns\TextColumn::make('decision.numero_repertoire')
+                    ->label('Décision')
+                    ->badge()
+                    ->color('danger')
+                    ->url(fn($record) => $record->decision_id
+                        ? \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('view', ['record' => $record->decision_id])
+                        : null),
 
-                Tables\Columns\TextColumn::make('message')
-                    ->label('Message')
-                    ->wrap()
-                    ->limit(100),
+                Tables\Columns\TextColumn::make('type_recours')
+                    ->label('Type')
+                    ->badge()
+                    ->formatStateUsing(fn(string $state): string => match ($state) {
+                        'appel' => '⚖️ Appel',
+                        'opposition' => '⚠️ Opposition',
+                        'tierce_opposition' => '👥 Tierce opposition',
+                        'retractation' => '🔄 Rétractation',
+                        'revision' => '🔍 Révision',
+                        'pourvoi_cassation' => '⚖️ Pourvoi',
+                        default => $state,
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        'appel' => 'danger',
+                        'opposition' => 'warning',
+                        default => 'info',
+                    }),
 
-                Tables\Columns\TextColumn::make('date_declenchement')
+                Tables\Columns\TextColumn::make('date_recours')
                     ->label('Date')
-                    ->dateTime('d/m/Y H:i')
+                    ->date('d/m/Y')
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('date_enregistrement')
+                    ->label('Enregistré')
+                    ->date('d/m/Y')
+                    ->badge()
+                    ->color('success')
+                    ->placeholder('En attente'),
+
+                Tables\Columns\TextColumn::make('nombre_documents')
+                    ->label('Docs')
+                    ->getStateUsing(fn($record) => count($record->documents_mise_en_etat ?? []))
+                    ->badge()
+                    ->color('info'),
             ])
             ->actions([
-                Tables\Actions\Action::make('marquer_lue')
-                    ->label('Marquer comme lue')
-                    ->icon('heroicon-o-check')
-                    ->color('success')
-                    ->action(function ($record) {
-                        $record->update([
-                            'est_lue' => true,
-                            'date_lecture' => now(),
-                        ]);
-                    }),
+                Tables\Actions\Action::make('voir')
+                    ->label('Voir')
+                    ->icon('heroicon-o-eye')
+                    ->url(fn($record) => \App\Modules\DecisionRecours\Filament\Resources\RecoursResource::getUrl('view', ['record' => $record]))
+                    ->color('primary'),
             ])
-            ->emptyStateHeading('Aucune alerte')
-            ->emptyStateDescription('Aucune alerte de délai en cours')
-            ->emptyStateIcon('heroicon-o-check-circle');
+            ->paginated([5, 10]);
     }
 }
