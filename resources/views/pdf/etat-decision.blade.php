@@ -445,30 +445,47 @@
         @endif
     </div>
 
-    {{-- SECTION 3 : IDENTIFICATION DE LA DÉCISION --}}
-    <div class="section">
-        <div class="section-title">🔖 Identification de la Décision</div>
-        <div class="info-grid">
-            <div class="info-row">
-                <div class="info-label">N° Répertoire / Décision</div>
-                <div class="info-value">
-                    <span class="badge badge-primary">{{ $decision->numero_repertoire ?? 'Non renseigné' }}</span>
-                </div>
-            </div>
-            @if($decision->numero_parquet)
-            <div class="info-row">
-                <div class="info-label">N° Parquet</div>
-                <div class="info-value">{{ $decision->numero_parquet }}</div>
-            </div>
-            @endif
-            <div class="info-row">
-                <div class="info-label">Nature de la décision</div>
-                <div class="info-value">
-                    <span class="badge badge-info">{{ $decision->natureDecision->libelle ?? 'N/A' }}</span>
-                </div>
+   {{-- SECTION 3 : IDENTIFICATION DE LA DÉCISION --}}
+<div class="section">
+    <div class="section-title">🔖 Identification de la Décision</div>
+    <div class="info-grid">
+        <div class="info-row">
+            <div class="info-label">N° Répertoire / Décision</div>
+            <div class="info-value">
+                <span class="badge badge-primary">{{ $decision->numero_repertoire ?? 'Non renseigné' }}</span>
             </div>
         </div>
+        @if($decision->numero_parquet)
+        <div class="info-row">
+            <div class="info-label">N° Parquet</div>
+            <div class="info-value">{{ $decision->numero_parquet }}</div>
+        </div>
+        @endif
     </div>
+
+    {{-- ✅ NOUVEAU : Classification hiérarchique --}}
+    <h3 style="margin-top: 10px;">Classification de la décision</h3>
+    <div style="padding: 10px; background-color: #fafafa; border-left: 3px solid #2563eb; margin: 5px 0;">
+        <div style="margin-bottom: 8px;">
+            <strong>Catégorie :</strong> 
+            <span class="badge badge-gray">
+                {{ $decision->categorieDecision->libelle ?? 'Non renseignée' }}
+            </span>
+        </div>
+        <div style="margin-bottom: 8px;">
+            <strong>Type :</strong> 
+            <span class="badge badge-info">
+                {{ $decision->typeDecision->libelle ?? 'Non renseigné' }}
+            </span>
+        </div>
+        <div>
+            <strong>Nature :</strong> 
+            <span class="badge badge-warning">
+                {{ $decision->natureDecision->libelle ?? 'Non renseignée' }}
+            </span>
+        </div>
+    </div>
+</div>
 
     {{-- SECTION 4 : DATES DU WORKFLOW --}}
     <div class="section">
