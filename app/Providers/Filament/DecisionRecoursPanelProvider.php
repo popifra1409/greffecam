@@ -30,6 +30,13 @@ class DecisionRecoursPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Amber,
             ])
+
+            // ✅ RENDER HOOK : Ajouter les liens dans la topbar
+            ->renderHook(
+                'panels::topbar.end',
+                fn() => view('filament.decision-recours.topbar-shortcuts')
+            )
+
             ->userMenuItems([
                 'profile' => MenuItem::make()
                     ->label('Mon Profil')
@@ -37,7 +44,7 @@ class DecisionRecoursPanelProvider extends PanelProvider
                     ->icon('heroicon-o-user-circle'),
 
                 MenuItem::make()
-                    ->label('Portail Principal')
+                    ->label('🏠 Portail Principal')
                     ->url('/portal')
                     ->icon('heroicon-o-home')
                     ->sort(10),
@@ -46,15 +53,19 @@ class DecisionRecoursPanelProvider extends PanelProvider
                     ->label('Administration')
                     ->url('/portal/users')
                     ->icon('heroicon-o-cog-6-tooth')
-                    ->visible(fn() => auth()->user()->hasAnyRole(['Super Administrateur', 'Administrateur']))
+                    ->visible(fn() => auth()->user()?->hasAnyRole(['Super Administrateur', 'Administrateur']) ?? false)
                     ->sort(20),
 
-                'logout' => MenuItem::make()->label('Déconnexion'),
+                'logout' => MenuItem::make()
+                    ->label('Déconnexion')
+                    ->icon('heroicon-o-arrow-right-on-rectangle'),
             ])
+
             ->globalSearch(true)
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->sidebarCollapsibleOnDesktop()
+
             ->discoverResources(
                 in: app_path('Modules/DecisionRecours/Filament/Resources'),
                 for: 'App\\Modules\\DecisionRecours\\Filament\\Resources'
@@ -64,16 +75,16 @@ class DecisionRecoursPanelProvider extends PanelProvider
                 for: 'App\\Modules\\DecisionRecours\\Filament\\Pages'
             )
             ->pages([
-                \App\Modules\DecisionRecours\Filament\Pages\Dashboard::class, // ✅ Dashboard personnalisé
+                \App\Modules\DecisionRecours\Filament\Pages\Dashboard::class,
             ])
             ->discoverWidgets(
                 in: app_path('Modules/DecisionRecours/Filament/Widgets'),
                 for: 'App\\Modules\\DecisionRecours\\Filament\\Widgets'
             )
             ->widgets([
-                    // Les widgets sont chargés automatiquement par le Dashboard
                 Widgets\AccountWidget::class,
             ])
+
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -88,7 +99,9 @@ class DecisionRecoursPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
+
             ->brandName('Décision & Recours')
+
             ->navigationGroups([
                 'Gestion Judiciaire',
                 'Référentiels',
