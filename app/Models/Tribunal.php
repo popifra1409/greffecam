@@ -47,9 +47,22 @@ class Tribunal extends Model
     {
         return $this->hasMany(Greffier::class);
     }
-    
+
     public function getFormatNomenclature(): string
     {
         return strtoupper($this->sigle);
     }
+
+
+
+    public function dossiers()
+    {
+        return $this->hasMany(Dossier::class);
+    }
+
+    public function collegeJuges()
+    {
+        return $this->hasMany(CollegeJuge::class);
+    }
+
 }
