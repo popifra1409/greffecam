@@ -3,6 +3,7 @@
 namespace App\Modules\DecisionRecours\Filament\Resources\CollegeJugeResource\Pages;
 
 use App\Modules\DecisionRecours\Filament\Resources\CollegeJugeResource;
+use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
@@ -10,6 +11,14 @@ use Filament\Infolists\Infolist;
 class ViewCollegeJuge extends ViewRecord
 {
     protected static string $resource = CollegeJugeResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\EditAction::make(),
+            Actions\DeleteAction::make(),
+        ];
+    }
 
     public function infolist(Infolist $infolist): Infolist
     {
@@ -19,59 +28,95 @@ class ViewCollegeJuge extends ViewRecord
                     ->schema([
                         Infolists\Components\TextEntry::make('designation')
                             ->label('Désignation')
+                            ->badge()
+                            ->color('primary')
                             ->size('lg')
                             ->weight('bold'),
 
                         Infolists\Components\TextEntry::make('tribunal.nom')
                             ->label('Tribunal')
                             ->badge()
-                            ->color('primary'),
+                            ->color('info'),
 
                         Infolists\Components\TextEntry::make('description')
                             ->label('Description')
-                            ->placeholder('Aucune description')
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->placeholder('Aucune description'),
+
+                        Infolists\Components\IconEntry::make('is_active')
+                            ->label('Actif')
+                            ->boolean(),
                     ])->columns(2),
 
-                Infolists\Components\Section::make('Composition')
+                Infolists\Components\Section::make('Composition du collège')
+                    ->description(fn($record) => 'Ce collège est composé de ' . $record->juges->count() . ' juge(s)')
                     ->schema([
                         Infolists\Components\RepeatableEntry::make('juges')
-                            ->label('Membres du collège')
+                            ->label('')
                             ->schema([
                                 Infolists\Components\TextEntry::make('nom_complet')
-                                    ->label('Juge')
-                                    ->weight('bold'),
+                                    ->label('Identité')
+                                    ->getStateUsing(fn($record) => $record->nom_complet) // ✅ Utilise l'accesseur
+                                    ->badge()
+                                    ->color('primary')
+                                    ->weight('bold')
+                                    ->icon('heroicon-o-user'),
 
                                 Infolists\Components\TextEntry::make('pivot.qualite')
                                     ->label('Qualité')
                                     ->badge()
-                                    ->color(fn(string $state): string => match ($state) {
-                                        'president' => 'danger',
-                                        'juge_1', 'juge_2' => 'info',
-                                        'assesseur_1', 'assesseur_2' => 'warning',
-                                        default => 'gray',
-                                    })
+                                    ->color('warning')
                                     ->formatStateUsing(fn(string $state): string => match ($state) {
                                         'president' => 'Président',
                                         'juge_1' => 'Juge 1',
                                         'juge_2' => 'Juge 2',
                                         'assesseur_1' => 'Assesseur 1',
                                         'assesseur_2' => 'Assesseur 2',
-                                        'juge_suppléant' => 'Juge suppléant',
+                                        'juge_suppleant' => 'Juge suppléant',
                                         default => $state,
                                     }),
 
-                                Infolists\Components\TextEntry::make('matricule')
-                                    ->label('Matricule')
-                                    ->badge(),
-
                                 Infolists\Components\TextEntry::make('grade')
                                     ->label('Grade')
+                                    ->badge()
+                                    ->color('info')
                                     ->placeholder('Non renseigné'),
+
+                                Infolists\Components\TextEntry::make('matricule')
+                                    ->label('Matricule')
+                                    ->badge()
+                                    ->color('gray')
+                                    ->placeholder('Non renseigné'),
+
+                                Infolists\Components\TextEntry::make('email')
+                                    ->label('Email')
+                                    ->icon('heroicon-o-envelope')
+                                    ->placeholder('Non renseigné')
+                                    ->copyable(),
+
+                                Infolists\Components\TextEntry::make('telephone')
+                                    ->label('Téléphone')
+                                    ->icon('heroicon-o-phone')
+                                    ->placeholder('Non renseigné')
+                                    ->copyable(),
                             ])
-                            ->columns(4)
+                            ->columns(3)
                             ->columnSpanFull(),
                     ]),
+
+                Infolists\Components\Section::make('Métadonnées')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('created_at')
+                            ->label('Créé le')
+                            ->dateTime('d/m/Y à H:i'),
+
+                        Infolists\Components\TextEntry::make('updated_at')
+                            ->label('Modifié le')
+                            ->dateTime('d/m/Y à H:i'),
+                    ])
+                    ->columns(2)
+                    ->collapsible()
+                    ->collapsed(),
             ]);
     }
 }

@@ -56,10 +56,9 @@ class CollegeJugeResource extends Resource
 
                 Forms\Components\Section::make('Composition du collège')
                     ->schema([
-                        Forms\Components\Repeater::make('juges')
-                            ->relationship('juges')
+                        Forms\Components\Repeater::make('membres') // ✅ Changé de 'juges' à 'membres'
                             ->schema([
-                                Forms\Components\Select::make('id')
+                                Forms\Components\Select::make('juge_id')
                                     ->label('Juge')
                                     ->options(function (callable $get) {
                                         $tribunalId = $get('../../tribunal_id');
@@ -75,8 +74,8 @@ class CollegeJugeResource extends Resource
                                     ->searchable()
                                     ->disableOptionWhen(function ($value, $state, callable $get) {
                                         // Empêcher de sélectionner le même juge plusieurs fois
-                                        $selectedJuges = collect($get('../../juges'))
-                                            ->pluck('id')
+                                        $selectedJuges = collect($get('../../membres'))
+                                            ->pluck('juge_id')
                                             ->filter()
                                             ->toArray();
                                         return in_array($value, $selectedJuges) && $value != $state;
@@ -86,26 +85,20 @@ class CollegeJugeResource extends Resource
                                     ->label('Qualité')
                                     ->options([
                                         'president' => 'Président',
-                                        'juge_1' => 'Juge 1',
-                                        'juge_2' => 'Juge 2',
-                                        'assesseur_1' => 'Assesseur 1',
-                                        'assesseur_2' => 'Assesseur 2',
-                                        'juge_suppléant' => 'Juge suppléant',
+                                        'membre' => 'Membre',
+                                        'assesseur' => 'Assesseur',
                                     ])
                                     ->required(),
                             ])
                             ->columns(2)
-                            ->itemLabel(
-                                fn(array $state): ?string =>
-                                isset($state['id']) && isset($state['qualite'])
-                                    ? \App\Models\Juge::find($state['id'])?->nom_complet . ' - ' . $state['qualite']
-                                    : null
-                            )
                             ->collapsible()
-                            ->addActionLabel('Ajouter un juge')
+                            ->addActionLabel('➕ Ajouter un juge')
                             ->columnSpanFull()
-                            ->minItems(3)
-                            ->maxItems(7),
+                            ->defaultItems(1)
+                            // ->minItems(3)
+                            // ->maxItems(7)
+                            ->reorderable()
+                        // ->helperText('Un collège doit comporter au minimum 3 juges (1 président + 2 membres/assesseurs)'),
                     ]),
             ]);
     }
