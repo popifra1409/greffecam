@@ -15,14 +15,25 @@ class Dashboard extends BaseDashboard
     public function getWidgets(): array
     {
         return [
-            \App\Modules\DecisionRecours\Filament\Widgets\TransmissionsEnAttenteWidget::class,
+            // Stats d'ensemble (en haut)
+            \App\Modules\DecisionRecours\Filament\Widgets\StatsOverviewWidget::class,
+
+            // Widgets tableaux
+            \App\Modules\DecisionRecours\Filament\Widgets\DossiersRecentWidget::class,
             \App\Modules\DecisionRecours\Filament\Widgets\AlertesRecoursWidget::class,
+            \App\Modules\DecisionRecours\Filament\Widgets\DecisionsRecentesWidget::class,
+
+            // Graphique
             \App\Modules\DecisionRecours\Filament\Widgets\DecisionsStatsWidget::class,
         ];
     }
 
-    public function getColumns(): int|string|array
+    public function getColumns(): int|array
     {
-        return 2;
+        return [
+            'sm' => 1,
+            'md' => 2,
+            'lg' => 3,
+        ];
     }
 }

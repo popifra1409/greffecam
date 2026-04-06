@@ -219,6 +219,11 @@ class Decision extends Model
         return $this->belongsTo(AnneeJudiciaire::class);
     }
 
+    public function recours()
+    {
+        return $this->hasMany(Recours::class);
+    }
+
     // ✅ ACCESSEURS POUR COMPOSITION
     public function getCompositionAttribute()
     {

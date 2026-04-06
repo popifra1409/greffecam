@@ -3,52 +3,76 @@
 namespace App\Modules\DecisionRecours\Filament\Widgets;
 
 use App\Models\Decision;
-use App\Models\AnneeJudiciaire;
-use Filament\Widgets\StatsOverviewWidget as BaseWidget;
-use Filament\Widgets\StatsOverviewWidget\Stat;
+use Filament\Widgets\ChartWidget;
+use Illuminate\Support\Facades\DB;
 
-class DecisionsStatsWidget extends BaseWidget
+class DecisionsStatsWidget extends ChartWidget
 {
-    protected function getStats(): array
+    protected static ?int $sort = 4;
+
+    protected static ?string $heading = '📊 Répartition des décisions par statut';
+
+    protected static ?string $description = 'Vue d\'ensemble du workflow';
+
+    protected int|string|array $columnSpan = 'full';
+
+    protected function getData(): array
     {
-        $anneeActive = AnneeJudiciaire::where('is_active', true)->first();
+        // Compter les décisions par statut
+        $stats = Decision::select('statut', DB::raw('count(*) as total'))
+            ->groupBy('statut')
+            ->pluck('total', 'statut')
+            ->toArray();
 
-        $query = Decision::query();
+        // Labels et couleurs
+        $labels = [];
+        $data = [];
+        $backgroundColors = [];
 
-        if ($anneeActive) {
-            $query->where('annee_judiciaire_id', $anneeActive->id);
+        $statutsConfig = [
+            'brouillon' => ['label' => 'Brouillon', 'color' => 'rgb(156, 163, 175)'],
+            'validee' => ['label' => 'Validée', 'color' => 'rgb(59, 130, 246)'],
+            'saisie' => ['label' => 'Saisie', 'color' => 'rgb(139, 92, 246)'],
+            'signee' => ['label' => 'Signée', 'color' => 'rgb(34, 197, 94)'],
+            'enregistree' => ['label' => 'Enregistrée', 'color' => 'rgb(16, 185, 129)'],
+            'archivee' => ['label' => 'Archivée', 'color' => 'rgb(107, 114, 128)'],
+        ];
+
+        foreach ($statutsConfig as $statut => $config) {
+            $count = $stats[$statut] ?? 0;
+            if ($count > 0) {
+                $labels[] = $config['label'];
+                $data[] = $count;
+                $backgroundColors[] = $config['color'];
+            }
         }
 
         return [
-            Stat::make('Total Décisions', $query->count())
-                ->description($anneeActive ? "Année {$anneeActive->libelle}" : 'Toutes années')
-                ->descriptionIcon('heroicon-m-document-text')
-                ->color('primary'),
+            'datasets' => [
+                [
+                    'label' => 'Nombre de décisions',
+                    'data' => $data,
+                    'backgroundColor' => $backgroundColors,
+                ],
+            ],
+            'labels' => $labels,
+        ];
+    }
 
-            Stat::make('Brouillon', $query->clone()->where('statut', 'brouillon')->count())
-                ->description('En cours de rédaction')
-                ->descriptionIcon('heroicon-m-pencil-square')
-                ->color('gray'),
+    protected function getType(): string
+    {
+        return 'doughnut'; // ou 'pie' ou 'bar'
+    }
 
-            Stat::make('Transmises', $query->clone()->where('statut', 'transmise_chef')->count())
-                ->description('En attente de signature')
-                ->descriptionIcon('heroicon-m-paper-airplane')
-                ->color('warning'),
-
-            Stat::make('Signées', $query->clone()->where('statut', 'signee')->count())
-                ->description('En attente d\'enregistrement')
-                ->descriptionIcon('heroicon-m-pencil')
-                ->color('info'),
-
-            Stat::make('Enregistrées', $query->clone()->where('statut', 'enregistree')->count())
-                ->description('Décisions finalisées')
-                ->descriptionIcon('heroicon-m-check-badge')
-                ->color('success'),
-
-            Stat::make('Annulées', $query->clone()->where('statut', 'annulee')->count())
-                ->description('Décisions annulées')
-                ->descriptionIcon('heroicon-m-x-circle')
-                ->color('danger'),
+    protected function getOptions(): array
+    {
+        return [
+            'plugins' => [
+                'legend' => [
+                    'display' => true,
+                    'position' => 'bottom',
+                ],
+            ],
         ];
     }
 }
