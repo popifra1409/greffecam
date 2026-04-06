@@ -44,6 +44,11 @@ class DecisionRecoursPanelProvider extends PanelProvider
                     ->icon('heroicon-o-user-circle'),
 
                 MenuItem::make()
+                    ->label('Mes notifications')
+                    ->url('/decision-recours/preferences-notification')
+                    ->icon('heroicon-o-bell'),
+
+                MenuItem::make()
                     ->label('🏠 Portail Principal')
                     ->url('/portal')
                     ->icon('heroicon-o-home')
@@ -76,6 +81,7 @@ class DecisionRecoursPanelProvider extends PanelProvider
             )
             ->pages([
                 \App\Modules\DecisionRecours\Filament\Pages\Dashboard::class,
+                \App\Modules\DecisionRecours\Filament\Pages\PreferencesNotification::class,
             ])
             ->discoverWidgets(
                 in: app_path('Modules/DecisionRecours/Filament/Widgets'),

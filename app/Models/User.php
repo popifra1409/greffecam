@@ -64,4 +64,41 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->sections()->wherePivot('is_active', true);
     }
+
+    public function notificationPreference()
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
+    /**
+     * Route notification pour SMS (Twilio)
+     */
+    public function routeNotificationForTwilio(): ?string
+    {
+        return $this->notificationPreference?->phone_number;
+    }
+
+    /**
+     * Route notification pour WhatsApp (Twilio)
+     */
+    public function routeNotificationForWhatsApp(): ?string
+    {
+        $number = $this->notificationPreference?->whatsapp_number;
+        return $number ? "whatsapp:{$number}" : null;
+    }
+
+    /**
+     * Créer les préférences par défaut si inexistantes
+     */
+    public function getOrCreateNotificationPreference(): NotificationPreference
+    {
+        if (!$this->notificationPreference) {
+            return $this->notificationPreference()->create([
+                'email_enabled' => true,
+                'push_enabled' => true,
+            ]);
+        }
+
+        return $this->notificationPreference;
+    }
 }
