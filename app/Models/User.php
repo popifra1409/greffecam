@@ -101,4 +101,13 @@ class User extends Authenticatable implements FilamentUser
 
         return $this->notificationPreference;
     }
+
+    private function getUtilisateursResumeQuotidien(): \Illuminate\Database\Eloquent\Collection
+    {
+        return User::whereHas('notificationPreference', function ($query) {
+            $query->where('resume_quotidien', true);
+        })
+            ->with('notificationPreference')
+            ->get();
+    }
 }

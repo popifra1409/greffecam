@@ -6,6 +6,8 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use App\Notifications\Channels\TwilioSmsChannel;
+use App\Notifications\Channels\TwilioWhatsAppChannel;
 
 class RecoursATraiterNotification extends Notification implements ShouldQueue
 {
@@ -27,7 +29,18 @@ class RecoursATraiterNotification extends Notification implements ShouldQueue
         // Déterminer l'urgence
         $niveau = $this->type === 'urgent' ? 'urgent' : 'normal';
 
-        return $preferences->getCanauxPourUrgence($niveau);
+        $canaux = $preferences->getCanauxPourUrgence($niveau);
+
+        // Mapper les canaux vers les classes
+        return array_map(function ($canal) {
+            return match ($canal) {
+                'mail' => 'mail',
+                'database' => 'database',
+                'sms' => TwilioSmsChannel::class,
+                'whatsapp' => TwilioWhatsAppChannel::class,
+                default => $canal,
+            };
+        }, $canaux);
     }
 
     /**
