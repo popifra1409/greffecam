@@ -163,6 +163,7 @@ class DecisionResource extends Resource
                                         Forms\Components\TextInput::make('numero_repertoire')
                                             ->label('N° Répertoire / N° Décision')
                                             ->maxLength(255)
+                                            ->required()
                                             ->placeholder('Numéro de la décision'),
 
                                         Forms\Components\TextInput::make('numero_parquet')

@@ -573,28 +573,44 @@
             @endif
         </div>
 
-        @if($decision->mode_composition === 'college' && $decision->collegeJuge && $decision->collegeJuge->membres->count() > 0)
-            <h3>Membres du collège :</h3>
-            <div class="membres-college">
-                @foreach($decision->collegeJuge->membres as $membre)
-                    <div class="membre-item">
-                        <strong>{{ $membre->nom_complet }}</strong> - 
-                        <span class="badge badge-info">
-                            @switch($membre->pivot->qualite)
-                                @case('president') Président @break
-                                @case('juge_1') Juge 1 @break
-                                @case('juge_2') Juge 2 @break
-                                @case('assesseur_1') Assesseur 1 @break
-                                @case('assesseur_2') Assesseur 2 @break
-                                @case('juge_suppleant') Juge suppléant @break
-                                @default {{ $membre->pivot->qualite }}
-                            @endswitch
-                        </span>
-                    </div>
-                @endforeach
+       @if($decision->mode_composition === 'college' && $decision->collegeJuge && $decision->collegeJuge->juges->count() > 0)
+    <h3>Membres du collège :</h3>
+    <div class="membres-college">
+        @foreach($decision->collegeJuge->juges as $juge)
+            <div class="membre-item">
+                <strong>{{ $juge->nom_complet }}</strong>
+                @if($juge->titre)
+                    <span style="color: #666;">({{ $juge->titre }})</span>
+                @endif
+                - 
+                <span class="badge badge-info">
+                    @switch($juge->pivot->qualite)
+                        @case('president') Président @break
+                        @case('membre') Membre @break
+                        @case('assesseur') Assesseur @break
+                        @default {{ ucfirst($juge->pivot->qualite) }}
+                    @endswitch
+                </span>
+                
+                {{-- Informations complémentaires --}}
+                @if($juge->grade || $juge->matricule)
+                    <br>
+                    <small style="color: #666;">
+                        @if($juge->grade)
+                            Grade : {{ $juge->grade }}
+                        @endif
+                        @if($juge->grade && $juge->matricule)
+                            | 
+                        @endif
+                        @if($juge->matricule)
+                            Matricule : {{ $juge->matricule }}
+                        @endif
+                    </small>
+                @endif
             </div>
-        @endif
+        @endforeach
     </div>
+@endif
 
     {{-- SECTION 6 : CONTENU DE LA DÉCISION --}}
     <div class="section">

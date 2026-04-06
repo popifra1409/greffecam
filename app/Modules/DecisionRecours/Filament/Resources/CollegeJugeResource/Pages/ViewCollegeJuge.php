@@ -51,12 +51,13 @@ class ViewCollegeJuge extends ViewRecord
                 Infolists\Components\Section::make('Composition du collège')
                     ->description(fn($record) => 'Ce collège est composé de ' . $record->juges->count() . ' juge(s)')
                     ->schema([
+                        // ✅ Utiliser 'juges' pas 'membres'
                         Infolists\Components\RepeatableEntry::make('juges')
                             ->label('')
                             ->schema([
                                 Infolists\Components\TextEntry::make('nom_complet')
                                     ->label('Identité')
-                                    ->getStateUsing(fn($record) => $record->nom_complet) // ✅ Utilise l'accesseur
+                                    ->getStateUsing(fn($record) => $record->nom_complet)
                                     ->badge()
                                     ->color('primary')
                                     ->weight('bold')
@@ -68,12 +69,9 @@ class ViewCollegeJuge extends ViewRecord
                                     ->color('warning')
                                     ->formatStateUsing(fn(string $state): string => match ($state) {
                                         'president' => 'Président',
-                                        'juge_1' => 'Juge 1',
-                                        'juge_2' => 'Juge 2',
-                                        'assesseur_1' => 'Assesseur 1',
-                                        'assesseur_2' => 'Assesseur 2',
-                                        'juge_suppleant' => 'Juge suppléant',
-                                        default => $state,
+                                        'membre' => 'Membre',
+                                        'assesseur' => 'Assesseur',
+                                        default => ucfirst($state),
                                     }),
 
                                 Infolists\Components\TextEntry::make('grade')

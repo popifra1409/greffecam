@@ -19,7 +19,7 @@ class EtatDecisionPdfService
             'dossier.infractions',
             'natureDecision',
             'jugeUnique',
-            'collegeJuge.membres',
+            'collegeJuge.juges',
             'greffierDecision',
             'greffierResponsable',
         ]);
