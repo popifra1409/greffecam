@@ -3,6 +3,7 @@
 namespace App\Modules\Portal\Filament\Resources;
 
 use App\Modules\Portal\Filament\Resources\PermissionResource\Pages;
+use App\Traits\HasResourcePermissions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,6 +13,8 @@ use Spatie\Permission\Models\Permission;
 
 class PermissionResource extends Resource
 {
+    use HasResourcePermissions;
+
     protected static ?string $model = Permission::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-key';
@@ -21,6 +24,28 @@ class PermissionResource extends Resource
     protected static ?string $modelLabel = 'Permission';
 
     protected static ?string $pluralModelLabel = 'Permissions';
+
+    protected static ?int $navigationSort = 91;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_permissions';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_permissions';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_permissions';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_permissions';
+    }
 
     public static function form(Form $form): Form
     {
@@ -33,7 +58,11 @@ class PermissionResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255)
-                            ->helperText('Ex: view_decisions, create_recours, delete_users'),
+                            ->helperText('Ex: view_decisions, create_recours, delete_users')
+                            ->rules(['regex:/^[a-z_]+$/'])
+                            ->validationMessages([
+                                'regex' => 'Utilisez uniquement des minuscules et underscores (ex: view_decisions)',
+                            ]),
                     ]),
             ]);
     }
@@ -45,11 +74,15 @@ class PermissionResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nom')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->badge()
+                    ->color('gray'),
 
                 Tables\Columns\TextColumn::make('roles_count')
                     ->label('Nb. Rôles')
                     ->counts('roles')
+                    ->badge()
+                    ->color('info')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('created_at')
@@ -58,12 +91,13 @@ class PermissionResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                //
-            ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->action(function ($record) {
+                        $record->delete();
+                        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
