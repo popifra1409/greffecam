@@ -68,6 +68,11 @@ class RolePermissionSeeder extends Seeder
             'manage_permissions',
             'view_audit_logs',
 
+            // Système / Technique
+            'manage_system_settings',
+            'view_system_logs',
+            'manage_backups',
+
             // Modules
             'access_decision_recours',
             'access_sequestre_caution',
@@ -90,7 +95,6 @@ class RolePermissionSeeder extends Seeder
         // 2. ADMINISTRATEUR (plusieurs possibles)
         $admin = Role::firstOrCreate(['name' => 'Administrateur']);
         $admin->syncPermissions([
-            // Gestion complète sauf certaines permissions critiques
             'view_dossiers',
             'create_dossiers',
             'edit_dossiers',
@@ -193,40 +197,75 @@ class RolePermissionSeeder extends Seeder
             'access_decision_recours',
         ]);
 
+        // 7. INFORMATICIEN (support technique)
+        $informaticien = Role::firstOrCreate(['name' => 'Informaticien']);
+        $informaticien->syncPermissions([
+            'view_users',
+            'create_users',
+            'edit_users',
+            'view_roles',
+            'view_permissions',
+            'view_audit_logs',
+            'manage_system_settings',
+            'view_system_logs',
+            'manage_backups',
+            'view_referentiels',
+            'manage_referentiels',
+            'access_decision_recours',
+            'access_administration',
+        ]);
+
         // ================================================================
-        // CRÉATION DU SUPER ADMIN (utilisateur unique)
+        // CRÉATION DES UTILISATEURS PAR DÉFAUT
         // ================================================================
 
+        // Super Admin (accès total)
         $superAdminUser = User::firstOrCreate(
             ['email' => 'superadmin@justice.cm'],
             [
                 'name' => 'Super Administrateur',
-                'password' => bcrypt('password'),
+                'password' => bcrypt('Sadmin@1977'),
+                'is_active' => true,
+                'email_verified_at' => now(),
             ]
         );
         $superAdminUser->syncRoles([$superAdmin]);
+
+        // Administrateur (gestion courante)
+        $adminUser = User::firstOrCreate(
+            ['email' => 'admin@justice.cm'],
+            [
+                'name' => 'Administrateur',
+                'password' => bcrypt('12345678'),
+                'is_active' => true,
+                'email_verified_at' => now(),
+            ]
+        );
+        $adminUser->syncRoles([$admin]);
 
         // ================================================================
         // ACCÈS AUX MODULES
         // ================================================================
 
-        // Super Admin et Admin ont accès à tous les modules
-        foreach ([$superAdmin, $admin] as $role) {
+        $tousLesRoles = [
+            $superAdmin,
+            $admin,
+            $greffierChef,
+            $greffier,
+            $juge,
+            $consultant,
+            $informaticien,
+        ];
+
+        foreach ($tousLesRoles as $role) {
             ModuleAccess::updateOrCreate(
                 ['role_id' => $role->id, 'module_code' => 'decision_recours'],
                 ['can_access' => true]
             );
         }
 
-        // Autres rôles : accès au module decision_recours
-        foreach ([$greffierChef, $greffier, $juge, $consultant] as $role) {
-            ModuleAccess::updateOrCreate(
-                ['role_id' => $role->id, 'module_code' => 'decision_recours'],
-                ['can_access' => true]
-            );
-        }
-
-        $this->command->info('✅ Rôles et permissions créés avec succès !');
-        $this->command->info('📧 Super Admin : superadmin@justice.cm / password');
+        $this->command->info('✅ Rôles, permissions et utilisateurs créés avec succès !');
+        $this->command->info('📧 Super Admin : superadmin@justice.cm / Sadmin@1977');
+        $this->command->info('📧 Admin       : admin@justice.cm / 12345678');
     }
 }

@@ -5,7 +5,7 @@ use App\Http\Controllers\EtatDecisionController;
 
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect('/portal');
 });
 
 // Routes pour l'état de décision
