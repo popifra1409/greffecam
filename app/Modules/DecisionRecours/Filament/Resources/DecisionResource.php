@@ -12,9 +12,11 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Get;
 use Illuminate\Database\Eloquent\Builder;
+use App\Traits\HasResourcePermissions;
 
 class DecisionResource extends Resource
 {
+    use HasResourcePermissions;
     protected static ?string $model = Decision::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-scale';
@@ -26,6 +28,24 @@ class DecisionResource extends Resource
     protected static ?string $pluralModelLabel = 'Décisions';
 
     protected static ?int $navigationSort = 11;
+
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_decisions';
+    }
+    protected static function getCreatePermission(): string
+    {
+        return 'create_decisions';
+    }
+    protected static function getEditPermission(): string
+    {
+        return 'edit_decisions';
+    }
+    protected static function getDeletePermission(): string
+    {
+        return 'delete_decisions';
+    }
 
     public static function form(Form $form): Form
     {
@@ -96,15 +116,15 @@ class DecisionResource extends Resource
 
                                                 return new \Illuminate\Support\HtmlString(
                                                     '<div style="font-family: monospace; line-height: 2;">' .
-                                                    '<strong>Tribunal :</strong> ' . ($dossier->tribunal?->nom ?? 'N/A') . '<br>' .
-                                                    '<strong>Section :</strong> ' . ($dossier->section?->libelle ?? 'N/A') .
-                                                    ($isRepressive ? ' <span style="color: #dc2626; font-weight: bold;">(Répressive)</span>' : ' <span style="color: #059669;">(Civile)</span>') . '<br>' .
-                                                    '<strong>Matière :</strong> ' . ($dossier->matiere?->designation ?? 'N/A') . '<br>' .
-                                                    '<strong>' . $labelDemandeurs . ' :</strong> ' . ($dossier->demandeurs_liste ?: $dossier->demandeur_nom_complet ?: 'N/A') . '<br>' .
-                                                    '<strong>' . $labelDefendeurs . ' :</strong> ' . ($dossier->defendeurs_liste ?: $dossier->defendeur_nom_complet ?: 'N/A') . '<br>' .
-                                                    '<strong>' . $labelNature . ' :</strong> ' . $naturesListe . '<br>' .
-                                                    '<strong>Date enrôlement :</strong> ' . ($dossier->date_enrolement?->format('d/m/Y') ?? 'N/A') .
-                                                    '</div>'
+                                                        '<strong>Tribunal :</strong> ' . ($dossier->tribunal?->nom ?? 'N/A') . '<br>' .
+                                                        '<strong>Section :</strong> ' . ($dossier->section?->libelle ?? 'N/A') .
+                                                        ($isRepressive ? ' <span style="color: #dc2626; font-weight: bold;">(Répressive)</span>' : ' <span style="color: #059669;">(Civile)</span>') . '<br>' .
+                                                        '<strong>Matière :</strong> ' . ($dossier->matiere?->designation ?? 'N/A') . '<br>' .
+                                                        '<strong>' . $labelDemandeurs . ' :</strong> ' . ($dossier->demandeurs_liste ?: $dossier->demandeur_nom_complet ?: 'N/A') . '<br>' .
+                                                        '<strong>' . $labelDefendeurs . ' :</strong> ' . ($dossier->defendeurs_liste ?: $dossier->defendeur_nom_complet ?: 'N/A') . '<br>' .
+                                                        '<strong>' . $labelNature . ' :</strong> ' . $naturesListe . '<br>' .
+                                                        '<strong>Date enrôlement :</strong> ' . ($dossier->date_enrolement?->format('d/m/Y') ?? 'N/A') .
+                                                        '</div>'
                                                 );
                                             })
                                             ->columnSpanFull(),
@@ -520,9 +540,9 @@ class DecisionResource extends Resource
                                             ->label('')
                                             ->content(new \Illuminate\Support\HtmlString(
                                                 '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
-                                                '<strong>⚠️ Attention</strong><br>' .
-                                                'Une opposition ne peut être faite que si la décision a été signifiée. Assurez-vous de remplir la section Signification ci-dessus.' .
-                                                '</div>'
+                                                    '<strong>⚠️ Attention</strong><br>' .
+                                                    'Une opposition ne peut être faite que si la décision a été signifiée. Assurez-vous de remplir la section Signification ci-dessus.' .
+                                                    '</div>'
                                             ))
                                             ->visible(fn(Get $get) => $get('type_recours') === 'opposition' && !$get('est_signifiee'))
                                             ->columnSpanFull(),
@@ -592,9 +612,9 @@ class DecisionResource extends Resource
                                     ->label('')
                                     ->content(fn(Get $get) => new \Illuminate\Support\HtmlString(
                                         '<div style="padding: 1rem; background: #fee2e2; border-left: 4px solid #dc2626; border-radius: 0.5rem;">' .
-                                        '<strong>⚖️ Recours activé : ' . ($get('type_recours') === 'appel' ? 'APPEL' : 'OPPOSITION') . '</strong><br>' .
-                                        'Le module Recours sera automatiquement activé pour traiter ce ' . ($get('type_recours') === 'appel' ? 'recours en appel' : 'recours en opposition') . '.' .
-                                        '</div>'
+                                            '<strong>⚖️ Recours activé : ' . ($get('type_recours') === 'appel' ? 'APPEL' : 'OPPOSITION') . '</strong><br>' .
+                                            'Le module Recours sera automatiquement activé pour traiter ce ' . ($get('type_recours') === 'appel' ? 'recours en appel' : 'recours en opposition') . '.' .
+                                            '</div>'
                                     ))
                                     ->visible(fn(Get $get) => in_array($get('type_recours'), ['appel', 'opposition']))
                                     ->columnSpanFull(),
