@@ -78,6 +78,16 @@ class RolePermissionSeeder extends Seeder
             'access_sequestre_caution',
             'access_documents_judiciaires',
             'access_administration',
+
+            // Séquestres & Caution
+            'view_sequestres',
+            'create_sequestres',
+            'edit_sequestres',
+            'delete_sequestres',
+            'view_mouvements_sequestre',
+            'create_mouvements_sequestre',
+            'edit_mouvements_sequestre',
+            'delete_mouvements_sequestre',
         ];
 
         foreach ($permissions as $permission) {
@@ -132,6 +142,14 @@ class RolePermissionSeeder extends Seeder
             'view_permissions',
             'access_decision_recours',
             'access_administration',
+            'view_sequestres',
+            'create_sequestres',
+            'edit_sequestres',
+            'delete_sequestres',
+            'view_mouvements_sequestre',
+            'create_mouvements_sequestre',
+            'edit_mouvements_sequestre',
+            'delete_mouvements_sequestre',
         ]);
 
         // 3. GREFFIER EN CHEF
@@ -221,6 +239,19 @@ class RolePermissionSeeder extends Seeder
             'access_administration',
         ]);
 
+        // COMPTABLE SÉQUESTRE
+        $comptableSequestre = Role::firstOrCreate(['name' => 'Comptable Séquestre']);
+        $comptableSequestre->givePermissionTo([
+            'view_sequestres',
+            'create_sequestres',
+            'edit_sequestres',
+            'view_mouvements_sequestre',
+            'create_mouvements_sequestre',
+            'edit_mouvements_sequestre',
+            'view_referentiels',
+            'access_sequestre_caution',
+        ]);
+
         // ================================================================
         // CRÉATION DES UTILISATEURS PAR DÉFAUT
         // ✅ firstOrCreate : ne recrée jamais un compte existant, ne réinitialise
@@ -288,6 +319,11 @@ class RolePermissionSeeder extends Seeder
                 ['can_access' => true]
             );
         }
+
+        ModuleAccess::updateOrCreate(
+            ['role_id' => $comptableSequestre->id, 'module_code' => 'sequestre_caution'],
+            ['can_access' => true]
+        );
 
         $this->command->info('✅ Rôles, permissions et utilisateurs synchronisés avec succès !');
         $this->command->info('   (mode additif : aucune permission existante n\'a été écrasée)');

@@ -8,28 +8,34 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('dossier_familles', function (Blueprint $table) {
+        Schema::create('sequestres', function (Blueprint $table) {
             $table->id();
-            $table->string('numero_dossier_famille')->unique(); // Format: SEQ/2026/000001
 
+            // ✅ Le séquestre découle d'une décision déjà rendue dans ce dossier
             $table->foreignId('decision_id')->constrained('decisions')->cascadeOnDelete();
+
+            // ✅ Dénormalisé depuis decision->dossier_id : permet un accès direct
+            // Dossier::sequestres() sans passer par hasManyThrough
+            $table->foreignId('dossier_id')->constrained('dossiers')->cascadeOnDelete();
+
+            // ✅ Représentant de la famille = une des parties déjà enrôlées dans ce dossier
             $table->foreignId('dossier_partie_id')->nullable()->constrained('dossier_parties')->nullOnDelete();
+
             $table->foreignId('nature_sequestre_id')->constrained('nature_sequestres');
             $table->foreignId('statut_sequestre_id')->constrained('statut_sequestres');
 
-            $table->string('intitule_dossier'); // Nom de famille / partie
             $table->date('date_ouverture');
             $table->decimal('taux_precompte', 6, 4); // ex: 0.0500 = 5%
             $table->text('observations')->nullable();
 
             $table->timestamps();
 
-            $table->index('intitule_dossier');
+            $table->index(['dossier_id', 'decision_id']);
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('dossier_familles');
+        Schema::dropIfExists('sequestres');
     }
 };

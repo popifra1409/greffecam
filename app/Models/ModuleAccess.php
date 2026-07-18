@@ -52,7 +52,7 @@ class ModuleAccess extends Model
                     'Suivi des montants',
                     'Historique des mouvements',
                 ],
-                'available' => false, // Pas encore développé
+                'available' => true,
             ],
             'documents_judiciaires' => [
                 'name' => 'Documents Judiciaires',
@@ -69,5 +69,32 @@ class ModuleAccess extends Model
                 'available' => false,
             ],
         ];
+    }
+
+    public function getModules(): array
+    {
+        $user = auth()->user();
+        $allModules = ModuleAccess::getAvailableModules();
+
+        // ✅ Super Admin et Administrateur voient tout
+        if ($user->hasRole(['Super Administrateur', 'Administrateur'])) {
+            return $allModules;
+        }
+
+        // Filtrer selon les accès
+        $accessibleModules = [];
+        foreach ($user->roles as $role) {
+            $accesses = ModuleAccess::where('role_id', $role->id)
+                ->where('can_access', true)
+                ->get();
+
+            foreach ($accesses as $access) {
+                if (isset($allModules[$access->module_code])) {
+                    $accessibleModules[$access->module_code] = $allModules[$access->module_code];
+                }
+            }
+        }
+
+        return $accessibleModules;
     }
 }

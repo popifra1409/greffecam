@@ -21,6 +21,11 @@ class DatabaseSeeder extends Seeder
             SectionSeeder::class,
             CategorieDecisionSeeder::class,
             TypeDecisionSeeder::class,
+
+            // ✅ Référentiels Séquestre & Caution
+            NatureSequestreSeeder::class,
+            StatutSequestreSeeder::class,
+            MotifMouvementSeeder::class,
         ]);
 
         $this->command->info('✅ Seeding terminé avec succès !');
