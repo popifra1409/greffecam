@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MotifMouvement extends Model
 {
+    protected $table = 'motifs_mouvements';
     protected $fillable = ['code', 'libelle', 'type_mouvement', 'is_active'];
 
     protected $casts = ['is_active' => 'boolean'];

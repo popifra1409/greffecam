@@ -11,8 +11,8 @@ class NatureSequestre extends Model
 
     protected $casts = ['is_active' => 'boolean'];
 
-    public function dossierFamilles(): HasMany
+    public function sequestres(): HasMany
     {
-        return $this->hasMany(DossierFamille::class);
+        return $this->hasMany(Sequestre::class);
     }
 }

@@ -14,8 +14,8 @@ class StatutSequestre extends Model
         'bloque_mouvements' => 'boolean',
     ];
 
-    public function dossierFamilles(): HasMany
+    public function sequestres(): HasMany
     {
-        return $this->hasMany(DossierFamille::class);
+        return $this->hasMany(Sequestre::class);
     }
 }

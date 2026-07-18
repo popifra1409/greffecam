@@ -49,18 +49,59 @@ class SequestreResource extends Resource
         ];
     }
 
+    /**
+     * Format : "TPI-YDCA/CIV/RE/26/00000001 - Déc. 654"
+     */
+    public static function formaterLabelDecision(\App\Models\Decision $decision): string
+    {
+        $numeroDossier = $decision->dossier?->numero_dossier ?? 'Dossier N/A';
+        $numeroDecision = $decision->numero_repertoire ?? '-';
+
+        return "{$numeroDossier} - Déc. {$numeroDecision}";
+    }
+
     public static function form(Form $form): Form
+    /**
+     * Format : "TPI-YDCA/CIV/RE/26/00000001 - Déc. 654"
+     */
+
+
     {
         return $form->schema([
             Forms\Components\Section::make('Décision & Dossier')
                 ->schema([
                     Forms\Components\Select::make('decision_id')
                         ->label('Décision judiciaire')
-                        ->relationship('decision', 'numero_repertoire')
                         ->searchable()
                         ->preload()
                         ->required()
                         ->live()
+                        ->getSearchResultsUsing(function (string $search) {
+                            return Decision::query()
+                                ->with('dossier')
+                                ->where(function ($query) use ($search) {
+                                    $query->whereHas('dossier', fn($q) => $q->where('numero_dossier', 'like', "%{$search}%"))
+                                        ->orWhere('numero_repertoire', 'like', "%{$search}%");
+                                })
+                                ->limit(50)
+                                ->get()
+                                ->mapWithKeys(fn($decision) => [
+                                    $decision->id => static::formaterLabelDecision($decision),
+                                ]);
+                        })
+                        ->getOptionLabelUsing(function ($value) {
+                            $decision = Decision::with('dossier')->find($value);
+                            return $decision ? static::formaterLabelDecision($decision) : null;
+                        })
+                        ->options(function () {
+                            return Decision::with('dossier')
+                                ->latest()
+                                ->limit(100)
+                                ->get()
+                                ->mapWithKeys(fn($decision) => [
+                                    $decision->id => static::formaterLabelDecision($decision),
+                                ]);
+                        })
                         ->helperText('Sélectionnez la décision déjà rendue à l\'origine de ce séquestre'),
 
                     Forms\Components\Placeholder::make('dossier_info')

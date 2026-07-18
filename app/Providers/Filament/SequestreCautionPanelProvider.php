@@ -82,7 +82,7 @@ class SequestreCautionPanelProvider extends PanelProvider
                 for: 'App\\Modules\\SequestreCaution\\Filament\\Widgets'
             )
             ->widgets([
-                Widgets\AccountWidget::class,
+                // Widgets\AccountWidget::class,
             ])
 
             ->middleware([
