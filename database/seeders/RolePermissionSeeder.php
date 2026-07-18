@@ -16,7 +16,7 @@ class RolePermissionSeeder extends Seeder
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         // ================================================================
-        // CRÉATION DES PERMISSIONS
+        // CRÉATION DES PERMISSIONS (idempotent, jamais de doublon)
         // ================================================================
 
         $permissions = [
@@ -86,15 +86,21 @@ class RolePermissionSeeder extends Seeder
 
         // ================================================================
         // CRÉATION DES RÔLES
+        // ✅ givePermissionTo() au lieu de syncPermissions() partout :
+        //    on AJOUTE les permissions attendues sans jamais retirer une
+        //    permission déjà accordée manuellement via l'interface Filament
+        //    entre deux exécutions du seeder.
         // ================================================================
 
-        // 1. SUPER ADMIN (un seul)
+        // 1. SUPER ADMIN (rôle unique dans toute l'application)
         $superAdmin = Role::firstOrCreate(['name' => 'Super Administrateur']);
-        $superAdmin->syncPermissions(Permission::all()); // Toutes les permissions
+        // Le Super Admin doit toujours avoir TOUTES les permissions existantes,
+        // y compris celles ajoutées après coup par d'autres modules/seeders.
+        $superAdmin->givePermissionTo(Permission::all());
 
-        // 2. ADMINISTRATEUR (plusieurs possibles)
+        // 2. ADMINISTRATEUR (plusieurs comptes possibles)
         $admin = Role::firstOrCreate(['name' => 'Administrateur']);
-        $admin->syncPermissions([
+        $admin->givePermissionTo([
             'view_dossiers',
             'create_dossiers',
             'edit_dossiers',
@@ -130,7 +136,7 @@ class RolePermissionSeeder extends Seeder
 
         // 3. GREFFIER EN CHEF
         $greffierChef = Role::firstOrCreate(['name' => 'Greffier en Chef']);
-        $greffierChef->syncPermissions([
+        $greffierChef->givePermissionTo([
             'view_dossiers',
             'create_dossiers',
             'edit_dossiers',
@@ -155,7 +161,7 @@ class RolePermissionSeeder extends Seeder
 
         // 4. GREFFIER
         $greffier = Role::firstOrCreate(['name' => 'Greffier']);
-        $greffier->syncPermissions([
+        $greffier->givePermissionTo([
             'view_dossiers',
             'create_dossiers',
             'edit_dossiers',
@@ -175,7 +181,7 @@ class RolePermissionSeeder extends Seeder
 
         // 5. JUGE
         $juge = Role::firstOrCreate(['name' => 'Juge']);
-        $juge->syncPermissions([
+        $juge->givePermissionTo([
             'view_dossiers',
             'view_decisions',
             'sign_decisions',
@@ -189,7 +195,7 @@ class RolePermissionSeeder extends Seeder
 
         // 6. CONSULTANT (lecture seule)
         $consultant = Role::firstOrCreate(['name' => 'Consultant']);
-        $consultant->syncPermissions([
+        $consultant->givePermissionTo([
             'view_dossiers',
             'view_decisions',
             'view_recours',
@@ -199,7 +205,7 @@ class RolePermissionSeeder extends Seeder
 
         // 7. INFORMATICIEN (support technique)
         $informaticien = Role::firstOrCreate(['name' => 'Informaticien']);
-        $informaticien->syncPermissions([
+        $informaticien->givePermissionTo([
             'view_users',
             'create_users',
             'edit_users',
@@ -217,6 +223,8 @@ class RolePermissionSeeder extends Seeder
 
         // ================================================================
         // CRÉATION DES UTILISATEURS PAR DÉFAUT
+        // ✅ firstOrCreate : ne recrée jamais un compte existant, ne réinitialise
+        //    jamais le mot de passe d'un compte déjà créé.
         // ================================================================
 
         // Super Admin (accès total)
@@ -229,6 +237,8 @@ class RolePermissionSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+        // syncRoles ici est sans danger : il ne fait que garantir que CE compte
+        // a bien le rôle Super Administrateur, sans toucher aux permissions du rôle.
         $superAdminUser->syncRoles([$superAdmin]);
 
         // Administrateur (gestion courante)
@@ -244,27 +254,43 @@ class RolePermissionSeeder extends Seeder
         $adminUser->syncRoles([$admin]);
 
         // ================================================================
-        // ACCÈS AUX MODULES
+        // ✅ ACCÈS AUX MODULES — CORRIGÉ
+        // Avant : seul 'decision_recours' était couvert.
+        // Maintenant : le Super Admin (et l'Administrateur) reçoit l'accès à
+        // TOUS les modules déjà enregistrés en base, + une liste de secours
+        // couvrant les modules prévus mais pas encore utilisés. Les autres
+        // rôles métier gardent un accès limité au module Décision & Recours.
         // ================================================================
 
-        $tousLesRoles = [
-            $superAdmin,
-            $admin,
-            $greffierChef,
-            $greffier,
-            $juge,
-            $consultant,
-            $informaticien,
-        ];
+        $codesModulesConnus = collect([
+            'decision_recours',
+            'sequestre_caution',
+            'documents_judiciaires',
+        ])
+            ->merge(ModuleAccess::query()->distinct()->pluck('module_code'))
+            ->unique()
+            ->values();
 
-        foreach ($tousLesRoles as $role) {
+        // Super Admin et Administrateur : accès à TOUS les modules, présents et futurs
+        foreach ([$superAdmin, $admin] as $role) {
+            foreach ($codesModulesConnus as $moduleCode) {
+                ModuleAccess::updateOrCreate(
+                    ['role_id' => $role->id, 'module_code' => $moduleCode],
+                    ['can_access' => true]
+                );
+            }
+        }
+
+        // Autres rôles métier : accès au module Décision & Recours uniquement
+        foreach ([$greffierChef, $greffier, $juge, $consultant, $informaticien] as $role) {
             ModuleAccess::updateOrCreate(
                 ['role_id' => $role->id, 'module_code' => 'decision_recours'],
                 ['can_access' => true]
             );
         }
 
-        $this->command->info('✅ Rôles, permissions et utilisateurs créés avec succès !');
+        $this->command->info('✅ Rôles, permissions et utilisateurs synchronisés avec succès !');
+        $this->command->info('   (mode additif : aucune permission existante n\'a été écrasée)');
         $this->command->info('📧 Super Admin : superadmin@justice.cm / Sadmin@1977');
         $this->command->info('📧 Admin       : admin@justice.cm / 12345678');
     }
