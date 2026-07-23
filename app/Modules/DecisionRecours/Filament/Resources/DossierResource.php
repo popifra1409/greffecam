@@ -182,6 +182,21 @@ class DossierResource extends Resource
                                         ->live()
                                         ->columnSpanFull(),
 
+                                    Forms\Components\Toggle::make('est_famille')
+                                        ->label('Représente une famille')
+                                        ->live()
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale'))
+                                        ->helperText('Cochez si cette personne physique agit au nom d\'une famille (utile pour les séquestres)')
+                                        ->columnSpanFull(),
+
+                                    Forms\Components\TextInput::make('nom_famille')
+                                        ->label('Nom de la famille')
+                                        ->placeholder('Ex: NGONO')
+                                        ->required(fn(Get $get) => $get('est_famille'))
+                                        ->visible(fn(Get $get) => $get('est_famille') && !$get('est_personne_morale'))
+                                        ->helperText('Le dossier séquestre portera le nom "Dossier Famille [nom saisi ici]"')
+                                        ->columnSpanFull(),
+
                                     // Personne physique
                                     Forms\Components\TextInput::make('nom')
                                         ->label('Nom')
@@ -256,8 +271,8 @@ class DossierResource extends Resource
                                 ->itemLabel(
                                     fn(array $state): ?string =>
                                     $state['est_personne_morale'] ?? false
-                                    ? ($state['raison_sociale'] ?? 'Nouvelle partie')
-                                    : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
+                                        ? ($state['raison_sociale'] ?? 'Nouvelle partie')
+                                        : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
                                 )
                                 ->collapsible()
                                 ->cloneable()
@@ -299,6 +314,21 @@ class DossierResource extends Resource
                                         ->live()
                                         ->columnSpanFull(),
 
+                                    Forms\Components\Toggle::make('est_famille')
+                                        ->label('Représente une famille')
+                                        ->live()
+                                        ->visible(fn(Get $get) => !$get('est_personne_morale'))
+                                        ->helperText('Cochez si cette personne physique agit au nom d\'une famille (utile pour les séquestres)')
+                                        ->columnSpanFull(),
+
+                                    Forms\Components\TextInput::make('nom_famille')
+                                        ->label('Nom de la famille')
+                                        ->placeholder('Ex: NGONO')
+                                        ->required(fn(Get $get) => $get('est_famille'))
+                                        ->visible(fn(Get $get) => $get('est_famille') && !$get('est_personne_morale'))
+                                        ->helperText('Le dossier séquestre portera le nom "Dossier Famille [nom saisi ici]"')
+                                        ->columnSpanFull(),
+
                                     // Personne physique
                                     Forms\Components\TextInput::make('nom')
                                         ->label('Nom')
@@ -373,8 +403,8 @@ class DossierResource extends Resource
                                 ->itemLabel(
                                     fn(array $state): ?string =>
                                     $state['est_personne_morale'] ?? false
-                                    ? ($state['raison_sociale'] ?? 'Nouvelle partie')
-                                    : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
+                                        ? ($state['raison_sociale'] ?? 'Nouvelle partie')
+                                        : (($state['nom'] ?? '') . ' ' . ($state['prenom'] ?? '') ?: 'Nouvelle partie')
                                 )
                                 ->collapsible()
                                 ->cloneable()

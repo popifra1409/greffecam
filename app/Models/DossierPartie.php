@@ -13,6 +13,8 @@ class DossierPartie extends Model
         'dossier_id',
         'type_partie',
         'est_personne_morale',
+        'est_famille',
+        'nom_famille',
         'nom',
         'prenom',
         'date_naissance',
@@ -31,6 +33,7 @@ class DossierPartie extends Model
     protected $casts = [
         'date_naissance' => 'date',
         'est_personne_morale' => 'boolean',
+        'est_famille' => 'boolean',
     ];
 
     // Relations
@@ -58,5 +61,10 @@ class DossierPartie extends Model
             'temoin' => 'Témoin',
             default => $this->type_partie,
         };
+    }
+
+    public function getLabelFamilleAttribute(): ?string
+    {
+        return $this->est_famille ? "Famille {$this->nom_famille}" : null;
     }
 }

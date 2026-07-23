@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Sequestre extends Model
 {
     protected $fillable = [
+        'numero_dossier_sequestre',
         'decision_id',
         'dossier_id',
         'dossier_partie_id',
@@ -30,14 +31,42 @@ class Sequestre extends Model
             if ($sequestre->decision_id) {
                 $decision = $sequestre->relationLoaded('decision')
                     ? $sequestre->decision
-                    : Decision::find($sequestre->decision_id);
+                    : Decision::with('dossier.tribunal')->find($sequestre->decision_id);
 
                 if ($decision) {
                     $sequestre->dossier_id = $decision->dossier_id;
                 }
             }
         });
+
+        static::creating(function (Sequestre $sequestre) {
+            if (empty($sequestre->numero_dossier_sequestre)) {
+                $sequestre->numero_dossier_sequestre = static::genererNumeroDossierSequestre($sequestre);
+            }
+        });
     }
+
+    /**
+     * Format : TPI-YDCA/SEQ/26/000001
+     * (sigle tribunal / SEQ / année 2 chiffres / compteur 6 chiffres)
+     */
+    public static function genererNumeroDossierSequestre(Sequestre $sequestre): string
+    {
+        $decision = Decision::with('dossier.tribunal')->find($sequestre->decision_id);
+        $tribunal = $decision?->dossier?->tribunal;
+
+        $sigleTribunal = $tribunal?->sigle ? strtoupper($tribunal->sigle) : 'TPI';
+        $annee = now()->format('y');
+
+        $compteur = static::where('numero_dossier_sequestre', 'like', "{$sigleTribunal}/SEQ/{$annee}/%")
+            ->count() + 1;
+
+        return sprintf('%s/SEQ/%s/%06d', $sigleTribunal, $annee, $compteur);
+    }
+
+    // ================================================================
+    // RELATIONS
+    // ================================================================
 
     public function decision(): BelongsTo
     {
@@ -69,9 +98,29 @@ class Sequestre extends Model
         return $this->hasMany(MouvementSequestre::class)->orderBy('date_mouvement')->orderBy('id');
     }
 
+    public function ayantsDroit(): HasMany
+    {
+        return $this->hasMany(SequestreAyantDroit::class);
+    }
+
+    public function partiesAdverses(): HasMany
+    {
+        return $this->hasMany(SequestrePartieAdverse::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(SequestreDocument::class);
+    }
+
+    // ================================================================
+    // ACCESSEURS
+    // ================================================================
+
     public function getIntituleAttribute(): string
     {
-        return $this->representant?->nom_complet
+        return $this->dossier?->label_dossier_sequestre
+            ?? $this->representant?->nom_complet
             ?? $this->dossier?->demandeur_nom_complet
             ?? $this->dossier?->numero_dossier
             ?? '—';

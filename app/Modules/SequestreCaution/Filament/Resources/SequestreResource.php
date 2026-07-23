@@ -46,6 +46,7 @@ class SequestreResource extends Resource
     {
         return [
             RelationManagers\MouvementsRelationManager::class,
+            RelationManagers\DocumentsRelationManager::class,
         ];
     }
 
@@ -68,6 +69,11 @@ class SequestreResource extends Resource
 
     {
         return $form->schema([
+            Forms\Components\Placeholder::make('numero_dossier_sequestre_display')
+                ->label('N° Dossier Séquestre')
+                ->content(fn($record) => $record?->numero_dossier_sequestre ?? 'Généré automatiquement à la création')
+                ->visible(fn($record) => $record !== null),
+
             Forms\Components\Section::make('Décision & Dossier')
                 ->schema([
                     Forms\Components\Select::make('decision_id')
@@ -142,6 +148,42 @@ class SequestreResource extends Resource
                         ->searchable()
                         ->helperText('Partie déjà enrôlée dans ce dossier, désignée comme représentant'),
                 ])->columns(1),
+
+            Forms\Components\Section::make('Ayants droit (bénéficiaires)')
+                ->description('Personnes qui percevront l\'argent du séquestre')
+                ->schema([
+                    Forms\Components\Repeater::make('ayantsDroit')
+                        ->relationship('ayantsDroit')
+                        ->schema([
+                            Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->required()->columnSpan(2),
+                            Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
+                            Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
+                            Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
+                        ])
+                        ->columns(4)
+                        ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvel ayant droit')
+                        ->collapsible()
+                        ->addActionLabel('➕ Ajouter un ayant droit')
+                        ->columnSpanFull(),
+                ]),
+
+            Forms\Components\Section::make('Parties adverses (payeurs)')
+                ->description('Locataires ou autres parties qui versent l\'argent au séquestre')
+                ->schema([
+                    Forms\Components\Repeater::make('partiesAdverses')
+                        ->relationship('partiesAdverses')
+                        ->schema([
+                            Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->required()->columnSpan(2),
+                            Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
+                            Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
+                            Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
+                        ])
+                        ->columns(4)
+                        ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie adverse')
+                        ->collapsible()
+                        ->addActionLabel('➕ Ajouter une partie adverse')
+                        ->columnSpanFull(),
+                ]),
 
             Forms\Components\Section::make('Caractéristiques du séquestre')
                 ->schema([

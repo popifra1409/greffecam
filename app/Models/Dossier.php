@@ -196,6 +196,20 @@ class Dossier extends Model
         return ['Demandeur', 'Défendeur', 'Témoin'];
     }
 
+    public function getLabelDossierSequestreAttribute(): ?string
+    {
+        $representantFamille = $this->parties()->where('est_famille', true)->first();
+
+        return $representantFamille
+            ? "Dossier Famille {$representantFamille->nom_famille}"
+            : null;
+    }
+
+    public function representantFamille()
+    {
+        return $this->hasOne(DossierPartie::class)->where('est_famille', true);
+    }
+
     // Helpers
     public function peutEtreClos(): bool
     {
