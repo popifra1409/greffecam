@@ -244,40 +244,59 @@ class Dossier extends Model
             throw new \Exception('Tribunal, Section ou Matière introuvable pour la génération du numéro');
         }
 
-        // ✅ 1. SIGLE DU TRIBUNAL (obligatoire maintenant)
         $tribunalCode = strtoupper($tribunal->sigle);
 
-        // ✅ 2. CODE SECTION (3 premières lettres)
-        // Si la section a un code défini, on l'utilise, sinon on prend les 3 premières lettres du libellé
         $sectionCode = $section->code
             ? strtoupper(substr($section->code, 0, 3))
             : strtoupper(substr(str_replace([' ', '-', "'"], '', $section->libelle), 0, 3));
 
-        // ✅ 3. CODE MATIÈRE (3 premières lettres)
-        // Si la matière a un code défini, on l'utilise, sinon on prend les 3 premières lettres de la désignation
         $matiereCode = $matiere->code
             ? strtoupper(substr($matiere->code, 0, 3))
             : strtoupper(substr(str_replace([' ', '-', "'"], '', $matiere->designation), 0, 3));
 
-        // ✅ 4. ANNÉE (2 derniers chiffres)
-        $anneeCode = substr($annee, -2);
+        // ✅ Extraire une année civile à 4 chiffres, peu importe le format reçu
+        // (accepte "2025", "2025-2026", un objet Carbon, etc.)
+        $anneeCivile = self::extraireAnneeCivile($annee);
+        $anneeCode = substr($anneeCivile, -2);
 
-        // ✅ 5. COMPTEUR (8 chiffres avec zéros devant)
-        // Compter les dossiers existants pour cette combinaison tribunal/section/matière/année
-        $count = self::where('tribunal_id', $tribunalId)
-            ->where('section_id', $sectionId)
-            ->where('matiere_id', $matiereId)
-            ->whereYear('date_enrolement', $annee)
-            ->count() + 1;
+        $prefixe = sprintf('%s/%s/%s/%s/', $tribunalCode, $sectionCode, $matiereCode, $anneeCode);
 
-        // ✅ Générer le numéro final
-        return sprintf(
-            '%s/%s/%s/%s/%08d',
-            $tribunalCode,    // TPI-CA
-            $sectionCode,     // TPD
-            $matiereCode,     // COM
-            $anneeCode,       // 26
-            $count            // 00000001
-        );
+        // ✅ Compter par PRÉFIXE réel (fiable), plus par whereYear() fragile
+        $dernierNumero = self::withTrashed()
+            ->where('numero_dossier', 'like', $prefixe . '%')
+            ->get()
+            ->map(fn($dossier) => (int) str_replace($prefixe, '', $dossier->numero_dossier))
+            ->max();
+
+        $compteur = ($dernierNumero ?? 0) + 1;
+
+        do {
+            $numero = sprintf('%s%08d', $prefixe, $compteur);
+            $existeDeja = self::withTrashed()->where('numero_dossier', $numero)->exists();
+            $compteur++;
+        } while ($existeDeja);
+
+        return $numero;
+    }
+
+    /**
+     * Extrait une année civile à 4 chiffres depuis diverses formes possibles :
+     * "2025", "2025-2026", un objet Carbon/date, etc.
+     */
+    protected static function extraireAnneeCivile($annee): string
+    {
+        if ($annee instanceof \Carbon\Carbon || $annee instanceof \DateTime) {
+            return $annee->format('Y');
+        }
+
+        $annee = (string) $annee;
+
+        // Cas "2025-2026" -> prendre la première année à 4 chiffres trouvée
+        if (preg_match('/\d{4}/', $annee, $matches)) {
+            return $matches[0];
+        }
+
+        // Fallback : année civile actuelle
+        return now()->format('Y');
     }
 }
