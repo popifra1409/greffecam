@@ -41,4 +41,10 @@ class Juge extends Model
     {
         return trim(($this->titre ? $this->titre . ' ' : '') . $this->nom . ' ' . $this->prenom);
     }
+
+    //Relations
+    public function grade()
+    {
+        return $this->belongsTo(Grade::class);
+    }
 }

@@ -4,17 +4,18 @@ namespace App\Modules\Portal\Filament\Resources;
 
 use App\Modules\Portal\Filament\Resources\UserResource\Pages;
 use App\Models\User;
+use App\Traits\HasResourcePermissions;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 
 class UserResource extends Resource
 {
+    use HasResourcePermissions;
+
     protected static ?string $model = User::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
@@ -24,6 +25,48 @@ class UserResource extends Resource
     protected static ?string $modelLabel = 'Utilisateur';
 
     protected static ?string $pluralModelLabel = 'Utilisateurs';
+
+    protected static ?int $navigationSort = 1;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_users';
+    }
+    protected static function getCreatePermission(): string
+    {
+        return 'create_users';
+    }
+    protected static function getEditPermission(): string
+    {
+        return 'edit_users';
+    }
+    protected static function getDeletePermission(): string
+    {
+        return 'delete_users';
+    }
+
+    /**
+     * ✅ Protection supplémentaire : empêcher la suppression/désactivation
+     * du compte Super Administrateur unique.
+     */
+    protected static function estCompteSuperAdminUnique($record): bool
+    {
+        return $record?->hasRole('Super Administrateur') ?? false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        if (static::estCompteSuperAdminUnique($record)) {
+            return false;
+        }
+
+        return parent::canDelete($record);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return parent::canDeleteAny();
+    }
 
     public static function form(Form $form): Form
     {
@@ -64,7 +107,13 @@ class UserResource extends Resource
                             ->relationship('roles', 'name')
                             ->multiple()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            // ✅ Empêche d'attribuer le rôle Super Administrateur
+                            // depuis ce formulaire (un seul compte doit le porter,
+                            // géré exclusivement par le seeder).
+                            ->options(fn() => \Spatie\Permission\Models\Role::where('name', '!=', 'Super Administrateur')
+                                ->pluck('name', 'id'))
+                            ->helperText('Le rôle "Super Administrateur" ne peut pas être attribué depuis cette interface.'),
                     ])->columns(2),
             ]);
     }
@@ -119,7 +168,8 @@ class UserResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => !static::estCompteSuperAdminUnique($record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

@@ -53,9 +53,13 @@ class RolePermissionSeeder extends Seeder
             'view_alertes',
             'manage_alertes',
 
-            // Référentiels
+            // Référentiels (génériques : tribunaux, sections, matières, types, natures, etc.)
             'view_referentiels',
             'manage_referentiels',
+
+            // ✅ Grades (référentiel dédié Juges/Greffiers)
+            'view_grades',
+            'manage_grades',
 
             // Administration
             'view_users',
@@ -88,6 +92,17 @@ class RolePermissionSeeder extends Seeder
             'create_mouvements_sequestre',
             'edit_mouvements_sequestre',
             'delete_mouvements_sequestre',
+
+            // ✅ Sous-entités Séquestre : ayants droit / parties adverses
+            'view_sequestre_parties',
+            'manage_sequestre_parties',
+
+            // ✅ Documents judiciaires sensibles des sous-dossiers de séquestre
+            // (courrier, procédure, contrats, quittances) — permission distincte
+            // car ce sont des fichiers stockés sur disque privé.
+            'view_sequestre_documents',
+            'create_sequestre_documents',
+            'delete_sequestre_documents',
         ];
 
         foreach ($permissions as $permission) {
@@ -135,11 +150,15 @@ class RolePermissionSeeder extends Seeder
             'manage_alertes',
             'view_referentiels',
             'manage_referentiels',
+            'view_grades',
+            'manage_grades',
             'view_users',
             'create_users',
             'edit_users',
             'view_roles',
+            'manage_roles',
             'view_permissions',
+            'manage_permissions',
             'access_decision_recours',
             'access_administration',
             'view_sequestres',
@@ -150,6 +169,11 @@ class RolePermissionSeeder extends Seeder
             'create_mouvements_sequestre',
             'edit_mouvements_sequestre',
             'delete_mouvements_sequestre',
+            'view_sequestre_parties',
+            'manage_sequestre_parties',
+            'view_sequestre_documents',
+            'create_sequestre_documents',
+            'delete_sequestre_documents',
         ]);
 
         // 3. GREFFIER EN CHEF
@@ -174,6 +198,7 @@ class RolePermissionSeeder extends Seeder
             'view_alertes',
             'manage_alertes',
             'view_referentiels',
+            'view_grades',
             'access_decision_recours',
         ]);
 
@@ -194,6 +219,7 @@ class RolePermissionSeeder extends Seeder
             'receive_transmissions',
             'view_alertes',
             'view_referentiels',
+            'view_grades',
             'access_decision_recours',
         ]);
 
@@ -208,6 +234,7 @@ class RolePermissionSeeder extends Seeder
             'receive_transmissions',
             'view_alertes',
             'view_referentiels',
+            'view_grades',
             'access_decision_recours',
         ]);
 
@@ -218,6 +245,7 @@ class RolePermissionSeeder extends Seeder
             'view_decisions',
             'view_recours',
             'view_referentiels',
+            'view_grades',
             'access_decision_recours',
         ]);
 
@@ -235,6 +263,8 @@ class RolePermissionSeeder extends Seeder
             'manage_backups',
             'view_referentiels',
             'manage_referentiels',
+            'view_grades',
+            'manage_grades',
             'access_decision_recours',
             'access_administration',
         ]);
@@ -248,7 +278,12 @@ class RolePermissionSeeder extends Seeder
             'view_mouvements_sequestre',
             'create_mouvements_sequestre',
             'edit_mouvements_sequestre',
+            'view_sequestre_parties',
+            'manage_sequestre_parties',
+            'view_sequestre_documents',
+            'create_sequestre_documents',
             'view_referentiels',
+            'view_grades',
             'access_sequestre_caution',
         ]);
 
@@ -285,12 +320,11 @@ class RolePermissionSeeder extends Seeder
         $adminUser->syncRoles([$admin]);
 
         // ================================================================
-        // ✅ ACCÈS AUX MODULES — CORRIGÉ
-        // Avant : seul 'decision_recours' était couvert.
-        // Maintenant : le Super Admin (et l'Administrateur) reçoit l'accès à
-        // TOUS les modules déjà enregistrés en base, + une liste de secours
-        // couvrant les modules prévus mais pas encore utilisés. Les autres
-        // rôles métier gardent un accès limité au module Décision & Recours.
+        // ACCÈS AUX MODULES
+        // Le Super Admin (et l'Administrateur) reçoit l'accès à TOUS les
+        // modules déjà enregistrés en base, + une liste de secours couvrant
+        // les modules prévus mais pas encore utilisés. Les autres rôles
+        // métier gardent un accès limité au module Décision & Recours.
         // ================================================================
 
         $codesModulesConnus = collect([

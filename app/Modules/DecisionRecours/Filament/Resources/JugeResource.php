@@ -62,10 +62,17 @@ class JugeResource extends Resource
                             ->required()
                             ->maxLength(255),
 
-                        Forms\Components\TextInput::make('grade')
+                        Forms\Components\Select::make('grade_id')
                             ->label('Grade')
-                            ->maxLength(255)
-                            ->placeholder('Ex: Magistrat 1er grade'),
+                            ->relationship('grade', 'libelle', fn($query) => $query->pourJuges())
+                            ->searchable()
+                            ->preload()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('code')->required()->unique(),
+                                Forms\Components\TextInput::make('libelle')->required(),
+                                Forms\Components\Hidden::make('type_grade')->default('juge'),
+                            ])
+                            ->helperText('Créez un nouveau grade directement ici si besoin'),
 
                         Forms\Components\TextInput::make('email')
                             ->label('Email')
@@ -126,6 +133,10 @@ class JugeResource extends Resource
                 Tables\Filters\SelectFilter::make('tribunal_id')
                     ->label('Tribunal')
                     ->relationship('tribunal', 'nom'),
+
+                Tables\Filters\SelectFilter::make('grade_id')
+                    ->label('Grade')
+                    ->relationship('grade', 'libelle'),
 
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Statut')

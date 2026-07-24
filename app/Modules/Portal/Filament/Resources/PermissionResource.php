@@ -25,23 +25,20 @@ class PermissionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Permissions';
 
-    protected static ?int $navigationSort = 91;
+    protected static ?int $navigationSort = 3;
 
     protected static function getViewPermission(): string
     {
         return 'view_permissions';
     }
-
     protected static function getCreatePermission(): string
     {
         return 'manage_permissions';
     }
-
     protected static function getEditPermission(): string
     {
         return 'manage_permissions';
     }
-
     protected static function getDeletePermission(): string
     {
         return 'manage_permissions';
@@ -58,11 +55,11 @@ class PermissionResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255)
-                            ->helperText('Ex: view_decisions, create_recours, delete_users')
                             ->rules(['regex:/^[a-z_]+$/'])
                             ->validationMessages([
                                 'regex' => 'Utilisez uniquement des minuscules et underscores (ex: view_decisions)',
-                            ]),
+                            ])
+                            ->helperText('Ex: view_decisions, create_recours, delete_users'),
                     ]),
             ]);
     }
@@ -93,11 +90,7 @@ class PermissionResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
-                    ->action(function ($record) {
-                        $record->delete();
-                        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-                    }),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

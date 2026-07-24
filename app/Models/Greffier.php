@@ -59,6 +59,11 @@ class Greffier extends Model
         return $this->hasMany(Dossier::class, 'enrole_par');
     }
 
+    public function grade()
+    {
+        return $this->belongsTo(Grade::class);
+    }
+
     // Accesseurs
     public function getNomCompletAttribute()
     {

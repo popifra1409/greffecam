@@ -62,15 +62,17 @@ class GreffierResource extends Resource
                             ->required()
                             ->maxLength(255),
 
-                        Forms\Components\Select::make('grade')
+                        Forms\Components\Select::make('grade_id')
                             ->label('Grade')
-                            ->options([
-                                'Greffier en Chef' => 'Greffier en Chef',
-                                'Greffier Principal' => 'Greffier Principal',
-                                'Greffier' => 'Greffier',
-                                'Greffier Adjoint' => 'Greffier Adjoint',
+                            ->relationship('grade', 'libelle', fn($query) => $query->pourGreffiers())
+                            ->searchable()
+                            ->preload()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('code')->required()->unique(),
+                                Forms\Components\TextInput::make('libelle')->required(),
+                                Forms\Components\Hidden::make('type_grade')->default('greffier'),
                             ])
-                            ->searchable(),
+                            ->helperText('Créez un nouveau grade directement ici si besoin'),
 
                         Forms\Components\TextInput::make('email')
                             ->label('Email')
@@ -131,7 +133,7 @@ class GreffierResource extends Resource
                     ->searchable(['nom', 'prenom'])
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('grade')
+                Tables\Columns\TextColumn::make('grade.libelle')
                     ->label('Grade')
                     ->searchable()
                     ->badge()

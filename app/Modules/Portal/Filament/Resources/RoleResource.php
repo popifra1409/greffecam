@@ -25,50 +25,31 @@ class RoleResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Rôles';
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 2;
 
-    // ✅ Permissions requises pour ce Resource
-    protected static function getViewPermission(): string
-    {
-        return 'view_roles';
-    }
+    protected static function getViewPermission(): string { return 'view_roles'; }
+    protected static function getCreatePermission(): string { return 'manage_roles'; }
+    protected static function getEditPermission(): string { return 'manage_roles'; }
+    protected static function getDeletePermission(): string { return 'manage_roles'; }
 
-    protected static function getCreatePermission(): string
+    public static function estRoleProtege($record): bool
     {
-        return 'manage_roles';
-    }
-
-    protected static function getEditPermission(): string
-    {
-        return 'manage_roles';
-    }
-
-    protected static function getDeletePermission(): string
-    {
-        return 'manage_roles';
-    }
-
-    // ✅ Rôles système protégés contre modification/suppression
-    protected static function getRolesProtegees(): array
-    {
-        return ['Super Administrateur'];
+        return $record?->name === 'Super Administrateur';
     }
 
     public static function canEdit($record): bool
     {
-        if (in_array($record->name, static::getRolesProtegees())) {
+        if (static::estRoleProtege($record)) {
             return false;
         }
-
         return parent::canEdit($record);
     }
 
     public static function canDelete($record): bool
     {
-        if (in_array($record->name, static::getRolesProtegees())) {
+        if (static::estRoleProtege($record)) {
             return false;
         }
-
         return parent::canDelete($record);
     }
 
@@ -83,18 +64,11 @@ class RoleResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255)
-                            ->disabled(fn($record) => $record && in_array($record->name, static::getRolesProtegees())),
+                            ->disabled(fn($record) => $record && static::estRoleProtege($record)),
 
-                        // ✅ Permissions groupées par module pour lisibilité
                         Forms\Components\CheckboxList::make('permissions')
                             ->label('Permissions')
                             ->relationship('permissions', 'name')
-                            ->options(function () {
-                                return \Spatie\Permission\Models\Permission::all()
-                                    ->pluck('name', 'name')
-                                    ->toArray();
-                            })
-                            ->descriptions(fn() => static::getPermissionsDescriptions())
                             ->columns(2)
                             ->searchable()
                             ->bulkToggleable()
@@ -102,31 +76,6 @@ class RoleResource extends Resource
                             ->columnSpanFull(),
                     ]),
             ]);
-    }
-
-    /**
-     * Descriptions lisibles pour chaque permission (aide à la compréhension)
-     */
-    protected static function getPermissionsDescriptions(): array
-    {
-        return [
-            'view_dossiers' => 'Consulter les dossiers',
-            'create_dossiers' => 'Créer des dossiers',
-            'edit_dossiers' => 'Modifier des dossiers',
-            'delete_dossiers' => 'Supprimer des dossiers',
-            'view_decisions' => 'Consulter les décisions',
-            'create_decisions' => 'Créer des décisions',
-            'edit_decisions' => 'Modifier des décisions',
-            'validate_decisions' => 'Valider des décisions',
-            'sign_decisions' => 'Signer des décisions',
-            'view_recours' => 'Consulter les recours',
-            'create_recours' => 'Déclarer des recours',
-            'edit_recours' => 'Modifier des recours',
-            'view_users' => 'Consulter les utilisateurs',
-            'manage_roles' => 'Gérer les rôles et permissions',
-            'access_decision_recours' => 'Accéder au module Décisions & Recours',
-            'access_administration' => 'Accéder à l\'administration',
-        ];
     }
 
     public static function table(Table $table): Table
@@ -138,11 +87,11 @@ class RoleResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->badge()
-                    ->color(fn($record) => in_array($record->name, static::getRolesProtegees()) ? 'danger' : 'primary'),
+                    ->color(fn($record) => static::estRoleProtege($record) ? 'danger' : 'primary'),
 
                 Tables\Columns\IconColumn::make('protege')
                     ->label('')
-                    ->getStateUsing(fn($record) => in_array($record->name, static::getRolesProtegees()))
+                    ->getStateUsing(fn($record) => static::estRoleProtege($record))
                     ->icon(fn($state) => $state ? 'heroicon-o-lock-closed' : '')
                     ->color('danger')
                     ->tooltip('Rôle système protégé'),
@@ -169,9 +118,9 @@ class RoleResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => !in_array($record->name, static::getRolesProtegees())),
+                    ->visible(fn($record) => !static::estRoleProtege($record)),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => !in_array($record->name, static::getRolesProtegees())),
+                    ->visible(fn($record) => !static::estRoleProtege($record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

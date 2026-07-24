@@ -33,10 +33,9 @@ class PortalPanelProvider extends PanelProvider
             ])
             ->sidebarCollapsibleOnDesktop()
 
-            // ✅ Désactiver la navigation (pas de menu sidebar)
-            ->navigation(false)
+            // ✅ CORRIGÉ : navigation réactivée pour accéder à Utilisateurs/Rôles/Permissions
+            // ->navigation(false)  ← supprimé
 
-            // ✅ OU garder seulement le dashboard
             ->discoverResources(
                 in: app_path('Modules/Portal/Filament/Resources'),
                 for: 'App\\Modules\\Portal\\Filament\\Resources'
@@ -46,7 +45,6 @@ class PortalPanelProvider extends PanelProvider
                 for: 'App\\Modules\\Portal\\Filament\\Pages'
             )
             ->pages([
-                    // Pages\Dashboard::class,
                 Dashboard::class,
             ])
             ->discoverWidgets(
