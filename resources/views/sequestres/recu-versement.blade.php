@@ -156,7 +156,7 @@
             <div class="info-value">{{ number_format($mouvement->taux_applique * 100, 2) }} %</div>
         </div>
         <div class="info-row">
-            <div class="info-label">Montant précompté</div>
+            <div class="info-label">Montant Séquestre</div>
             <div class="info-value">{{ number_format($mouvement->montant_precompte, 0, ',', ' ') }} FCFA</div>
         </div>
         <div class="info-row">

@@ -90,7 +90,7 @@ class RapportConsolide extends Page implements HasTable
                     ->summarize(Tables\Columns\Summarizers\Sum::make()->money('XAF')->label('Total')),
 
                 Tables\Columns\TextColumn::make('total_precompte_periode')
-                    ->label('Précompte (période)')
+                    ->label('Montant Séquestre (période)')
                     ->money('XAF')
                     ->color('warning')
                     ->alignEnd()
@@ -107,6 +107,31 @@ class RapportConsolide extends Page implements HasTable
             ->filters([
                 Tables\Filters\Filter::make('periode')
                     ->form([
+                        \Filament\Forms\Components\Select::make('preset')
+                            ->label('Période prédéfinie')
+                            ->options([
+                                'ce_mois' => 'Ce mois-ci',
+                                'mois_dernier' => 'Le mois dernier',
+                                'ce_trimestre' => 'Ce trimestre',
+                                'cette_annee' => 'Cette année',
+                                'personnalise' => 'Personnalisé',
+                            ])
+                            ->live()
+                            ->afterStateUpdated(function (string $state, callable $set) {
+                                [$debut, $fin] = match ($state) {
+                                    'ce_mois' => [now()->startOfMonth(), now()->endOfMonth()],
+                                    'mois_dernier' => [now()->subMonthNoOverflow()->startOfMonth(), now()->subMonthNoOverflow()->endOfMonth()],
+                                    'ce_trimestre' => [now()->startOfQuarter(), now()->endOfQuarter()],
+                                    'cette_annee' => [now()->startOfYear(), now()->endOfYear()],
+                                    default => [null, null],
+                                };
+
+                                if ($debut && $fin) {
+                                    $set('date_debut', $debut->format('Y-m-d'));
+                                    $set('date_fin', $fin->format('Y-m-d'));
+                                }
+                            }),
+
                         \Filament\Forms\Components\DatePicker::make('date_debut')
                             ->label('Du')
                             ->native(false)

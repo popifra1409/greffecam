@@ -331,6 +331,39 @@
     </div>
     @endif
 
+    {{-- SECTION 3bis : RÉPARTITION PAR AYANT DROIT (ce que chacun a déjà perçu) --}}
+    @if($repartitionAyantsDroit->count() > 0)
+    <div class="section">
+        <div class="section-title">📊 Répartition des Montants Perçus par Ayant Droit</div>
+        <table class="parties-table">
+            <thead>
+                <tr>
+                    <th>Ayant droit</th>
+                    <th>Nb. retraits</th>
+                    <th>Dont procuration</th>
+                    <th>Total perçu</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($repartitionAyantsDroit as $ligne)
+                <tr>
+                    <td><strong>{{ $ligne['ayant_droit']?->nom_complet ?? 'Non attribué (historique)' }}</strong></td>
+                    <td>{{ $ligne['nombre_retraits'] }}</td>
+                    <td>{{ $ligne['dont_procuration'] }}</td>
+                    <td class="montant-negatif">{{ number_format($ligne['total_percu'], 0, ',', ' ') }} FCFA</td>
+                </tr>
+                @endforeach
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="text-align: right;">TOTAL DÉJÀ PERÇU :</td>
+                    <td>{{ number_format($repartitionAyantsDroit->sum('total_percu'), 0, ',', ' ') }} FCFA</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+    @endif
+
     {{-- SECTION 4 : PARTIES ADVERSES --}}
     @if($sequestre->partiesAdverses->count() > 0)
     <div class="section">
@@ -371,7 +404,7 @@
                 <div class="info-value montant-negatif">{{ number_format($sequestre->total_sorties, 0, ',', ' ') }} FCFA</div>
             </div>
             <div class="info-row">
-                <div class="info-label">Total précompté</div>
+                <div class="info-label">Total Montant Séquestre</div>
                 <div class="info-value"><strong>{{ number_format($sequestre->montant_sequestre_total, 0, ',', ' ') }} FCFA</strong></div>
             </div>
             <div class="info-row">
@@ -393,7 +426,7 @@
                     <th>Motif</th>
                     <th>Type</th>
                     <th>Montant</th>
-                    <th>Précompte</th>
+                    <th>Montant Séquestre</th>
                     <th>Solde</th>
                 </tr>
             </thead>

@@ -258,7 +258,7 @@ class MouvementsRelationManager extends RelationManager
                     ->alignEnd(),
 
                 Tables\Columns\TextColumn::make('montant_precompte')
-                    ->label('Précompte')
+                    ->label('Montant Séquestre')
                     ->money('XAF')
                     ->color('warning')
                     ->alignEnd(),

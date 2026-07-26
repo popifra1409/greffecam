@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Reçu de Versement - {{ $numeroRecu }}</title>
+    <title>Décharge de Retrait - {{ $numeroRecu }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -28,12 +28,12 @@
             text-align: center;
             margin: 20px 0;
             padding: 12px;
-            background-color: #dcfce7;
-            border: 2px solid #16a34a;
+            background-color: #fee2e2;
+            border: 2px solid #dc2626;
         }
 
-        .titre-document h1 { font-size: 15pt; color: #166534; }
-        .titre-document .numero { font-size: 11pt; color: #166534; margin-top: 4px; }
+        .titre-document h1 { font-size: 15pt; color: #991b1b; }
+        .titre-document .numero { font-size: 11pt; color: #991b1b; margin-top: 4px; }
 
         .info-grid {
             display: table;
@@ -59,18 +59,33 @@
             border: 1px solid #ddd;
         }
 
+        .alert-procuration {
+            margin: 15px 0;
+            padding: 12px;
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .mention-legale {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fafafa;
+            border: 1px solid #ddd;
+            line-height: 1.8;
+        }
+
         .montant-lettres {
             margin: 15px 0;
             padding: 12px;
             background-color: #fafafa;
-            border-left: 4px solid #16a34a;
+            border-left: 4px solid #dc2626;
             font-style: italic;
         }
 
         .signatures {
             display: table;
             width: 100%;
-            margin-top: 60px;
+            margin-top: 50px;
         }
 
         .signature-box {
@@ -114,7 +129,7 @@
     </div>
 
     <div class="titre-document">
-        <h1>REÇU DE VERSEMENT</h1>
+        <h1>DÉCHARGE DE RETRAIT</h1>
         <div class="numero">N° {{ $numeroRecu }}</div>
     </div>
 
@@ -128,18 +143,18 @@
             <div class="info-value">{{ $mouvement->sequestre->intitule }}</div>
         </div>
         <div class="info-row">
-            <div class="info-label">Date du versement</div>
+            <div class="info-label">Date du retrait</div>
             <div class="info-value">{{ $mouvement->date_mouvement->format('d/m/Y') }}</div>
         </div>
         <div class="info-row">
-            <div class="info-label">Versé par</div>
+            <div class="info-label">Bénéficiaire légal (ayant droit)</div>
             <div class="info-value">
-                <strong>{{ $mouvement->partieAdverse->nom_complet ?? $mouvement->operateur_beneficiaire }}</strong>
-                @if($mouvement->partieAdverse?->numero_cni)
-                    <br><small>CNI : {{ $mouvement->partieAdverse->numero_cni }}</small>
+                <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'Non renseigné' }}</strong>
+                @if($mouvement->ayantDroit?->numero_cni)
+                    <br><small>CNI : {{ $mouvement->ayantDroit->numero_cni }}</small>
                 @endif
-                @if($mouvement->partieAdverse?->telephone)
-                    <br><small>Tél : {{ $mouvement->partieAdverse->telephone }}</small>
+                @if($mouvement->ayantDroit?->telephone)
+                    <br><small>Tél : {{ $mouvement->ayantDroit->telephone }}</small>
                 @endif
             </div>
         </div>
@@ -148,20 +163,8 @@
             <div class="info-value">{{ $mouvement->motifMouvement->libelle ?? 'Non renseigné' }}</div>
         </div>
         <div class="info-row">
-            <div class="info-label">Montant versé</div>
+            <div class="info-label">Montant retiré</div>
             <div class="info-value"><strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong></div>
-        </div>
-        <div class="info-row">
-            <div class="info-label">Taux de précompte appliqué</div>
-            <div class="info-value">{{ number_format($mouvement->taux_applique * 100, 2) }} %</div>
-        </div>
-        <div class="info-row">
-            <div class="info-label">Montant précompté</div>
-            <div class="info-value">{{ number_format($mouvement->montant_precompte, 0, ',', ' ') }} FCFA</div>
-        </div>
-        <div class="info-row">
-            <div class="info-label">Montant net crédité au séquestre</div>
-            <div class="info-value"><strong>{{ number_format($mouvement->montant_net, 0, ',', ' ') }} FCFA</strong></div>
         </div>
         <div class="info-row">
             <div class="info-label">Solde du séquestre après opération</div>
@@ -169,15 +172,42 @@
         </div>
     </div>
 
+    @if($mouvement->est_procuration)
+    <div class="alert-procuration">
+        <strong>⚠️ Retrait effectué par procuration</strong><br>
+        Mandataire : <strong>{{ $mouvement->mandataire_nom }}</strong><br>
+        Référence de la procuration : {{ $mouvement->mandataire_reference_procuration ?? 'Non renseignée' }}
+    </div>
+    @endif
+
     <div class="montant-lettres">
-        Arrêté le présent reçu à la somme de <strong>{{ ucfirst($montantEnLettres) }} francs CFA</strong>
+        Somme retirée : <strong>{{ ucfirst($montantEnLettres) }} francs CFA</strong>
         ({{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA).
+    </div>
+
+    <div class="mention-legale">
+        @if($mouvement->est_procuration)
+            Je soussigné(e) <strong>{{ $mouvement->mandataire_nom }}</strong>, agissant en qualité de mandataire de
+            <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'l\'ayant droit susnommé' }}</strong> en vertu de la
+            procuration référencée ci-dessus, reconnais avoir reçu de la part du Greffe la somme de
+            <strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong>
+            ({{ $montantEnLettres }} francs CFA), au titre de « {{ $mouvement->motifMouvement->libelle ?? $mouvement->operateur_beneficiaire }} »,
+            pour le compte du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
+        @else
+            Je soussigné(e) <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'le bénéficiaire susnommé' }}</strong>,
+            reconnais avoir reçu personnellement du Greffe la somme de
+            <strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong>
+            ({{ $montantEnLettres }} francs CFA), au titre de « {{ $mouvement->motifMouvement->libelle ?? $mouvement->operateur_beneficiaire }} »,
+            au titre du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
+        @endif
     </div>
 
     <div class="signatures">
         <div class="signature-box">
-            <div class="titre-signature">Le Versant</div>
-            <div class="ligne-signature">Nom, date et signature</div>
+            <div class="titre-signature">
+                {{ $mouvement->est_procuration ? 'Le Mandataire' : 'Le Bénéficiaire' }}
+            </div>
+            <div class="ligne-signature">Nom, date et signature (précédée de la mention « Bon pour reçu »)</div>
         </div>
         <div class="signature-box">
             <div class="titre-signature">Pour le Greffe</div>

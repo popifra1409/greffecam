@@ -177,4 +177,9 @@ class Sequestre extends Model
 
         return $dernierMouvement ? (float) $dernierMouvement->solde_apres : 0.0;
     }
+
+    public function getTauxPourcentageAttribute(): string
+    {
+        return number_format($this->taux_precompte * 100, 2) . ' %';
+    }
 }

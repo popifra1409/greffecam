@@ -103,7 +103,7 @@
                 <th>Statut</th>
                 <th class="text-right">Entrées (période)</th>
                 <th class="text-right">Sorties (période)</th>
-                <th class="text-right">Précompte (période)</th>
+                <th class="text-right">Montant Séquestre (période)</th>
                 <th class="text-right">Solde actuel</th>
             </tr>
         </thead>

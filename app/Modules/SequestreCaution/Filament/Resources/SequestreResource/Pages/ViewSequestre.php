@@ -165,7 +165,7 @@ class ViewSequestre extends ViewRecord
                                         ->color('info'),
 
                                     Infolists\Components\TextEntry::make('montant_sequestre_total')
-                                        ->label('Total précompté')
+                                        ->label('Total Montant Séquestre')
                                         ->money('XAF')
                                         ->color('warning'),
 
