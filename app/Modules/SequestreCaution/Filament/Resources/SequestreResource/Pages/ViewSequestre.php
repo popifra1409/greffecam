@@ -31,7 +31,7 @@ class ViewSequestre extends ViewRecord
         return $infolist->schema([
 
             // ================================================================
-            // EN-TÊTE : Identification rapide
+            // EN-TÊTE : Identification rapide — toujours visible, hors onglets
             // ================================================================
             Infolists\Components\Section::make()
                 ->schema([
@@ -58,10 +58,8 @@ class ViewSequestre extends ViewRecord
                 ])
                 ->columns(3),
 
-            // ================================================================
-            // RÉSUMÉ FINANCIER : mis en avant, c'est l'info la plus consultée
-            // ================================================================
-            Infolists\Components\Section::make('💰 Situation financière')
+            // ✅ Solde toujours visible aussi, hors onglets (info la plus consultée)
+            Infolists\Components\Section::make()
                 ->schema([
                     Infolists\Components\TextEntry::make('solde_actuel')
                         ->label('Solde actuel')
@@ -81,225 +79,221 @@ class ViewSequestre extends ViewRecord
                         ->money('XAF')
                         ->color('danger')
                         ->icon('heroicon-o-arrow-up-circle'),
-
-                    Infolists\Components\TextEntry::make('montant_sequestre_total')
-                        ->label('Total précompté')
-                        ->money('XAF')
-                        ->color('warning')
-                        ->icon('heroicon-o-receipt-percent'),
-
-                    Infolists\Components\TextEntry::make('taux_pourcentage')
-                        ->label('Taux de précompte appliqué')
-                        ->badge()
-                        ->color('info'),
-
-                    Infolists\Components\TextEntry::make('mouvements_count')
-                        ->label('Nombre de mouvements')
-                        ->getStateUsing(fn($record) => $record->mouvements()->count())
-                        ->badge()
-                        ->color('gray'),
                 ])
                 ->columns(3),
 
             // ================================================================
-            // ORIGINE JUDICIAIRE
+            // ONGLETS : le reste du détail, regroupé pour rester compact
             // ================================================================
-            Infolists\Components\Section::make('⚖️ Origine judiciaire')
-                ->schema([
-                    Infolists\Components\TextEntry::make('numero_dossier')
-                        ->label('N° Dossier d\'enrôlement')
-                        ->badge()
-                        ->color('gray')
-                        ->url(fn($record) => $record->dossier_id
-                            ? \App\Modules\DecisionRecours\Filament\Resources\DossierResource::getUrl(
-                                'view',
-                                ['record' => $record->dossier_id],
-                                panel: 'decision-recours'
-                            )
-                            : null)
-                        ->openUrlInNewTab(),
+            Infolists\Components\Tabs::make('Détails')
+                ->columnSpanFull()
+                ->tabs([
 
-                    Infolists\Components\TextEntry::make('numero_decision')
-                        ->label('N° Décision')
-                        ->badge()
-                        ->color('primary')
-                        ->url(fn($record) => $record->decision_id
-                            ? \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl(
-                                'view',
-                                ['record' => $record->decision_id],
-                                panel: 'decision-recours'
-                            )
-                            : null)
-                        ->openUrlInNewTab(),
-
-                    Infolists\Components\TextEntry::make('type_decision_label')
-                        ->label('Type de décision')
-                        ->badge()
-                        ->color('info'),
-
-                    Infolists\Components\TextEntry::make('nature_decision_label')
-                        ->label('Nature de la décision')
-                        ->badge()
-                        ->color('warning'),
-
-                    Infolists\Components\TextEntry::make('date_decision')
-                        ->label('Date de la décision')
-                        ->date('d/m/Y'),
-
-                    Infolists\Components\TextEntry::make('dossier.tribunal.nom')
-                        ->label('Tribunal')
-                        ->badge()
-                        ->color('gray'),
-                ])
-                ->columns(3)
-                ->collapsible(),
-
-            // ================================================================
-            // CARACTÉRISTIQUES DU SÉQUESTRE
-            // ================================================================
-            Infolists\Components\Section::make('📋 Caractéristiques')
-                ->schema([
-                    Infolists\Components\TextEntry::make('natureSequestre.libelle')
-                        ->label('Nature du séquestre')
-                        ->badge()
-                        ->color('info'),
-
-                    Infolists\Components\TextEntry::make('date_ouverture')
-                        ->label('Date d\'ouverture')
-                        ->date('d/m/Y')
-                        ->icon('heroicon-o-calendar'),
-
-                    Infolists\Components\TextEntry::make('representant.nom_complet')
-                        ->label('Représentant de la famille')
-                        ->placeholder('Non renseigné')
-                        ->icon('heroicon-o-user'),
-
-                    Infolists\Components\TextEntry::make('observations')
-                        ->label('Observations')
-                        ->placeholder('Aucune observation')
-                        ->columnSpanFull(),
-                ])
-                ->columns(3)
-                ->collapsible(),
-
-            // ================================================================
-            // AYANTS DROIT (bénéficiaires)
-            // ================================================================
-            Infolists\Components\Section::make('👥 Ayants droit (bénéficiaires)')
-                ->description('Personnes qui perçoivent l\'argent du séquestre')
-                ->schema([
-                    Infolists\Components\RepeatableEntry::make('ayantsDroit')
-                        ->label('')
+                    // --- Onglet 1 : Résumé (origine + caractéristiques + finances détaillées) ---
+                    Infolists\Components\Tabs\Tab::make('Résumé')
+                        ->icon('heroicon-o-document-text')
                         ->schema([
-                            Infolists\Components\TextEntry::make('nom_complet')
-                                ->label('Nom complet')
-                                ->weight('bold')
-                                ->icon('heroicon-o-identification'),
+                            Infolists\Components\Section::make('⚖️ Origine judiciaire')
+                                ->schema([
+                                    Infolists\Components\TextEntry::make('numero_dossier')
+                                        ->label('N° Dossier d\'enrôlement')
+                                        ->badge()
+                                        ->color('gray')
+                                        ->url(fn($record) => $record->dossier_id
+                                            ? \App\Modules\DecisionRecours\Filament\Resources\DossierResource::getUrl(
+                                                'view',
+                                                ['record' => $record->dossier_id],
+                                                panel: 'decision-recours'
+                                            )
+                                            : null)
+                                        ->openUrlInNewTab(),
 
-                            Infolists\Components\TextEntry::make('numero_cni')
-                                ->label('N° CNI')
-                                ->placeholder('—'),
+                                    Infolists\Components\TextEntry::make('numero_decision')
+                                        ->label('N° Décision')
+                                        ->badge()
+                                        ->color('primary')
+                                        ->url(fn($record) => $record->decision_id
+                                            ? \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl(
+                                                'view',
+                                                ['record' => $record->decision_id],
+                                                panel: 'decision-recours'
+                                            )
+                                            : null)
+                                        ->openUrlInNewTab(),
 
-                            Infolists\Components\TextEntry::make('telephone')
-                                ->label('Téléphone')
-                                ->placeholder('—')
-                                ->icon('heroicon-o-phone')
-                                ->copyable(),
+                                    Infolists\Components\TextEntry::make('type_decision_label')
+                                        ->label('Type de décision')
+                                        ->badge()
+                                        ->color('info'),
 
-                            Infolists\Components\TextEntry::make('adresse')
-                                ->label('Adresse')
-                                ->placeholder('—')
-                                ->columnSpanFull(),
-                        ])
-                        ->columns(3)
-                        ->columnSpanFull(),
-                ])
-                ->collapsible()
-                ->collapsed(fn($record) => $record->ayantsDroit->isEmpty()),
+                                    Infolists\Components\TextEntry::make('nature_decision_label')
+                                        ->label('Nature de la décision')
+                                        ->badge()
+                                        ->color('warning'),
 
-            // ================================================================
-            // PARTIES ADVERSES (payeurs)
-            // ================================================================
-            Infolists\Components\Section::make('🏠 Parties adverses (payeurs)')
-                ->description('Locataires ou autres parties qui versent l\'argent au séquestre')
-                ->schema([
-                    Infolists\Components\RepeatableEntry::make('partiesAdverses')
-                        ->label('')
+                                    Infolists\Components\TextEntry::make('date_decision')
+                                        ->label('Date de la décision')
+                                        ->date('d/m/Y'),
+
+                                    Infolists\Components\TextEntry::make('dossier.tribunal.nom')
+                                        ->label('Tribunal')
+                                        ->badge()
+                                        ->color('gray'),
+                                ])
+                                ->columns(3),
+
+                            Infolists\Components\Section::make('📋 Caractéristiques')
+                                ->schema([
+                                    Infolists\Components\TextEntry::make('natureSequestre.libelle')
+                                        ->label('Nature du séquestre')
+                                        ->badge()
+                                        ->color('info'),
+
+                                    Infolists\Components\TextEntry::make('date_ouverture')
+                                        ->label('Date d\'ouverture')
+                                        ->date('d/m/Y')
+                                        ->icon('heroicon-o-calendar'),
+
+                                    Infolists\Components\TextEntry::make('representant.nom_complet')
+                                        ->label('Représentant de la famille')
+                                        ->placeholder('Non renseigné')
+                                        ->icon('heroicon-o-user'),
+
+                                    Infolists\Components\TextEntry::make('taux_pourcentage')
+                                        ->label('Taux de précompte')
+                                        ->badge()
+                                        ->color('info'),
+
+                                    Infolists\Components\TextEntry::make('montant_sequestre_total')
+                                        ->label('Total précompté')
+                                        ->money('XAF')
+                                        ->color('warning'),
+
+                                    Infolists\Components\TextEntry::make('mouvements_count')
+                                        ->label('Nombre de mouvements')
+                                        ->getStateUsing(fn($record) => $record->mouvements()->count())
+                                        ->badge()
+                                        ->color('gray'),
+
+                                    Infolists\Components\TextEntry::make('observations')
+                                        ->label('Observations')
+                                        ->placeholder('Aucune observation')
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(3),
+                        ]),
+
+                    // --- Onglet 2 : Ayants droit ---
+                    Infolists\Components\Tabs\Tab::make('Ayants droit')
+                        ->icon('heroicon-o-user-group')
+                        ->badge(fn($record) => $record->ayantsDroit->count())
                         ->schema([
-                            Infolists\Components\TextEntry::make('nom_complet')
-                                ->label('Nom complet')
-                                ->weight('bold')
-                                ->icon('heroicon-o-identification'),
+                            Infolists\Components\RepeatableEntry::make('ayantsDroit')
+                                ->label('')
+                                ->schema([
+                                    Infolists\Components\TextEntry::make('nom_complet')
+                                        ->label('Nom complet')
+                                        ->weight('bold')
+                                        ->icon('heroicon-o-identification'),
 
-                            Infolists\Components\TextEntry::make('numero_cni')
-                                ->label('N° CNI')
-                                ->placeholder('—'),
+                                    Infolists\Components\TextEntry::make('numero_cni')
+                                        ->label('N° CNI')
+                                        ->placeholder('—'),
 
-                            Infolists\Components\TextEntry::make('telephone')
-                                ->label('Téléphone')
-                                ->placeholder('—')
-                                ->icon('heroicon-o-phone')
-                                ->copyable(),
+                                    Infolists\Components\TextEntry::make('telephone')
+                                        ->label('Téléphone')
+                                        ->placeholder('—')
+                                        ->icon('heroicon-o-phone')
+                                        ->copyable(),
 
-                            Infolists\Components\TextEntry::make('adresse')
-                                ->label('Adresse')
-                                ->placeholder('—')
+                                    Infolists\Components\TextEntry::make('adresse')
+                                        ->label('Adresse')
+                                        ->placeholder('—')
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(3)
                                 ->columnSpanFull(),
+                        ]),
+
+                    // --- Onglet 3 : Parties adverses ---
+                    Infolists\Components\Tabs\Tab::make('Parties adverses')
+                        ->icon('heroicon-o-home')
+                        ->badge(fn($record) => $record->partiesAdverses->count())
+                        ->schema([
+                            Infolists\Components\RepeatableEntry::make('partiesAdverses')
+                                ->label('')
+                                ->schema([
+                                    Infolists\Components\TextEntry::make('nom_complet')
+                                        ->label('Nom complet')
+                                        ->weight('bold')
+                                        ->icon('heroicon-o-identification'),
+
+                                    Infolists\Components\TextEntry::make('numero_cni')
+                                        ->label('N° CNI')
+                                        ->placeholder('—'),
+
+                                    Infolists\Components\TextEntry::make('telephone')
+                                        ->label('Téléphone')
+                                        ->placeholder('—')
+                                        ->icon('heroicon-o-phone')
+                                        ->copyable(),
+
+                                    Infolists\Components\TextEntry::make('adresse')
+                                        ->label('Adresse')
+                                        ->placeholder('—')
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(3)
+                                ->columnSpanFull(),
+                        ]),
+
+                    // --- Onglet 4 : Documents ---
+                    Infolists\Components\Tabs\Tab::make('Documents')
+                        ->icon('heroicon-o-folder')
+                        ->schema([
+                            Infolists\Components\Section::make('📁 Sous-dossiers documentaires')
+                                ->schema([
+                                    Infolists\Components\TextEntry::make('doc_courrier')
+                                        ->label('📨 Courrier')
+                                        ->getStateUsing(fn($record) => $record->documents()->where('categorie', 'courrier')->count() . ' document(s)')
+                                        ->badge()
+                                        ->color('info'),
+
+                                    Infolists\Components\TextEntry::make('doc_procedure')
+                                        ->label('⚖️ Procédure')
+                                        ->getStateUsing(fn($record) => $record->documents()->where('categorie', 'procedure')->count() . ' document(s)')
+                                        ->badge()
+                                        ->color('warning'),
+
+                                    Infolists\Components\TextEntry::make('doc_contrat')
+                                        ->label('📄 Contrats')
+                                        ->getStateUsing(fn($record) => $record->documents()->where('categorie', 'contrat')->count() . ' document(s)')
+                                        ->badge()
+                                        ->color('success'),
+
+                                    Infolists\Components\TextEntry::make('doc_quittance')
+                                        ->label('🧾 Quittances')
+                                        ->getStateUsing(fn($record) => $record->documents()->where('categorie', 'quittance')->count() . ' document(s)')
+                                        ->badge()
+                                        ->color('primary'),
+                                ])
+                                ->columns(4),
+                        ]),
+
+                    // --- Onglet 5 : Métadonnées ---
+                    Infolists\Components\Tabs\Tab::make('Métadonnées')
+                        ->icon('heroicon-o-clock')
+                        ->schema([
+                            Infolists\Components\TextEntry::make('created_at')
+                                ->label('Créé le')
+                                ->dateTime('d/m/Y à H:i'),
+
+                            Infolists\Components\TextEntry::make('updated_at')
+                                ->label('Modifié le')
+                                ->dateTime('d/m/Y à H:i'),
                         ])
-                        ->columns(3)
-                        ->columnSpanFull(),
-                ])
-                ->collapsible()
-                ->collapsed(fn($record) => $record->partiesAdverses->isEmpty()),
-
-            // ================================================================
-            // SOUS-DOSSIERS DOCUMENTAIRES : compteurs par catégorie
-            // ================================================================
-            Infolists\Components\Section::make('📁 Sous-dossiers documentaires')
-                ->schema([
-                    Infolists\Components\TextEntry::make('doc_courrier')
-                        ->label('📨 Courrier')
-                        ->getStateUsing(fn($record) => $record->documents()->where('categorie', 'courrier')->count() . ' document(s)')
-                        ->badge()
-                        ->color('info'),
-
-                    Infolists\Components\TextEntry::make('doc_procedure')
-                        ->label('⚖️ Procédure')
-                        ->getStateUsing(fn($record) => $record->documents()->where('categorie', 'procedure')->count() . ' document(s)')
-                        ->badge()
-                        ->color('warning'),
-
-                    Infolists\Components\TextEntry::make('doc_contrat')
-                        ->label('📄 Contrats')
-                        ->getStateUsing(fn($record) => $record->documents()->where('categorie', 'contrat')->count() . ' document(s)')
-                        ->badge()
-                        ->color('success'),
-
-                    Infolists\Components\TextEntry::make('doc_quittance')
-                        ->label('🧾 Quittances')
-                        ->getStateUsing(fn($record) => $record->documents()->where('categorie', 'quittance')->count() . ' document(s)')
-                        ->badge()
-                        ->color('primary'),
-                ])
-                ->columns(4)
-                ->collapsible(),
-
-            // ================================================================
-            // MÉTADONNÉES
-            // ================================================================
-            Infolists\Components\Section::make('Métadonnées')
-                ->schema([
-                    Infolists\Components\TextEntry::make('created_at')
-                        ->label('Créé le')
-                        ->dateTime('d/m/Y à H:i'),
-
-                    Infolists\Components\TextEntry::make('updated_at')
-                        ->label('Modifié le')
-                        ->dateTime('d/m/Y à H:i'),
-                ])
-                ->columns(2)
-                ->collapsible()
-                ->collapsed(),
+                        ->columns(2),
+                ]),
         ]);
     }
 }

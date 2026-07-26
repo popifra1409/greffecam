@@ -165,16 +165,16 @@ class Sequestre extends Model
     {
         return (float) $this->mouvements()->sum('montant_precompte');
     }
-
     public function getSoldeActuelAttribute(): float
     {
-        $dernierMouvement = $this->mouvements()->latest('date_mouvement')->latest('id')->first();
+        // ✅ reorder() efface le tri par défaut hérité de la relation mouvements(),
+        // avant d'appliquer le tri décroissant voulu ici.
+        $dernierMouvement = $this->mouvements()
+            ->reorder()
+            ->orderByDesc('date_mouvement')
+            ->orderByDesc('id')
+            ->first();
 
         return $dernierMouvement ? (float) $dernierMouvement->solde_apres : 0.0;
-    }
-
-    public function getTauxPourcentageAttribute(): string
-    {
-        return number_format($this->taux_precompte * 100, 2) . ' %';
     }
 }

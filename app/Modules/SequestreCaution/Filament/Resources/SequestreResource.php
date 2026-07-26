@@ -70,177 +70,187 @@ class SequestreResource extends Resource
                 ->content(fn($record) => $record?->numero_dossier_sequestre ?? 'Généré automatiquement à la création')
                 ->visible(fn($record) => $record !== null),
 
-            Forms\Components\Section::make('Décision & Dossier')
-                ->schema([
-                    Forms\Components\Select::make('decision_id')
-                        ->label('Décision judiciaire')
-                        ->searchable()
-                        ->preload()
-                        ->required()
-                        ->live()
-                        // ✅ Pré-remplissage automatique : si on arrive depuis ViewDossier
-                        // avec un dossier n'ayant qu'UNE SEULE décision, on la sélectionne d'office
-                        ->default(function () {
-                            $dossierId = request()->query('dossier_id');
+            Forms\Components\Tabs::make('Sequestre')
+                ->columnSpanFull()
+                ->tabs([
 
-                            if (!$dossierId) {
-                                return null;
-                            }
+                    Forms\Components\Tabs\Tab::make('Décision & Dossier')
+                        ->icon('heroicon-o-scale')
+                        ->schema([
+                            Forms\Components\Select::make('decision_id')
+                                ->label('Décision judiciaire')
+                                ->searchable()
+                                ->preload()
+                                ->required()
+                                ->live()
+                                // ✅ Pré-remplissage automatique : si on arrive depuis ViewDossier
+                                // avec un dossier n'ayant qu'UNE SEULE décision, on la sélectionne d'office
+                                ->default(function () {
+                                    $dossierId = request()->query('dossier_id');
 
-                            $decisions = Decision::where('dossier_id', $dossierId)->pluck('id');
+                                    if (!$dossierId) {
+                                        return null;
+                                    }
 
-                            return $decisions->count() === 1 ? $decisions->first() : null;
-                        })
-                        ->getSearchResultsUsing(function (string $search) {
-                            $dossierId = request()->query('dossier_id');
+                                    $decisions = Decision::where('dossier_id', $dossierId)->pluck('id');
 
-                            return Decision::query()
-                                ->with('dossier')
-                                ->when($dossierId, fn($query) => $query->where('dossier_id', $dossierId))
-                                ->where(function ($query) use ($search) {
-                                    $query->whereHas('dossier', fn($q) => $q->where('numero_dossier', 'like', "%{$search}%"))
-                                        ->orWhere('numero_repertoire', 'like', "%{$search}%");
+                                    return $decisions->count() === 1 ? $decisions->first() : null;
                                 })
-                                ->limit(50)
-                                ->get()
-                                ->mapWithKeys(fn($decision) => [
-                                    $decision->id => static::formaterLabelDecision($decision),
-                                ]);
-                        })
-                        ->getOptionLabelUsing(function ($value) {
-                            $decision = Decision::with('dossier')->find($value);
-                            return $decision ? static::formaterLabelDecision($decision) : null;
-                        })
-                        ->options(function () {
-                            // ✅ Si on vient d'un dossier précis, ne proposer QUE ses décisions
-                            $dossierId = request()->query('dossier_id');
+                                ->getSearchResultsUsing(function (string $search) {
+                                    $dossierId = request()->query('dossier_id');
 
-                            return Decision::with('dossier')
-                                ->when($dossierId, fn($query) => $query->where('dossier_id', $dossierId))
-                                ->latest()
-                                ->limit(100)
-                                ->get()
-                                ->mapWithKeys(fn($decision) => [
-                                    $decision->id => static::formaterLabelDecision($decision),
-                                ]);
-                        })
-                        ->helperText(function () {
-                            $dossierId = request()->query('dossier_id');
-                            return $dossierId
-                                ? 'Liste restreinte aux décisions de ce dossier.'
-                                : 'Sélectionnez la décision déjà rendue à l\'origine de ce séquestre.';
-                        }),
+                                    return Decision::query()
+                                        ->with('dossier')
+                                        ->when($dossierId, fn($query) => $query->where('dossier_id', $dossierId))
+                                        ->where(function ($query) use ($search) {
+                                            $query->whereHas('dossier', fn($q) => $q->where('numero_dossier', 'like', "%{$search}%"))
+                                                ->orWhere('numero_repertoire', 'like', "%{$search}%");
+                                        })
+                                        ->limit(50)
+                                        ->get()
+                                        ->mapWithKeys(fn($decision) => [
+                                            $decision->id => static::formaterLabelDecision($decision),
+                                        ]);
+                                })
+                                ->getOptionLabelUsing(function ($value) {
+                                    $decision = Decision::with('dossier')->find($value);
+                                    return $decision ? static::formaterLabelDecision($decision) : null;
+                                })
+                                ->options(function () {
+                                    $dossierId = request()->query('dossier_id');
 
-                    Forms\Components\Placeholder::make('dossier_info')
-                        ->label('')
-                        ->content(function (Get $get) {
-                            $decisionId = $get('decision_id');
-                            if (!$decisionId) return 'Sélectionnez une décision pour voir les informations du dossier';
+                                    return Decision::with('dossier')
+                                        ->when($dossierId, fn($query) => $query->where('dossier_id', $dossierId))
+                                        ->latest()
+                                        ->limit(100)
+                                        ->get()
+                                        ->mapWithKeys(fn($decision) => [
+                                            $decision->id => static::formaterLabelDecision($decision),
+                                        ]);
+                                })
+                                ->helperText(function () {
+                                    $dossierId = request()->query('dossier_id');
+                                    return $dossierId
+                                        ? 'Liste restreinte aux décisions de ce dossier.'
+                                        : 'Sélectionnez la décision déjà rendue à l\'origine de ce séquestre.';
+                                }),
 
-                            $decision = Decision::with(['dossier', 'typeDecision', 'natureDecision'])->find($decisionId);
-                            if (!$decision) return '';
+                            Forms\Components\Placeholder::make('dossier_info')
+                                ->label('')
+                                ->content(function (Get $get) {
+                                    $decisionId = $get('decision_id');
+                                    if (!$decisionId) return 'Sélectionnez une décision pour voir les informations du dossier';
 
-                            return new \Illuminate\Support\HtmlString(
-                                '<div style="font-family: monospace; line-height: 2;">' .
-                                    '<strong>Dossier :</strong> ' . ($decision->dossier?->numero_dossier ?? 'N/A') . '<br>' .
-                                    '<strong>Intitulé :</strong> ' . ($decision->dossier?->demandeurs_liste ?: $decision->dossier?->demandeur_nom_complet ?? 'N/A') . '<br>' .
-                                    '<strong>Type décision :</strong> ' . ($decision->typeDecision?->libelle ?? 'N/A') . '<br>' .
-                                    '<strong>Nature décision :</strong> ' . ($decision->natureDecision?->libelle ?? 'N/A') . '<br>' .
-                                    '<strong>Date décision :</strong> ' . ($decision->date_decision?->format('d/m/Y') ?? 'N/A') .
-                                    '</div>'
-                            );
-                        })
-                        ->columnSpanFull()
-                        ->visible(fn(Get $get) => $get('decision_id')),
+                                    $decision = Decision::with(['dossier', 'typeDecision', 'natureDecision'])->find($decisionId);
+                                    if (!$decision) return '';
 
-                    Forms\Components\Select::make('dossier_partie_id')
-                        ->label('Représentant de la famille')
-                        ->options(function (Get $get) {
-                            $decisionId = $get('decision_id');
-                            if (!$decisionId) return [];
+                                    return new \Illuminate\Support\HtmlString(
+                                        '<div style="font-family: monospace; line-height: 2;">' .
+                                            '<strong>Dossier :</strong> ' . ($decision->dossier?->numero_dossier ?? 'N/A') . '<br>' .
+                                            '<strong>Intitulé :</strong> ' . ($decision->dossier?->demandeurs_liste ?: $decision->dossier?->demandeur_nom_complet ?? 'N/A') . '<br>' .
+                                            '<strong>Type décision :</strong> ' . ($decision->typeDecision?->libelle ?? 'N/A') . '<br>' .
+                                            '<strong>Nature décision :</strong> ' . ($decision->natureDecision?->libelle ?? 'N/A') . '<br>' .
+                                            '<strong>Date décision :</strong> ' . ($decision->date_decision?->format('d/m/Y') ?? 'N/A') .
+                                            '</div>'
+                                    );
+                                })
+                                ->columnSpanFull()
+                                ->visible(fn(Get $get) => $get('decision_id')),
 
-                            $decision = Decision::find($decisionId);
-                            if (!$decision?->dossier_id) return [];
+                            Forms\Components\Select::make('dossier_partie_id')
+                                ->label('Représentant de la famille')
+                                ->options(function (Get $get) {
+                                    $decisionId = $get('decision_id');
+                                    if (!$decisionId) return [];
 
-                            return \App\Models\DossierPartie::where('dossier_id', $decision->dossier_id)
-                                ->get()
-                                ->mapWithKeys(fn($partie) => [$partie->id => $partie->nom_complet . ' (' . $partie->type_label . ')']);
-                        })
-                        ->searchable()
-                        ->helperText('Partie déjà enrôlée dans ce dossier, désignée comme représentant'),
-                ])->columns(1),
+                                    $decision = Decision::find($decisionId);
+                                    if (!$decision?->dossier_id) return [];
 
-            Forms\Components\Section::make('Ayants droit (bénéficiaires)')
-                ->description('Personnes qui percevront l\'argent du séquestre')
-                ->schema([
-                    Forms\Components\Repeater::make('ayantsDroit')
-                        ->relationship('ayantsDroit')
+                                    return \App\Models\DossierPartie::where('dossier_id', $decision->dossier_id)
+                                        ->get()
+                                        ->mapWithKeys(fn($partie) => [$partie->id => $partie->nom_complet . ' (' . $partie->type_label . ')']);
+                                })
+                                ->searchable()
+                                ->helperText('Partie déjà enrôlée dans ce dossier, désignée comme représentant'),
+                        ]),
+
+                    Forms\Components\Tabs\Tab::make('Ayants droit')
+                        ->icon('heroicon-o-user-group')
+                        ->badge(fn($record) => $record?->ayantsDroit?->count())
                         ->schema([
-                            Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->required()->columnSpan(2),
-                            Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
-                            Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
-                            Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
-                        ])
-                        ->columns(4)
-                        ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvel ayant droit')
-                        ->collapsible()
-                        ->addActionLabel('➕ Ajouter un ayant droit')
-                        ->columnSpanFull(),
-                ]),
+                            Forms\Components\Repeater::make('ayantsDroit')
+                                ->label('')
+                                ->relationship('ayantsDroit')
+                                ->schema([
+                                    Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->required()->columnSpan(2),
+                                    Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
+                                    Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
+                                    Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
+                                ])
+                                ->columns(4)
+                                ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvel ayant droit')
+                                ->collapsible()
+                                ->addActionLabel('➕ Ajouter un ayant droit')
+                                ->columnSpanFull(),
+                        ]),
 
-            Forms\Components\Section::make('Parties adverses (payeurs)')
-                ->description('Locataires ou autres parties qui versent l\'argent au séquestre')
-                ->schema([
-                    Forms\Components\Repeater::make('partiesAdverses')
-                        ->relationship('partiesAdverses')
+                    Forms\Components\Tabs\Tab::make('Parties adverses')
+                        ->icon('heroicon-o-home')
+                        ->badge(fn($record) => $record?->partiesAdverses?->count())
                         ->schema([
-                            Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->required()->columnSpan(2),
-                            Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
-                            Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
-                            Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
-                        ])
-                        ->columns(4)
-                        ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie adverse')
-                        ->collapsible()
-                        ->addActionLabel('➕ Ajouter une partie adverse')
-                        ->columnSpanFull(),
+                            Forms\Components\Repeater::make('partiesAdverses')
+                                ->label('')
+                                ->relationship('partiesAdverses')
+                                ->schema([
+                                    Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->required()->columnSpan(2),
+                                    Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
+                                    Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
+                                    Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
+                                ])
+                                ->columns(4)
+                                ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie adverse')
+                                ->collapsible()
+                                ->addActionLabel('➕ Ajouter une partie adverse')
+                                ->columnSpanFull(),
+                        ]),
+
+                    Forms\Components\Tabs\Tab::make('Caractéristiques')
+                        ->icon('heroicon-o-adjustments-horizontal')
+                        ->schema([
+                            Forms\Components\Select::make('nature_sequestre_id')
+                                ->label('Nature')
+                                ->relationship('natureSequestre', 'libelle')
+                                ->required()
+                                ->preload(),
+
+                            Forms\Components\Select::make('statut_sequestre_id')
+                                ->label('Statut')
+                                ->relationship('statutSequestre', 'libelle')
+                                ->required()
+                                ->preload(),
+
+                            Forms\Components\DatePicker::make('date_ouverture')
+                                ->required()
+                                ->native(false)
+                                ->displayFormat('d/m/Y')
+                                ->default(now()),
+
+                            Forms\Components\TextInput::make('taux_precompte')
+                                ->label('Taux de précompte')
+                                ->numeric()
+                                ->step(0.01)
+                                ->suffix('%')
+                                ->required()
+                                ->minValue(0)
+                                ->maxValue(100)
+                                ->dehydrateStateUsing(fn($state) => $state / 100)
+                                ->formatStateUsing(fn($state) => $state !== null ? $state * 100 : null)
+                                ->helperText('Pourcentage précompté sur chaque versement, selon la décision de justice'),
+
+                            Forms\Components\Textarea::make('observations')
+                                ->columnSpanFull(),
+                        ])->columns(2),
                 ]),
-
-            Forms\Components\Section::make('Caractéristiques du séquestre')
-                ->schema([
-                    Forms\Components\Select::make('nature_sequestre_id')
-                        ->label('Nature')
-                        ->relationship('natureSequestre', 'libelle')
-                        ->required()
-                        ->preload(),
-
-                    Forms\Components\Select::make('statut_sequestre_id')
-                        ->label('Statut')
-                        ->relationship('statutSequestre', 'libelle')
-                        ->required()
-                        ->preload(),
-
-                    Forms\Components\DatePicker::make('date_ouverture')
-                        ->required()
-                        ->native(false)
-                        ->displayFormat('d/m/Y')
-                        ->default(now()),
-
-                    Forms\Components\TextInput::make('taux_precompte')
-                        ->label('Taux de précompte')
-                        ->numeric()
-                        ->step(0.01)
-                        ->suffix('%')
-                        ->required()
-                        ->minValue(0)
-                        ->maxValue(100)
-                        ->dehydrateStateUsing(fn($state) => $state / 100)
-                        ->formatStateUsing(fn($state) => $state !== null ? $state * 100 : null)
-                        ->helperText('Pourcentage précompté sur chaque versement, selon la décision de justice'),
-
-                    Forms\Components\Textarea::make('observations')
-                        ->columnSpanFull(),
-                ])->columns(2),
         ]);
     }
 

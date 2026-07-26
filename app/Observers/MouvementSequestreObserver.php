@@ -14,30 +14,48 @@ class MouvementSequestreObserver
 
     public function creating(MouvementSequestre $mouvement): void
     {
-        $sequestre = $mouvement->sequestre ?: Sequestre::find($mouvement->sequestre_id);
-        $this->soldeService->calculerMontants($mouvement, $sequestre);
+        $sequestre = Sequestre::find($mouvement->sequestre_id);
+
+        if ($sequestre) {
+            $this->soldeService->calculerMontants($mouvement, $sequestre);
+        }
     }
 
     public function created(MouvementSequestre $mouvement): void
     {
-        $this->soldeService->recalculerSolde($mouvement->sequestre);
+        $sequestre = Sequestre::find($mouvement->sequestre_id);
+
+        if ($sequestre) {
+            $this->soldeService->recalculerSolde($sequestre);
+        }
     }
 
     public function updating(MouvementSequestre $mouvement): void
     {
         if ($mouvement->isDirty(['montant_mouvement', 'type_mouvement'])) {
-            $sequestre = $mouvement->sequestre ?: Sequestre::find($mouvement->sequestre_id);
-            $this->soldeService->calculerMontants($mouvement, $sequestre);
+            $sequestre = Sequestre::find($mouvement->sequestre_id);
+
+            if ($sequestre) {
+                $this->soldeService->calculerMontants($mouvement, $sequestre);
+            }
         }
     }
 
     public function updated(MouvementSequestre $mouvement): void
     {
-        $this->soldeService->recalculerSolde($mouvement->sequestre);
+        $sequestre = Sequestre::find($mouvement->sequestre_id);
+
+        if ($sequestre) {
+            $this->soldeService->recalculerSolde($sequestre);
+        }
     }
 
     public function deleted(MouvementSequestre $mouvement): void
     {
-        $this->soldeService->recalculerSolde($mouvement->sequestre);
+        $sequestre = Sequestre::find($mouvement->sequestre_id);
+
+        if ($sequestre) {
+            $this->soldeService->recalculerSolde($sequestre);
+        }
     }
 }
