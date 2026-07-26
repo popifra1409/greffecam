@@ -269,6 +269,19 @@ class MouvementsRelationManager extends RelationManager
                     ->weight('bold')
                     ->alignEnd()
                     ->color(fn($state) => $state >= 0 ? 'success' : 'danger'),
+
+                // ✅ Indique si la décharge signée a été archivée pour un retrait
+                Tables\Columns\IconColumn::make('decharge_jointe')
+                    ->label('Décharge')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-document-check')
+                    ->falseIcon('heroicon-o-document-minus')
+                    ->trueColor('success')
+                    ->falseColor('gray')
+                    ->visible(fn($record) => $record?->type_mouvement === 'retrait')
+                    ->tooltip(fn($record) => $record->decharge_jointe
+                        ? 'Décharge signée déjà archivée'
+                        : 'Décharge signée non encore archivée'),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
@@ -285,6 +298,37 @@ class MouvementsRelationManager extends RelationManager
                     ->openUrlInNewTab(),
             ])
             ->actions([
+                // ✅ Joindre la décharge signée scannée (retraits uniquement)
+                Tables\Actions\Action::make('joindre_decharge')
+                    ->label(fn($record) => $record->decharge_jointe ? 'Décharge (voir/remplacer)' : 'Joindre décharge')
+                    ->icon('heroicon-o-arrow-up-tray')
+                    ->color(fn($record) => $record->decharge_jointe ? 'gray' : 'warning')
+                    ->visible(fn($record) => $record->type_mouvement === 'retrait')
+                    ->form([
+                        Forms\Components\FileUpload::make('fichier_path')
+                            ->label('Décharge signée (scan)')
+                            ->disk('local')
+                            ->directory('sequestre-documents')
+                            ->visibility('private')
+                            ->required()
+                            ->downloadable()
+                            ->openable()
+                            ->maxSize(10240)
+                            ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png']),
+                    ])
+                    ->action(function (array $data, $record): void {
+                        \App\Models\SequestreDocument::create([
+                            'sequestre_id' => $this->getOwnerRecord()->id,
+                            'mouvement_sequestre_id' => $record->id,
+                            'categorie' => 'quittance',
+                            'libelle' => 'Décharge — ' . $record->operateur_beneficiaire . ' — ' . $record->date_mouvement->format('d/m/Y'),
+                            'fichier_path' => $data['fichier_path'],
+                            'depose_par' => auth()->id(),
+                        ]);
+                    })
+                    ->modalHeading('Archiver la décharge signée')
+                    ->successNotificationTitle('Décharge archivée dans le sous-dossier Quittances'),
+
                 Tables\Actions\Action::make('recu_pdf')
                     ->label('Reçu')
                     ->icon('heroicon-o-printer')

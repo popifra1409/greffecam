@@ -57,6 +57,16 @@ class MouvementSequestre extends Model
         return $this->belongsTo(SequestreAyantDroit::class, 'sequestre_ayant_droit_id');
     }
 
+    public function documents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SequestreDocument::class);
+    }
+
+    public function getDechargeJointeAttribute(): bool
+    {
+        return $this->documents()->where('categorie', 'quittance')->exists();
+    }
+
     public function getTypeLabelAttribute(): string
     {
         return $this->type_mouvement === 'versement' ? 'Versement' : 'Retrait';

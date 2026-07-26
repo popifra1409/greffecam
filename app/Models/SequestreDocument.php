@@ -9,6 +9,7 @@ class SequestreDocument extends Model
 {
     protected $fillable = [
         'sequestre_id',
+        'mouvement_sequestre_id',
         'categorie',
         'libelle',
         'fichier_path',
@@ -20,6 +21,11 @@ class SequestreDocument extends Model
     public function sequestre(): BelongsTo
     {
         return $this->belongsTo(Sequestre::class);
+    }
+
+    public function mouvementSequestre(): BelongsTo
+    {
+        return $this->belongsTo(MouvementSequestre::class);
     }
 
     public function deposePar(): BelongsTo
