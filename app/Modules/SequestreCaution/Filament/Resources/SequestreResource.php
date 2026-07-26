@@ -51,9 +51,9 @@ class SequestreResource extends Resource
     }
 
     /**
-     * Format : "TPI-YDCA/CIV/RE/26/00000001 - Déc. 654"
+     * Format : "TPI-YDCA/CIV/RE/26/00000001 - Dec. 654"
      */
-    public static function formaterLabelDecision(\App\Models\Decision $decision): string
+    public static function formaterLabelDecision(Decision $decision): string
     {
         $numeroDossier = $decision->dossier?->numero_dossier ?? 'Dossier N/A';
         $numeroDecision = $decision->numero_repertoire ?? '-';
@@ -62,13 +62,9 @@ class SequestreResource extends Resource
     }
 
     public static function form(Form $form): Form
-    /**
-     * Format : "TPI-YDCA/CIV/RE/26/00000001 - Déc. 654"
-     */
-
-
     {
         return $form->schema([
+
             Forms\Components\Placeholder::make('numero_dossier_sequestre_display')
                 ->label('N° Dossier Séquestre')
                 ->content(fn($record) => $record?->numero_dossier_sequestre ?? 'Généré automatiquement à la création')
@@ -82,9 +78,25 @@ class SequestreResource extends Resource
                         ->preload()
                         ->required()
                         ->live()
+                        // ✅ Pré-remplissage automatique : si on arrive depuis ViewDossier
+                        // avec un dossier n'ayant qu'UNE SEULE décision, on la sélectionne d'office
+                        ->default(function () {
+                            $dossierId = request()->query('dossier_id');
+
+                            if (!$dossierId) {
+                                return null;
+                            }
+
+                            $decisions = Decision::where('dossier_id', $dossierId)->pluck('id');
+
+                            return $decisions->count() === 1 ? $decisions->first() : null;
+                        })
                         ->getSearchResultsUsing(function (string $search) {
+                            $dossierId = request()->query('dossier_id');
+
                             return Decision::query()
                                 ->with('dossier')
+                                ->when($dossierId, fn($query) => $query->where('dossier_id', $dossierId))
                                 ->where(function ($query) use ($search) {
                                     $query->whereHas('dossier', fn($q) => $q->where('numero_dossier', 'like', "%{$search}%"))
                                         ->orWhere('numero_repertoire', 'like', "%{$search}%");
@@ -100,7 +112,11 @@ class SequestreResource extends Resource
                             return $decision ? static::formaterLabelDecision($decision) : null;
                         })
                         ->options(function () {
+                            // ✅ Si on vient d'un dossier précis, ne proposer QUE ses décisions
+                            $dossierId = request()->query('dossier_id');
+
                             return Decision::with('dossier')
+                                ->when($dossierId, fn($query) => $query->where('dossier_id', $dossierId))
                                 ->latest()
                                 ->limit(100)
                                 ->get()
@@ -108,7 +124,12 @@ class SequestreResource extends Resource
                                     $decision->id => static::formaterLabelDecision($decision),
                                 ]);
                         })
-                        ->helperText('Sélectionnez la décision déjà rendue à l\'origine de ce séquestre'),
+                        ->helperText(function () {
+                            $dossierId = request()->query('dossier_id');
+                            return $dossierId
+                                ? 'Liste restreinte aux décisions de ce dossier.'
+                                : 'Sélectionnez la décision déjà rendue à l\'origine de ce séquestre.';
+                        }),
 
                     Forms\Components\Placeholder::make('dossier_info')
                         ->label('')

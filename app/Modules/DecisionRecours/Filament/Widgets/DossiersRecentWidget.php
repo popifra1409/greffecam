@@ -6,6 +6,7 @@ use App\Models\Dossier;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
+use Filament\Tables\Enums\ActionsPosition;
 
 class DossiersRecentWidget extends BaseWidget
 {
@@ -72,14 +73,20 @@ class DossiersRecentWidget extends BaseWidget
                     ->color('success')
                     ->icon('heroicon-o-document-text'),
 
+                Tables\Columns\TextColumn::make('sequestres_count')
+                    ->label('Séquestres')
+                    ->counts('sequestres')
+                    ->badge()
+                    ->color(fn($state) => $state > 0 ? 'warning' : 'gray'),
+
                 Tables\Columns\TextColumn::make('date_enrolement')
                     ->label('Enrôlé le')
                     ->date('d/m/Y')
                     ->sortable()
                     ->description(
                         fn($record) => $record->date_enrolement
-                        ? now()->diffForHumans($record->date_enrolement)
-                        : '-'
+                            ? now()->diffForHumans($record->date_enrolement)
+                            : '-'
                     ),
             ])
             ->actions([
@@ -87,7 +94,7 @@ class DossiersRecentWidget extends BaseWidget
                     ->label('Voir')
                     ->icon('heroicon-o-eye')
                     ->url(fn($record) => \App\Modules\DecisionRecours\Filament\Resources\DossierResource::getUrl('view', ['record' => $record])),
-            ])
+            ], position: ActionsPosition::BeforeColumns)
             ->paginated([5, 10])
             ->emptyStateHeading('Aucun dossier')
             ->emptyStateDescription('Les dossiers apparaîtront ici une fois créés')

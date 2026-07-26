@@ -299,4 +299,16 @@ class Dossier extends Model
         // Fallback : année civile actuelle
         return now()->format('Y');
     }
+
+    public function sequestres()
+    {
+        return $this->hasMany(Sequestre::class);
+    }
+
+    public function aUnSequestreActif(): bool
+    {
+        return $this->sequestres()
+            ->whereHas('statutSequestre', fn($q) => $q->where('bloque_mouvements', false))
+            ->exists();
+    }
 }

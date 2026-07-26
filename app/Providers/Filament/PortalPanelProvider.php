@@ -18,6 +18,8 @@ use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use App\Modules\Portal\Filament\Pages\Dashboard;
+use Hasnayeen\Themes\ThemesPlugin;
+use Hasnayeen\Themes\Http\Middleware\SetTheme;
 
 class PortalPanelProvider extends PanelProvider
 {
@@ -33,8 +35,10 @@ class PortalPanelProvider extends PanelProvider
             ])
             ->sidebarCollapsibleOnDesktop()
 
-            // ✅ CORRIGÉ : navigation réactivée pour accéder à Utilisateurs/Rôles/Permissions
-            // ->navigation(false)  ← supprimé
+            ->plugin(
+                ThemesPlugin::make()
+                    ->canViewThemesPage(fn() => auth()->user()?->hasRole(['Super Administrateur', 'Administrateur']) ?? false)
+            )
 
             ->discoverResources(
                 in: app_path('Modules/Portal/Filament/Resources'),
@@ -61,6 +65,7 @@ class PortalPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SetTheme::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

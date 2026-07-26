@@ -18,6 +18,8 @@ use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Navigation\MenuItem;
+use Hasnayeen\Themes\ThemesPlugin;
+use Hasnayeen\Themes\Http\Middleware\SetTheme;
 
 class DecisionRecoursPanelProvider extends PanelProvider
 {
@@ -71,6 +73,11 @@ class DecisionRecoursPanelProvider extends PanelProvider
             ->databaseNotificationsPolling('30s')
             ->sidebarCollapsibleOnDesktop()
 
+            ->plugin(
+                ThemesPlugin::make()
+                    ->canViewThemesPage(fn() => auth()->user()?->hasRole(['Super Administrateur', 'Administrateur']) ?? false)
+            )
+
             ->discoverResources(
                 in: app_path('Modules/DecisionRecours/Filament/Resources'),
                 for: 'App\\Modules\\DecisionRecours\\Filament\\Resources'
@@ -101,6 +108,7 @@ class DecisionRecoursPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SetTheme::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

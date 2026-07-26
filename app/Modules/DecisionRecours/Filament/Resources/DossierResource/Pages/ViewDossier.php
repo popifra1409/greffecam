@@ -22,6 +22,19 @@ class ViewDossier extends ViewRecord
                 ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
                 ->url(fn($record) => \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id])),
 
+            // ✅ NOUVEAU : Créer un séquestre (nécessite qu'une décision existe déjà dans ce dossier)
+            Actions\Action::make('creer_sequestre')
+                ->label('Créer un séquestre')
+                ->icon('heroicon-o-lock-closed')
+                ->color('warning')
+                ->visible(fn($record) => $record->decisions()->count() > 0)
+                ->url(fn($record) => \App\Modules\SequestreCaution\Filament\Resources\SequestreResource::getUrl(
+                    'create',
+                    ['dossier_id' => $record->id],
+                    panel: 'sequestre-caution'
+                ))
+                ->openUrlInNewTab(),
+
             Actions\EditAction::make(),
             Actions\DeleteAction::make(),
         ];
@@ -128,9 +141,9 @@ class ViewDossier extends ViewRecord
                             ->html()
                             ->formatStateUsing(fn() => new \Illuminate\Support\HtmlString(
                                 '<div style="padding: 1rem; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 0.5rem;">' .
-                                '<strong>⚖️ Ministère Public</strong><br>' .
-                                'Le Ministère Public est partie poursuivante d\'office.' .
-                                '</div>'
+                                    '<strong>⚖️ Ministère Public</strong><br>' .
+                                    'Le Ministère Public est partie poursuivante d\'office.' .
+                                    '</div>'
                             ))
                             ->visible(fn($record) => $record->section?->type === 'repressive')
                             ->columnSpanFull(),
@@ -329,6 +342,44 @@ class ViewDossier extends ViewRecord
                             })
                             ->columnSpanFull(),
                     ])->columns(2),
+
+                // ✅ SECTION 6bis : SÉQUESTRES (Module Séquestre & Caution)
+                Infolists\Components\Section::make('Séquestres')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('sequestres_count')
+                            ->label('Nombre de séquestres')
+                            ->getStateUsing(fn($record) => $record->sequestres()->count())
+                            ->badge()
+                            ->color(fn($state) => $state > 0 ? 'warning' : 'gray')
+                            ->size('lg'),
+
+                        Infolists\Components\TextEntry::make('sequestres_solde_total')
+                            ->label('Solde cumulé')
+                            ->getStateUsing(function ($record) {
+                                $total = $record->sequestres->sum(fn($s) => $s->solde_actuel);
+                                return $total;
+                            })
+                            ->money('XAF')
+                            ->weight('bold')
+                            ->color(fn($state) => $state >= 0 ? 'success' : 'danger')
+                            ->visible(fn($record) => $record->sequestres()->count() > 0),
+
+                        Infolists\Components\TextEntry::make('sequestres_info')
+                            ->label('')
+                            ->html()
+                            ->formatStateUsing(function ($record) {
+                                if ($record->sequestres()->count() === 0) {
+                                    return 'Aucun séquestre ouvert pour ce dossier.';
+                                }
+
+                                return new \Illuminate\Support\HtmlString(
+                                    'Consultez l\'onglet <strong>"Séquestres"</strong> ci-dessous pour voir le détail.'
+                                );
+                            })
+                            ->columnSpanFull(),
+                    ])
+                    ->columns(2)
+                    ->collapsible(),
 
                 // ✅ SECTION 7 : MÉTADONNÉES
                 Infolists\Components\Section::make('Métadonnées')

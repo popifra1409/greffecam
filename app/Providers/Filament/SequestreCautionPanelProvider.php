@@ -19,6 +19,8 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Navigation\MenuItem;
 use Filament\Navigation\NavigationItem;
+use Hasnayeen\Themes\ThemesPlugin;
+use Hasnayeen\Themes\Http\Middleware\SetTheme;
 
 class SequestreCautionPanelProvider extends PanelProvider
 {
@@ -66,6 +68,11 @@ class SequestreCautionPanelProvider extends PanelProvider
             ->databaseNotificationsPolling('30s')
             ->sidebarCollapsibleOnDesktop()
 
+            ->plugin(
+                ThemesPlugin::make()
+                    ->canViewThemesPage(fn() => auth()->user()?->hasRole(['Super Administrateur', 'Administrateur']) ?? false)
+            )
+
             ->discoverResources(
                 in: app_path('Modules/SequestreCaution/Filament/Resources'),
                 for: 'App\\Modules\\SequestreCaution\\Filament\\Resources'
@@ -95,6 +102,7 @@ class SequestreCautionPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                SetTheme::class,
             ])
             ->authMiddleware([
                 Authenticate::class,
