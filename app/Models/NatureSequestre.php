@@ -7,7 +7,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class NatureSequestre extends Model
 {
-    protected $fillable = ['code', 'libelle', 'description', 'is_active'];
+    protected $fillable = [
+        'code',
+        'libelle',
+        'description',
+        'libelle_ayants_droit',
+        'libelle_parties_adverses',
+        'is_active',
+    ];
 
     protected $casts = ['is_active' => 'boolean'];
 

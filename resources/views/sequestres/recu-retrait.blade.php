@@ -166,10 +166,10 @@
             <div class="info-label">Montant retiré</div>
             <div class="info-value"><strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong></div>
         </div>
-        <div class="info-row">
+        {{-- <div class="info-row">
             <div class="info-label">Solde du séquestre après opération</div>
             <div class="info-value"><strong>{{ number_format($mouvement->solde_apres, 0, ',', ' ') }} FCFA</strong></div>
-        </div>
+        </div> --}}
     </div>
 
     @if($mouvement->est_procuration)
@@ -189,16 +189,14 @@
         @if($mouvement->est_procuration)
             Je soussigné(e) <strong>{{ $mouvement->mandataire_nom }}</strong>, agissant en qualité de mandataire de
             <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'l\'ayant droit susnommé' }}</strong> en vertu de la
-            procuration référencée ci-dessus, reconnais avoir reçu de la part du Greffe la somme de
+            procuration référencée ci-dessus, reconnais avoir reçu du Greffier en Chef du {{ $mouvement->sequestre->dossier->tribunal->nom ?? 'Tribunal' }} la somme de
             <strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong>
-            ({{ $montantEnLettres }} francs CFA), au titre de « {{ $mouvement->motifMouvement->libelle ?? $mouvement->operateur_beneficiaire }} »,
-            pour le compte du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
+            ({{ $montantEnLettres }} francs CFA), pour le compte du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
         @else
             Je soussigné(e) <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'le bénéficiaire susnommé' }}</strong>,
-            reconnais avoir reçu personnellement du Greffe la somme de
+            reconnais avoir reçu personnellement du Greffier en Chef du {{ $mouvement->sequestre->dossier->tribunal->nom ?? 'Tribunal' }} la somme de
             <strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong>
-            ({{ $montantEnLettres }} francs CFA), au titre de « {{ $mouvement->motifMouvement->libelle ?? $mouvement->operateur_beneficiaire }} »,
-            au titre du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
+            ({{ $montantEnLettres }} francs CFA), pour le compte du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
         @endif
     </div>
 
@@ -210,7 +208,7 @@
             <div class="ligne-signature">Nom, date et signature (précédée de la mention « Bon pour reçu »)</div>
         </div>
         <div class="signature-box">
-            <div class="titre-signature">Pour le Greffe</div>
+            <div class="titre-signature">Pour le Greffe en Chef</div>
             <div class="ligne-signature">Nom, date et signature</div>
         </div>
     </div>

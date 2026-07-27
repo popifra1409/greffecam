@@ -56,6 +56,33 @@ class MouvementsRelationManager extends RelationManager
                 ->searchable()
                 ->preload()
                 ->live()
+                ->createOptionForm([
+                    Forms\Components\TextInput::make('libelle')
+                        ->label('Libellé du motif')
+                        ->required(),
+
+                    Forms\Components\Select::make('type_mouvement')
+                        ->label('Applicable à')
+                        ->options([
+                            'versement' => '⬇️ Versement uniquement',
+                            'retrait' => '⬆️ Retrait uniquement',
+                            'les_deux' => '↕️ Versement et Retrait',
+                        ])
+                        ->default('les_deux')
+                        ->required(),
+                ])
+                ->createOptionUsing(function (array $data): int {
+                    $motif = MotifMouvement::create([
+                        'libelle' => $data['libelle'],
+                        'type_mouvement' => $data['type_mouvement'],
+                        'is_active' => true,
+                    ]);
+
+                    return $motif->id;
+                })
+                ->createOptionAction(function (Forms\Components\Actions\Action $action) {
+                    return $action->modalHeading('Créer un nouveau motif');
+                })
                 ->columnSpan(2),
 
             // ✅ Colonne ENTREES — versement effectué par une partie adverse

@@ -12,6 +12,29 @@ class MotifMouvement extends Model
 
     protected $casts = ['is_active' => 'boolean'];
 
+    protected static function booted(): void
+    {
+        static::creating(function (MotifMouvement $motif) {
+            if (empty($motif->code)) {
+                $motif->code = static::genererCodeUnique($motif->libelle);
+            }
+        });
+    }
+
+    protected static function genererCodeUnique(string $libelle): string
+    {
+        $base = \Illuminate\Support\Str::slug($libelle, '_');
+        $code = $base;
+        $compteur = 1;
+
+        while (static::where('code', $code)->exists()) {
+            $compteur++;
+            $code = $base . '_' . $compteur;
+        }
+
+        return $code;
+    }
+
     public function mouvements(): HasMany
     {
         return $this->hasMany(MouvementSequestre::class);

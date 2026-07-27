@@ -182,4 +182,14 @@ class Sequestre extends Model
     {
         return number_format($this->taux_precompte * 100, 2) . ' %';
     }
+
+    public function getLibelleAyantsDroitAttribute(): string
+    {
+        return $this->natureSequestre?->libelle_ayants_droit ?: 'Ayants droit';
+    }
+
+    public function getLibellePartiesAdversesAttribute(): string
+    {
+        return $this->natureSequestre?->libelle_parties_adverses ?: 'Parties adverses (payeurs)';
+    }
 }

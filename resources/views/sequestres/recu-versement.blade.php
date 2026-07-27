@@ -151,8 +151,8 @@
             <div class="info-label">Montant versé</div>
             <div class="info-value"><strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong></div>
         </div>
-        <div class="info-row">
-            <div class="info-label">Taux de précompte appliqué</div>
+        {{-- <div class="info-row">
+            <div class="info-label">Rémunération du Séquestre</div>
             <div class="info-value">{{ number_format($mouvement->taux_applique * 100, 2) }} %</div>
         </div>
         <div class="info-row">
@@ -166,7 +166,7 @@
         <div class="info-row">
             <div class="info-label">Solde du séquestre après opération</div>
             <div class="info-value"><strong>{{ number_format($mouvement->solde_apres, 0, ',', ' ') }} FCFA</strong></div>
-        </div>
+        </div> --}}
     </div>
 
     <div class="montant-lettres">
@@ -180,7 +180,7 @@
             <div class="ligne-signature">Nom, date et signature</div>
         </div>
         <div class="signature-box">
-            <div class="titre-signature">Pour le Greffe</div>
+            <div class="titre-signature">Pour le Greffe en Chef</div>
             <div class="ligne-signature">Nom, date et signature</div>
         </div>
     </div>

@@ -20,6 +20,7 @@ class EtatSequestrePdfService
             'partiesAdverses',
             'mouvements.motifMouvement',
             'mouvements.ayantDroit',
+            'mouvements.partieAdverse',
             'documents',
         ]);
 

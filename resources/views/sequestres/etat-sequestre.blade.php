@@ -261,7 +261,7 @@
                 <div class="info-value">{{ $sequestre->date_ouverture?->format('d/m/Y') ?? 'Non renseignée' }}</div>
             </div>
             <div class="info-row">
-                <div class="info-label">Taux de précompte</div>
+                <div class="info-label">Rémuneration du séquestre</div>
                 <div class="info-value"><strong>{{ $sequestre->taux_pourcentage }}</strong></div>
             </div>
             @if($sequestre->representant)
@@ -307,7 +307,7 @@
     {{-- SECTION 3 : AYANTS DROIT --}}
     @if($sequestre->ayantsDroit->count() > 0)
     <div class="section">
-        <div class="section-title">👥 Ayants Droit (Bénéficiaires)</div>
+        <div class="section-title">👥 {{ $sequestre->libelle_ayants_droit }} (Bénéficiaires)</div>
         <table class="parties-table">
             <thead>
                 <tr>
@@ -364,29 +364,45 @@
     </div>
     @endif
 
-    {{-- SECTION 4 : PARTIES ADVERSES --}}
+    {{-- SECTION 4 : PARTIES ADVERSES / VERSANTS --}}
     @if($sequestre->partiesAdverses->count() > 0)
     <div class="section">
-        <div class="section-title">🏠 Parties Adverses (Payeurs)</div>
+        <div class="section-title">🏠 {{ $sequestre->libelle_parties_adverses }}</div>
         <table class="parties-table">
             <thead>
                 <tr>
                     <th>Nom complet</th>
-                    <th>N° CNI</th>
                     <th>Téléphone</th>
-                    <th>Adresse</th>
+                    <th>Nb. versements</th>
+                    <th>Total versé</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($sequestre->partiesAdverses as $partieAdverse)
+                    @php
+                        $versementsPartieAdverse = $sequestre->mouvements
+                            ->where('type_mouvement', 'versement')
+                            ->where('sequestre_partie_adverse_id', $partieAdverse->id);
+                    @endphp
                 <tr>
                     <td><strong>{{ $partieAdverse->nom_complet }}</strong></td>
-                    <td>{{ $partieAdverse->numero_cni ?? '-' }}</td>
                     <td>{{ $partieAdverse->telephone ?? '-' }}</td>
-                    <td>{{ $partieAdverse->adresse ?? '-' }}</td>
+                    <td>{{ $versementsPartieAdverse->count() }}</td>
+                    <td class="montant-positif">{{ number_format($versementsPartieAdverse->sum('montant_mouvement'), 0, ',', ' ') }} FCFA</td>
                 </tr>
                 @endforeach
             </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" style="text-align: right;">TOTAL VERSÉ :</td>
+                    <td>
+                        {{ number_format(
+                            $sequestre->mouvements->where('type_mouvement', 'versement')->sum('montant_mouvement'),
+                            0, ',', ' '
+                        ) }} FCFA
+                    </td>
+                </tr>
+            </tfoot>
         </table>
     </div>
     @endif

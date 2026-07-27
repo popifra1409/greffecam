@@ -41,21 +41,71 @@ class NatureSequestreResource extends Resource
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\TextInput::make('code')->required()->unique(ignoreRecord: true),
-            Forms\Components\TextInput::make('libelle')->required(),
-            Forms\Components\Textarea::make('description')->columnSpanFull(),
-            Forms\Components\Toggle::make('is_active')->default(true),
-        ])->columns(2);
+            Forms\Components\Section::make('Informations générales')
+                ->schema([
+                    Forms\Components\TextInput::make('code')
+                        ->required()
+                        ->unique(ignoreRecord: true),
+
+                    Forms\Components\TextInput::make('libelle')
+                        ->label('Libellé')
+                        ->required(),
+
+                    Forms\Components\Textarea::make('description')
+                        ->columnSpanFull(),
+
+                    Forms\Components\Toggle::make('is_active')
+                        ->label('Actif')
+                        ->default(true),
+                ])->columns(2),
+
+            Forms\Components\Section::make('Terminologie personnalisée')
+                ->description('Adapte le vocabulaire utilisé dans les états et écrans selon le contexte (ex: "Locataires" pour un séquestre de loyer, "Héritiers" pour une succession).')
+                ->schema([
+                    Forms\Components\TextInput::make('libelle_ayants_droit')
+                        ->label('Libellé "Ayants droit" pour cette nature')
+                        ->placeholder('Ex: Héritiers, Pupille, Bénéficiaires...')
+                        ->helperText('Laissez vide pour utiliser "Ayants droit" par défaut'),
+
+                    Forms\Components\TextInput::make('libelle_parties_adverses')
+                        ->label('Libellé "Parties adverses" pour cette nature')
+                        ->placeholder('Ex: Locataires (versants), Débiteurs, Contributeurs...')
+                        ->helperText('Laissez vide pour utiliser "Parties adverses (payeurs)" par défaut'),
+                ])->columns(2),
+        ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('libelle')->searchable()->sortable(),
-                Tables\Columns\TextColumn::make('code')->badge()->color('gray'),
-                Tables\Columns\TextColumn::make('sequestres_count')->label('Séquestres')->counts('sequestres')->badge(),
-                Tables\Columns\IconColumn::make('is_active')->label('Actif')->boolean(),
+                Tables\Columns\TextColumn::make('libelle')
+                    ->label('Libellé')
+                    ->searchable()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('code')
+                    ->badge()
+                    ->color('gray'),
+
+                Tables\Columns\TextColumn::make('libelle_ayants_droit')
+                    ->label('Terme "Ayants droit"')
+                    ->placeholder('Ayants droit (défaut)')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('libelle_parties_adverses')
+                    ->label('Terme "Parties adverses"')
+                    ->placeholder('Parties adverses (défaut)')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('sequestres_count')
+                    ->label('Séquestres')
+                    ->counts('sequestres')
+                    ->badge(),
+
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Actif')
+                    ->boolean(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

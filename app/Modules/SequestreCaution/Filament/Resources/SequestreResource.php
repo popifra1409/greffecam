@@ -182,7 +182,7 @@ class SequestreResource extends Resource
                                 ->label('')
                                 ->relationship('ayantsDroit')
                                 ->schema([
-                                    Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->required()->columnSpan(2),
+                                    Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->columnSpan(2),
                                     Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
                                     Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
                                     Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),

@@ -50,13 +50,6 @@ class MotifMouvementResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Informations du motif')
                     ->schema([
-                        Forms\Components\TextInput::make('code')
-                            ->label('Code')
-                            ->required()
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(255)
-                            ->helperText('Ex: loyer, remboursement, avance'),
-
                         Forms\Components\TextInput::make('libelle')
                             ->label('Libellé')
                             ->required()
