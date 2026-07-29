@@ -194,7 +194,7 @@ class SequestreResource extends Resource
                                 ->columnSpanFull(),
                         ]),
 
-                    Forms\Components\Tabs\Tab::make('Parties adverses')
+                    Forms\Components\Tabs\Tab::make('Locataires')
                         ->icon('heroicon-o-home')
                         ->badge(fn($record) => $record?->partiesAdverses?->count())
                         ->schema([
@@ -202,15 +202,15 @@ class SequestreResource extends Resource
                                 ->label('')
                                 ->relationship('partiesAdverses')
                                 ->schema([
-                                    Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->required()->columnSpan(2),
+                                    Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->columnSpan(2),
                                     Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
                                     Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
                                     Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
                                 ])
                                 ->columns(4)
-                                ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie adverse')
+                                ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouveau locataire')
                                 ->collapsible()
-                                ->addActionLabel('➕ Ajouter une partie adverse')
+                                ->addActionLabel('➕ Ajouter une locataire')
                                 ->columnSpanFull(),
                         ]),
 
@@ -236,7 +236,7 @@ class SequestreResource extends Resource
                                 ->default(now()),
 
                             Forms\Components\TextInput::make('taux_precompte')
-                                ->label('Taux de précompte')
+                                ->label('Taux de rémunération séquestre')
                                 ->numeric()
                                 ->step(0.01)
                                 ->suffix('%')
