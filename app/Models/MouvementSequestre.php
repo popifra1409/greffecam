@@ -14,6 +14,7 @@ class MouvementSequestre extends Model
         'motif_mouvement_id',
         'sequestre_partie_adverse_id',
         'sequestre_ayant_droit_id',
+        'sequestre_partie_tierce_id',
         'est_procuration',
         'mandataire_nom',
         'mandataire_reference_procuration',
@@ -57,6 +58,11 @@ class MouvementSequestre extends Model
         return $this->belongsTo(SequestreAyantDroit::class, 'sequestre_ayant_droit_id');
     }
 
+    public function partieTierce(): BelongsTo
+    {
+        return $this->belongsTo(SequestrePartieTierce::class, 'sequestre_partie_tierce_id');
+    }
+
     public function documents(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(SequestreDocument::class);
@@ -73,11 +79,17 @@ class MouvementSequestre extends Model
     }
 
     /**
-     * Nom à afficher pour ce mouvement : celui du mandataire si procuration,
-     * sinon celui de la partie adverse (versement) ou de l'ayant droit (retrait).
+     * Nom à afficher pour ce mouvement :
+     * - le mandataire si retrait par procuration (ayant droit)
+     * - la partie tierce si retrait attribué à un huissier/avocat/service public
+     * - sinon operateur_beneficiaire (déjà calculé lors de la saisie)
      */
     public function getNomAffichageAttribute(): string
     {
+        if ($this->sequestre_partie_tierce_id && $this->partieTierce) {
+            return $this->partieTierce->nom_complet . ' (' . $this->partieTierce->type_label . ')';
+        }
+
         if ($this->est_procuration && $this->mandataire_nom) {
             return $this->mandataire_nom . ' (mandataire)';
         }

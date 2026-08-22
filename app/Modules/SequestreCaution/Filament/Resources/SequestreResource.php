@@ -227,6 +227,15 @@ class SequestreResource extends Resource
                                     Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
                                     Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
                                     Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
+                                    Forms\Components\TextInput::make('montant_loyer_attendu')
+                                        ->label('Loyer mensuel attendu')
+                                        ->numeric()
+                                        ->suffix('FCFA')
+                                        ->helperText('Sert à vérifier si un versement est total ou partiel'),
+                                    Forms\Components\Select::make('jour_echeance')
+                                        ->label('Jour d\'échéance (du mois)')
+                                        ->options(array_combine(range(1, 31), range(1, 31)))
+                                        ->helperText('Jour du mois où le loyer est dû — sert à détecter les retards'),
                                 ])
                                 ->columns(4)
                                 ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie adverse')

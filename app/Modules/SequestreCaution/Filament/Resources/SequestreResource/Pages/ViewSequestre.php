@@ -228,15 +228,34 @@ class ViewSequestre extends ViewRecord
                                         ->weight('bold')
                                         ->icon('heroicon-o-identification'),
 
-                                    Infolists\Components\TextEntry::make('numero_cni')
-                                        ->label('N° CNI')
-                                        ->placeholder('—'),
-
                                     Infolists\Components\TextEntry::make('telephone')
                                         ->label('Téléphone')
                                         ->placeholder('—')
                                         ->icon('heroicon-o-phone')
                                         ->copyable(),
+
+                                    Infolists\Components\TextEntry::make('montant_loyer_attendu')
+                                        ->label('Loyer attendu')
+                                        ->money('XAF')
+                                        ->placeholder('Non défini'),
+
+                                    Infolists\Components\TextEntry::make('jour_echeance')
+                                        ->label('Échéance')
+                                        ->formatStateUsing(fn($state) => $state ? "Le {$state} du mois" : '—')
+                                        ->placeholder('—'),
+
+                                    Infolists\Components\TextEntry::make('statut_versement_label')
+                                        ->label('Statut (mois en cours)')
+                                        ->badge()
+                                        ->color(fn($record) => $record->statut_versement_couleur),
+
+                                    Infolists\Components\TextEntry::make('total_verse_mois')
+                                        ->label('Versé ce mois')
+                                        ->money('XAF'),
+
+                                    Infolists\Components\TextEntry::make('numero_cni')
+                                        ->label('N° CNI')
+                                        ->placeholder('—'),
 
                                     Infolists\Components\TextEntry::make('adresse')
                                         ->label('Adresse')

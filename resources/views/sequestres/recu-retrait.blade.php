@@ -147,14 +147,27 @@
             <div class="info-value">{{ $mouvement->date_mouvement->format('d/m/Y') }}</div>
         </div>
         <div class="info-row">
-            <div class="info-label">Bénéficiaire légal (ayant droit)</div>
+            <div class="info-label">
+                {{ $mouvement->sequestre_partie_tierce_id ? 'Partie Tierce (bénéficiaire)' : 'Bénéficiaire légal (ayant droit)' }}
+            </div>
             <div class="info-value">
-                <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'Non renseigné' }}</strong>
-                @if($mouvement->ayantDroit?->numero_cni)
-                    <br><small>CNI : {{ $mouvement->ayantDroit->numero_cni }}</small>
-                @endif
-                @if($mouvement->ayantDroit?->telephone)
-                    <br><small>Tél : {{ $mouvement->ayantDroit->telephone }}</small>
+                @if($mouvement->sequestre_partie_tierce_id)
+                    <strong>{{ $mouvement->partieTierce->nom_complet ?? 'Non renseigné' }}</strong>
+                    <br><small>Type : {{ $mouvement->partieTierce->type_label ?? '-' }}</small>
+                    @if($mouvement->partieTierce?->reference)
+                        <br><small>Réf : {{ $mouvement->partieTierce->reference }}</small>
+                    @endif
+                    @if($mouvement->partieTierce?->telephone)
+                        <br><small>Tél : {{ $mouvement->partieTierce->telephone }}</small>
+                    @endif
+                @else
+                    <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'Non renseigné' }}</strong>
+                    @if($mouvement->ayantDroit?->numero_cni)
+                        <br><small>CNI : {{ $mouvement->ayantDroit->numero_cni }}</small>
+                    @endif
+                    @if($mouvement->ayantDroit?->telephone)
+                        <br><small>Tél : {{ $mouvement->ayantDroit->telephone }}</small>
+                    @endif
                 @endif
             </div>
         </div>
@@ -186,7 +199,14 @@
     </div>
 
     <div class="mention-legale">
-        @if($mouvement->est_procuration)
+        @if($mouvement->sequestre_partie_tierce_id)
+            Je soussigné(e) <strong>{{ $mouvement->partieTierce->nom_complet ?? 'le prestataire susnommé' }}</strong>
+            ({{ $mouvement->partieTierce->type_label ?? 'Partie Tierce' }}), reconnais avoir reçu du Greffier en Chef
+            du {{ $mouvement->sequestre->dossier->tribunal->nom ?? 'Tribunal' }} la somme de
+            <strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong>
+            ({{ $montantEnLettres }} francs CFA), au titre de « {{ $mouvement->motifMouvement->libelle ?? $mouvement->operateur_beneficiaire }} »,
+            pour le compte du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
+        @elseif($mouvement->est_procuration)
             Je soussigné(e) <strong>{{ $mouvement->mandataire_nom }}</strong>, agissant en qualité de mandataire de
             <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'l\'ayant droit susnommé' }}</strong> en vertu de la
             procuration référencée ci-dessus, reconnais avoir reçu du Greffier en Chef du {{ $mouvement->sequestre->dossier->tribunal->nom ?? 'Tribunal' }} la somme de
@@ -194,16 +214,21 @@
             ({{ $montantEnLettres }} francs CFA), pour le compte du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
         @else
             Je soussigné(e) <strong>{{ $mouvement->ayantDroit->nom_complet ?? 'le bénéficiaire susnommé' }}</strong>,
-            reconnais avoir reçu personnellement du Greffier en Chef du {{ $mouvement->sequestre->dossier->tribunal->nom ?? 'Tribunal' }} la somme de
+            reconnais avoir reçu personnellement du Greffe la somme de
             <strong>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }} FCFA</strong>
-            ({{ $montantEnLettres }} francs CFA), pour le compte du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
+            ({{ $montantEnLettres }} francs CFA), au titre de « {{ $mouvement->motifMouvement->libelle ?? $mouvement->operateur_beneficiaire }} »,
+            au titre du séquestre {{ $mouvement->sequestre->numero_dossier_sequestre }}.
         @endif
     </div>
 
     <div class="signatures">
         <div class="signature-box">
             <div class="titre-signature">
-                {{ $mouvement->est_procuration ? 'Le Mandataire' : 'Le Bénéficiaire' }}
+                @if($mouvement->sequestre_partie_tierce_id)
+                    Le Prestataire
+                @else
+                    {{ $mouvement->est_procuration ? 'Le Mandataire' : 'Le Bénéficiaire' }}
+                @endif
             </div>
             <div class="ligne-signature">Nom, date et signature (précédée de la mention « Bon pour reçu »)</div>
         </div>

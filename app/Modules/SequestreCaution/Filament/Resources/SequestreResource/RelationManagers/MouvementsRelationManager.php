@@ -101,7 +101,7 @@ class MouvementsRelationManager extends RelationManager
                         }
                     },
                 ])
-                ->helperText('Le précompte sera calculé automatiquement selon le taux du séquestre')
+                ->helperText('Le montant séquestre sera calculé automatiquement selon le taux du séquestre')
                 ->columnSpan(1),
 
             // ✅ Colonne SORTIES — retrait limité au solde disponible
@@ -136,36 +136,58 @@ class MouvementsRelationManager extends RelationManager
                 ->columnSpanFull()
                 ->helperText('Personne qui verse l\'argent (ex: locataire)'),
 
-            // ✅ Retrait : sélection obligatoire de l'ayant droit (bénéficiaire légal)
+            // ✅ Retrait : choix du TYPE de bénéficiaire (Ayant droit OU Partie Tierce)
+            Forms\Components\Radio::make('type_beneficiaire_retrait')
+                ->label('Bénéficiaire du retrait')
+                ->options([
+                    'ayant_droit' => 'Ayant droit (bénéficiaire légal)',
+                    'partie_tierce' => 'Partie Tierce (Huissier, Avocat, Service public...)',
+                ])
+                ->default('ayant_droit')
+                ->inline()
+                ->live()
+                ->visible(fn(Get $get) => filled($get('sortie')))
+                ->columnSpanFull(),
+
+            // --- Cas 1 : retrait vers un Ayant droit ---
             Forms\Components\Select::make('sequestre_ayant_droit_id')
                 ->label('Ayant droit (bénéficiaire légal)')
                 ->options(fn() => $this->getOwnerRecord()->ayantsDroit->pluck('nom_complet', 'id'))
                 ->searchable()
-                ->required(fn(Get $get) => filled($get('sortie')))
-                ->visible(fn(Get $get) => filled($get('sortie')))
+                ->required(fn(Get $get) => filled($get('sortie')) && $get('type_beneficiaire_retrait') === 'ayant_droit')
+                ->visible(fn(Get $get) => filled($get('sortie')) && $get('type_beneficiaire_retrait') === 'ayant_droit')
                 ->live()
-                ->columnSpanFull()
-                ->helperText('Personne légalement bénéficiaire de ce retrait'),
+                ->columnSpanFull(),
 
-            // ✅ Gestion de la procuration (retrait uniquement)
             Forms\Components\Toggle::make('est_procuration')
                 ->label('Retrait effectué par procuration (tiers mandaté)')
                 ->live()
-                ->visible(fn(Get $get) => filled($get('sortie')))
+                ->visible(fn(Get $get) => filled($get('sortie')) && $get('type_beneficiaire_retrait') === 'ayant_droit')
                 ->columnSpanFull(),
 
             Forms\Components\TextInput::make('mandataire_nom')
                 ->label('Nom du mandataire')
                 ->required(fn(Get $get) => $get('est_procuration'))
-                ->visible(fn(Get $get) => filled($get('sortie')) && $get('est_procuration'))
+                ->visible(fn(Get $get) => filled($get('sortie')) && $get('type_beneficiaire_retrait') === 'ayant_droit' && $get('est_procuration'))
                 ->columnSpan(1),
 
             Forms\Components\TextInput::make('mandataire_reference_procuration')
                 ->label('Référence de la procuration')
                 ->required(fn(Get $get) => $get('est_procuration'))
-                ->visible(fn(Get $get) => filled($get('sortie')) && $get('est_procuration'))
+                ->visible(fn(Get $get) => filled($get('sortie')) && $get('type_beneficiaire_retrait') === 'ayant_droit' && $get('est_procuration'))
                 ->helperText('N° acte, date, ou référence du document de procuration')
                 ->columnSpan(1),
+
+            // --- Cas 2 : retrait vers une Partie Tierce (huissier, avocat, ENEO...) ---
+            Forms\Components\Select::make('sequestre_partie_tierce_id')
+                ->label('Partie Tierce')
+                ->options(fn() => $this->getOwnerRecord()->partiesTierces->pluck('nom_complet', 'id'))
+                ->searchable()
+                ->required(fn(Get $get) => filled($get('sortie')) && $get('type_beneficiaire_retrait') === 'partie_tierce')
+                ->visible(fn(Get $get) => filled($get('sortie')) && $get('type_beneficiaire_retrait') === 'partie_tierce')
+                ->live()
+                ->columnSpanFull()
+                ->helperText('Ex: règlement d\'honoraires, frais d\'huissier, facture ENEO/CAMWATER...'),
         ])->columns(2);
     }
 
@@ -192,8 +214,8 @@ class MouvementsRelationManager extends RelationManager
 
     /**
      * Convertit les champs virtuels du formulaire (entree/sortie, sélections
-     * de partie adverse/ayant droit, procuration) en colonnes réelles de la
-     * base de données, et calcule operateur_beneficiaire automatiquement.
+     * de partie adverse/ayant droit/partie tierce, procuration) en colonnes
+     * réelles de la base de données, et calcule operateur_beneficiaire.
      */
     protected function convertirDonneesFormulaire(array $data): array
     {
@@ -207,28 +229,41 @@ class MouvementsRelationManager extends RelationManager
             $partieAdverse = \App\Models\SequestrePartieAdverse::find($data['sequestre_partie_adverse_id'] ?? null);
             $data['operateur_beneficiaire'] = $partieAdverse?->nom_complet ?? 'Non renseigné';
 
-            // Pas de procuration/ayant droit sur un versement
+            // Un versement n'a ni ayant droit, ni partie tierce, ni procuration
             $data['sequestre_ayant_droit_id'] = null;
+            $data['sequestre_partie_tierce_id'] = null;
             $data['est_procuration'] = false;
             $data['mandataire_nom'] = null;
             $data['mandataire_reference_procuration'] = null;
         } elseif ($sortie) {
             $data['type_mouvement'] = 'retrait';
             $data['montant_mouvement'] = $sortie;
-
-            $ayantDroit = \App\Models\SequestreAyantDroit::find($data['sequestre_ayant_droit_id'] ?? null);
-
-            if (!empty($data['est_procuration']) && !empty($data['mandataire_nom'])) {
-                $data['operateur_beneficiaire'] = $data['mandataire_nom'] . ' (mandataire de ' . ($ayantDroit?->nom_complet ?? 'ayant droit') . ')';
-            } else {
-                $data['operateur_beneficiaire'] = $ayantDroit?->nom_complet ?? 'Non renseigné';
-            }
-
-            // Pas de partie adverse sur un retrait
             $data['sequestre_partie_adverse_id'] = null;
+
+            if (($data['type_beneficiaire_retrait'] ?? 'ayant_droit') === 'partie_tierce') {
+                // ✅ Retrait attribué à une Partie Tierce
+                $partieTierce = \App\Models\SequestrePartieTierce::find($data['sequestre_partie_tierce_id'] ?? null);
+                $data['operateur_beneficiaire'] = $partieTierce?->nom_complet ?? 'Non renseigné';
+
+                $data['sequestre_ayant_droit_id'] = null;
+                $data['est_procuration'] = false;
+                $data['mandataire_nom'] = null;
+                $data['mandataire_reference_procuration'] = null;
+            } else {
+                // ✅ Retrait attribué à un Ayant droit (avec procuration éventuelle)
+                $ayantDroit = \App\Models\SequestreAyantDroit::find($data['sequestre_ayant_droit_id'] ?? null);
+
+                if (!empty($data['est_procuration']) && !empty($data['mandataire_nom'])) {
+                    $data['operateur_beneficiaire'] = $data['mandataire_nom'] . ' (mandataire de ' . ($ayantDroit?->nom_complet ?? 'ayant droit') . ')';
+                } else {
+                    $data['operateur_beneficiaire'] = $ayantDroit?->nom_complet ?? 'Non renseigné';
+                }
+
+                $data['sequestre_partie_tierce_id'] = null;
+            }
         }
 
-        unset($data['entree'], $data['sortie'], $data['_editing_id']);
+        unset($data['entree'], $data['sortie'], $data['_editing_id'], $data['type_beneficiaire_retrait']);
 
         return $data;
     }
@@ -250,6 +285,16 @@ class MouvementsRelationManager extends RelationManager
                     ->label('Opérateur / Bénéficiaire')
                     ->searchable()
                     ->wrap(),
+
+                Tables\Columns\TextColumn::make('beneficiaire_type')
+                    ->label('Type bénéficiaire')
+                    ->getStateUsing(function ($record) {
+                        if ($record->type_mouvement !== 'retrait') return null;
+                        return $record->sequestre_partie_tierce_id ? 'Partie Tierce' : 'Ayant droit';
+                    })
+                    ->badge()
+                    ->color(fn($state) => $state === 'Partie Tierce' ? 'info' : 'success')
+                    ->placeholder('—'),
 
                 Tables\Columns\IconColumn::make('est_procuration')
                     ->label('Procuration')
@@ -372,6 +417,7 @@ class MouvementsRelationManager extends RelationManager
                             $data['entree'] = $record->montant_mouvement;
                         } else {
                             $data['sortie'] = $record->montant_mouvement;
+                            $data['type_beneficiaire_retrait'] = $record->sequestre_partie_tierce_id ? 'partie_tierce' : 'ayant_droit';
                         }
 
                         return $data;
