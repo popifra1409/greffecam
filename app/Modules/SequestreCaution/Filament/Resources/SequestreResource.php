@@ -1,7 +1,5 @@
 <?php
-
 namespace App\Modules\SequestreCaution\Filament\Resources;
-
 use App\Modules\SequestreCaution\Filament\Resources\SequestreResource\Pages;
 use App\Modules\SequestreCaution\Filament\Resources\SequestreResource\RelationManagers;
 use App\Models\Sequestre;
@@ -13,18 +11,15 @@ use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-
 class SequestreResource extends Resource
 {
     use HasResourcePermissions;
-
     protected static ?string $model = Sequestre::class;
     protected static ?string $navigationIcon = 'heroicon-o-lock-closed';
     protected static ?string $navigationGroup = 'Gestion des Séquestres';
     protected static ?string $modelLabel = 'Séquestre';
     protected static ?string $pluralModelLabel = 'Séquestres';
     protected static ?int $navigationSort = 1;
-
     protected static function getViewPermission(): string
     {
         return 'view_sequestres';
@@ -41,7 +36,6 @@ class SequestreResource extends Resource
     {
         return 'delete_sequestres';
     }
-
     public static function getRelations(): array
     {
         return [
@@ -49,7 +43,6 @@ class SequestreResource extends Resource
             RelationManagers\DocumentsRelationManager::class,
         ];
     }
-
     /**
      * Format : "TPI-YDCA/CIV/RE/26/00000001 - Dec. 654"
      */
@@ -57,23 +50,18 @@ class SequestreResource extends Resource
     {
         $numeroDossier = $decision->dossier?->numero_dossier ?? 'Dossier N/A';
         $numeroDecision = $decision->numero_repertoire ?? '-';
-
         return "{$numeroDossier} - Déc. {$numeroDecision}";
     }
-
     public static function form(Form $form): Form
     {
         return $form->schema([
-
             Forms\Components\Placeholder::make('numero_dossier_sequestre_display')
                 ->label('N° Dossier Séquestre')
                 ->content(fn($record) => $record?->numero_dossier_sequestre ?? 'Généré automatiquement à la création')
                 ->visible(fn($record) => $record !== null),
-
             Forms\Components\Tabs::make('Sequestre')
                 ->columnSpanFull()
                 ->tabs([
-
                     Forms\Components\Tabs\Tab::make('Décision & Dossier')
                         ->icon('heroicon-o-scale')
                         ->schema([
@@ -87,18 +75,14 @@ class SequestreResource extends Resource
                                 // avec un dossier n'ayant qu'UNE SEULE décision, on la sélectionne d'office
                                 ->default(function () {
                                     $dossierId = request()->query('dossier_id');
-
                                     if (!$dossierId) {
                                         return null;
                                     }
-
                                     $decisions = Decision::where('dossier_id', $dossierId)->pluck('id');
-
                                     return $decisions->count() === 1 ? $decisions->first() : null;
                                 })
                                 ->getSearchResultsUsing(function (string $search) {
                                     $dossierId = request()->query('dossier_id');
-
                                     return Decision::query()
                                         ->with('dossier')
                                         ->when($dossierId, fn($query) => $query->where('dossier_id', $dossierId))
@@ -118,7 +102,6 @@ class SequestreResource extends Resource
                                 })
                                 ->options(function () {
                                     $dossierId = request()->query('dossier_id');
-
                                     return Decision::with('dossier')
                                         ->when($dossierId, fn($query) => $query->where('dossier_id', $dossierId))
                                         ->latest()
@@ -134,16 +117,13 @@ class SequestreResource extends Resource
                                         ? 'Liste restreinte aux décisions de ce dossier.'
                                         : 'Sélectionnez la décision déjà rendue à l\'origine de ce séquestre.';
                                 }),
-
                             Forms\Components\Placeholder::make('dossier_info')
                                 ->label('')
                                 ->content(function (Get $get) {
                                     $decisionId = $get('decision_id');
                                     if (!$decisionId) return 'Sélectionnez une décision pour voir les informations du dossier';
-
                                     $decision = Decision::with(['dossier', 'typeDecision', 'natureDecision'])->find($decisionId);
                                     if (!$decision) return '';
-
                                     return new \Illuminate\Support\HtmlString(
                                         '<div style="font-family: monospace; line-height: 2;">' .
                                             '<strong>Dossier :</strong> ' . ($decision->dossier?->numero_dossier ?? 'N/A') . '<br>' .
@@ -156,16 +136,13 @@ class SequestreResource extends Resource
                                 })
                                 ->columnSpanFull()
                                 ->visible(fn(Get $get) => $get('decision_id')),
-
                             Forms\Components\Select::make('dossier_partie_id')
                                 ->label('Représentant de la famille')
                                 ->options(function (Get $get) {
                                     $decisionId = $get('decision_id');
                                     if (!$decisionId) return [];
-
                                     $decision = Decision::find($decisionId);
                                     if (!$decision?->dossier_id) return [];
-
                                     return \App\Models\DossierPartie::where('dossier_id', $decision->dossier_id)
                                         ->get()
                                         ->mapWithKeys(fn($partie) => [$partie->id => $partie->nom_complet . ' (' . $partie->type_label . ')']);
@@ -173,11 +150,49 @@ class SequestreResource extends Resource
                                 ->searchable()
                                 ->helperText('Partie déjà enrôlée dans ce dossier, désignée comme représentant'),
                         ]),
-
+                    Forms\Components\Tabs\Tab::make('Caractéristiques')
+                        ->icon('heroicon-o-adjustments-horizontal')
+                        ->schema([
+                            Forms\Components\Select::make('nature_sequestre_id')
+                                ->label('Nature')
+                                ->relationship('natureSequestre', 'libelle')
+                                ->required()
+                                ->preload()
+                                ->live(),
+                            Forms\Components\Select::make('statut_sequestre_id')
+                                ->label('Statut')
+                                ->relationship('statutSequestre', 'libelle')
+                                ->required()
+                                ->preload(),
+                            Forms\Components\DatePicker::make('date_ouverture')
+                                ->required()
+                                ->native(false)
+                                ->displayFormat('d/m/Y')
+                                ->default(now()),
+                            Forms\Components\TextInput::make('taux_precompte')
+                                ->label('Taux de précompte')
+                                ->numeric()
+                                ->step(0.01)
+                                ->suffix('%')
+                                ->required()
+                                ->minValue(0)
+                                ->maxValue(100)
+                                ->dehydrateStateUsing(fn($state) => $state / 100)
+                                ->formatStateUsing(fn($state) => $state !== null ? $state * 100 : null)
+                                ->helperText('Pourcentage précompté sur chaque versement, selon la décision de justice'),
+                            Forms\Components\Textarea::make('observations')
+                                ->columnSpanFull(),
+                        ])->columns(2),
                     Forms\Components\Tabs\Tab::make('Ayants droit')
                         ->icon('heroicon-o-user-group')
                         ->badge(fn($record) => $record?->ayantsDroit?->count())
                         ->schema([
+                            Forms\Components\Placeholder::make('libelle_ayants_droit_info')
+                                ->label('')
+                                ->content(fn(Get $get) => 'Groupe : ' . (
+                                    \App\Models\NatureSequestre::find($get('nature_sequestre_id'))?->terme_ayants_droit ?: 'Ayants droit'
+                                ))
+                                ->columnSpanFull(),
                             Forms\Components\Repeater::make('ayantsDroit')
                                 ->label('')
                                 ->relationship('ayantsDroit')
@@ -191,13 +206,19 @@ class SequestreResource extends Resource
                                 ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvel ayant droit')
                                 ->collapsible()
                                 ->addActionLabel('➕ Ajouter un ayant droit')
-                                ->columnSpanFull(),
+                                ->columnSpanFull()
+                                ->helperText('Optionnel — laissez vide si non applicable à ce stade'),
                         ]),
-
-                    Forms\Components\Tabs\Tab::make('Locataires')
+                    Forms\Components\Tabs\Tab::make('Parties adverses')
                         ->icon('heroicon-o-home')
                         ->badge(fn($record) => $record?->partiesAdverses?->count())
                         ->schema([
+                            Forms\Components\Placeholder::make('libelle_parties_adverses_info')
+                                ->label('')
+                                ->content(fn(Get $get) => 'Groupe : ' . (
+                                    \App\Models\NatureSequestre::find($get('nature_sequestre_id'))?->terme_parties_adverses ?: 'Parties adverses (payeurs)'
+                                ))
+                                ->columnSpanFull(),
                             Forms\Components\Repeater::make('partiesAdverses')
                                 ->label('')
                                 ->relationship('partiesAdverses')
@@ -208,52 +229,59 @@ class SequestreResource extends Resource
                                     Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
                                 ])
                                 ->columns(4)
-                                ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouveau locataire')
+                                ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie adverse')
                                 ->collapsible()
-                                ->addActionLabel('➕ Ajouter une locataire')
-                                ->columnSpanFull(),
+                                ->addActionLabel('➕ Ajouter une partie adverse')
+                                ->columnSpanFull()
+                                ->helperText('Optionnel — laissez vide si non applicable à ce stade'),
                         ]),
-
-                    Forms\Components\Tabs\Tab::make('Caractéristiques')
-                        ->icon('heroicon-o-adjustments-horizontal')
+                    Forms\Components\Tabs\Tab::make('Partie Tierce')
+                        ->icon('heroicon-o-briefcase')
+                        ->badge(fn($record) => $record?->partiesTierces?->count())
                         ->schema([
-                            Forms\Components\Select::make('nature_sequestre_id')
-                                ->label('Nature')
-                                ->relationship('natureSequestre', 'libelle')
-                                ->required()
-                                ->preload(),
-
-                            Forms\Components\Select::make('statut_sequestre_id')
-                                ->label('Statut')
-                                ->relationship('statutSequestre', 'libelle')
-                                ->required()
-                                ->preload(),
-
-                            Forms\Components\DatePicker::make('date_ouverture')
-                                ->required()
-                                ->native(false)
-                                ->displayFormat('d/m/Y')
-                                ->default(now()),
-
-                            Forms\Components\TextInput::make('taux_precompte')
-                                ->label('Taux de rémunération séquestre')
-                                ->numeric()
-                                ->step(0.01)
-                                ->suffix('%')
-                                ->required()
-                                ->minValue(0)
-                                ->maxValue(100)
-                                ->dehydrateStateUsing(fn($state) => $state / 100)
-                                ->formatStateUsing(fn($state) => $state !== null ? $state * 100 : null)
-                                ->helperText('Pourcentage précompté sur chaque versement, selon la décision de justice'),
-
-                            Forms\Components\Textarea::make('observations')
+                            Forms\Components\Placeholder::make('libelle_partie_tierce_info')
+                                ->label('')
+                                ->content(fn(Get $get) => 'Groupe : ' . (
+                                    \App\Models\NatureSequestre::find($get('nature_sequestre_id'))?->terme_partie_tierce ?: 'Partie Tierce (Huissier, Avocat, Services)'
+                                ))
                                 ->columnSpanFull(),
-                        ])->columns(2),
+                            Forms\Components\Repeater::make('partiesTierces')
+                                ->label('')
+                                ->relationship('partiesTierces')
+                                ->schema([
+                                    Forms\Components\Select::make('type_partie_tierce')
+                                        ->label('Type')
+                                        ->options([
+                                            'huissier' => 'Huissier',
+                                            'avocat' => 'Avocat',
+                                            'service_public' => 'Service public (ENEO, CAMWATER...)',
+                                            'autre' => 'Autre',
+                                        ])
+                                        ->default('autre')
+                                        ,
+                                    Forms\Components\TextInput::make('nom_complet')
+                                        ->label('Nom / Raison sociale')
+                                        ->columnSpan(2),
+                                    Forms\Components\TextInput::make('telephone')
+                                        ->label('Téléphone')
+                                        ->tel(),
+                                    Forms\Components\TextInput::make('reference')
+                                        ->label('Référence')
+                                        ->placeholder('N° facture, n° dossier, contrat...'),
+                                    Forms\Components\TextInput::make('adresse')
+                                        ->label('Adresse')
+                                        ->columnSpanFull(),
+                                ])
+                                ->columns(4)
+                                ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie tierce')
+                                ->collapsible()
+                                ->addActionLabel('➕ Ajouter une partie tierce')
+                                ->columnSpanFull()
+                                ->helperText('Optionnel — huissier, avocat, service public, etc.'),
+                        ]),
                 ]),
         ]);
     }
-
     public static function table(Table $table): Table
     {
         return $table
@@ -263,37 +291,30 @@ class SequestreResource extends Resource
                     ->badge()
                     ->color('primary')
                     ->searchable(),
-
                 Tables\Columns\TextColumn::make('intitule')
                     ->label('Intitulé')
                     ->searchable()
                     ->wrap(),
-
                 Tables\Columns\TextColumn::make('natureSequestre.libelle')
                     ->label('Nature')
                     ->badge()
                     ->color('info'),
-
                 Tables\Columns\TextColumn::make('decision.numero_repertoire')
                     ->label('N° Décision')
                     ->badge()
                     ->color('gray'),
-
                 Tables\Columns\TextColumn::make('date_ouverture')
                     ->label('Ouverture')
                     ->date('d/m/Y')
                     ->sortable(),
-
                 Tables\Columns\TextColumn::make('taux_pourcentage')
                     ->label('Taux'),
-
                 Tables\Columns\TextColumn::make('solde_actuel')
                     ->label('Solde')
                     ->money('XAF')
                     ->sortable()
                     ->color(fn($state) => $state >= 0 ? 'success' : 'danger')
                     ->weight('bold'),
-
                 Tables\Columns\TextColumn::make('statutSequestre.libelle')
                     ->label('Statut')
                     ->badge()
@@ -303,7 +324,6 @@ class SequestreResource extends Resource
                 Tables\Filters\SelectFilter::make('nature_sequestre_id')
                     ->label('Nature')
                     ->relationship('natureSequestre', 'libelle'),
-
                 Tables\Filters\SelectFilter::make('statut_sequestre_id')
                     ->label('Statut')
                     ->relationship('statutSequestre', 'libelle'),
@@ -315,7 +335,6 @@ class SequestreResource extends Resource
             ])
             ->defaultSort('date_ouverture', 'desc');
     }
-
     public static function getPages(): array
     {
         return [

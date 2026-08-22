@@ -11,8 +11,9 @@ class NatureSequestre extends Model
         'code',
         'libelle',
         'description',
-        'libelle_ayants_droit',
-        'libelle_parties_adverses',
+        'terme_ayants_droit',
+        'terme_parties_adverses',
+        'terme_partie_tierce',
         'is_active',
     ];
 

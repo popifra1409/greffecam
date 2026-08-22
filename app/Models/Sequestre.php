@@ -113,6 +113,16 @@ class Sequestre extends Model
         return $this->hasMany(SequestreDocument::class);
     }
 
+    public function partiesTierces(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(SequestrePartieTierce::class);
+    }
+
+    public function getLibellePartieTierceAttribute(): string
+    {
+        return $this->natureSequestre?->terme_partie_tierce ?: 'Partie Tierce (Huissier, Avocat, Services)';
+    }
+
     // ================================================================
     // ACCESSEURS
     // ================================================================
@@ -185,11 +195,11 @@ class Sequestre extends Model
 
     public function getLibelleAyantsDroitAttribute(): string
     {
-        return $this->natureSequestre?->libelle_ayants_droit ?: 'Ayants droit';
+        return $this->natureSequestre?->terme_ayants_droit ?: 'Ayants droit';
     }
 
     public function getLibellePartiesAdversesAttribute(): string
     {
-        return $this->natureSequestre?->libelle_parties_adverses ?: 'Parties adverses (payeurs)';
+        return $this->natureSequestre?->terme_parties_adverses ?: 'Parties adverses (payeurs)';
     }
 }

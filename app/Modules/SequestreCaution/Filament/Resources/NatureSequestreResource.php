@@ -62,16 +62,21 @@ class NatureSequestreResource extends Resource
             Forms\Components\Section::make('Terminologie personnalisée')
                 ->description('Adapte le vocabulaire utilisé dans les états et écrans selon le contexte (ex: "Locataires" pour un séquestre de loyer, "Héritiers" pour une succession).')
                 ->schema([
-                    Forms\Components\TextInput::make('libelle_ayants_droit')
-                        ->label('Libellé "Ayants droit" pour cette nature')
+                    Forms\Components\TextInput::make('terme_ayants_droit')
+                        ->label('Terme "Ayants droit" pour cette nature')
                         ->placeholder('Ex: Héritiers, Pupille, Bénéficiaires...')
                         ->helperText('Laissez vide pour utiliser "Ayants droit" par défaut'),
 
-                    Forms\Components\TextInput::make('libelle_parties_adverses')
-                        ->label('Libellé "Parties adverses" pour cette nature')
+                    Forms\Components\TextInput::make('terme_parties_adverses')
+                        ->label('Terme "Parties adverses" pour cette nature')
                         ->placeholder('Ex: Locataires (versants), Débiteurs, Contributeurs...')
                         ->helperText('Laissez vide pour utiliser "Parties adverses (payeurs)" par défaut'),
-                ])->columns(2),
+
+                    Forms\Components\TextInput::make('terme_partie_tierce')
+                        ->label('Terme "Partie Tierce" pour cette nature')
+                        ->placeholder('Ex: Prestataires, Notaires & Prestataires...')
+                        ->helperText('Laissez vide pour utiliser "Partie Tierce (Huissier, Avocat, Services)" par défaut'),
+                ])->columns(3),
         ]);
     }
 
@@ -88,14 +93,19 @@ class NatureSequestreResource extends Resource
                     ->badge()
                     ->color('gray'),
 
-                Tables\Columns\TextColumn::make('libelle_ayants_droit')
+                Tables\Columns\TextColumn::make('terme_ayants_droit')
                     ->label('Terme "Ayants droit"')
                     ->placeholder('Ayants droit (défaut)')
                     ->toggleable(),
 
-                Tables\Columns\TextColumn::make('libelle_parties_adverses')
+                Tables\Columns\TextColumn::make('terme_parties_adverses')
                     ->label('Terme "Parties adverses"')
                     ->placeholder('Parties adverses (défaut)')
+                    ->toggleable(),
+
+                Tables\Columns\TextColumn::make('terme_partie_tierce')
+                    ->label('Terme "Partie Tierce"')
+                    ->placeholder('Partie Tierce (défaut)')
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('sequestres_count')
