@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Services\EcheancierService;
 
 class SequestrePartieAdverse extends Model
 {
@@ -16,14 +17,17 @@ class SequestrePartieAdverse extends Model
         'numero_cni',
         'telephone',
         'adresse',
-        'montant_loyer_attendu',
-        'jour_echeance',
+        'date_debut_paiement',
+        'montant_echeance',
+        'periodicite',
+        'duree_contrat_mois',
         'observations',
     ];
 
     protected $casts = [
-        'montant_loyer_attendu' => 'decimal:2',
-        'jour_echeance' => 'integer',
+        'date_debut_paiement' => 'date',
+        'montant_echeance' => 'decimal:2',
+        'duree_contrat_mois' => 'integer',
     ];
 
     public function sequestre(): BelongsTo
@@ -31,79 +35,50 @@ class SequestrePartieAdverse extends Model
         return $this->belongsTo(Sequestre::class);
     }
 
-    /**
-     * Mouvements (versements) effectués par cette partie adverse.
-     */
     public function mouvements(): HasMany
     {
         return $this->hasMany(MouvementSequestre::class, 'sequestre_partie_adverse_id');
     }
 
     /**
-     * Total versé par cette partie adverse durant le mois en cours.
+     * Échéancier complet (une ligne par échéance), calculé à la volée.
      */
-    public function getTotalVerseMoisAttribute(): float
+    public function getEcheancierAttribute(): \Illuminate\Support\Collection
     {
-        return (float) $this->mouvements()
-            ->where('type_mouvement', 'versement')
-            ->whereBetween('date_mouvement', [now()->startOfMonth(), now()->endOfMonth()])
-            ->sum('montant_mouvement');
+        return app(EcheancierService::class)->genererEcheancier($this);
     }
 
     /**
-     * Statut du versement du mois en cours par rapport au loyer attendu :
-     * - 'aucun_attendu' : pas de loyer configuré pour cette partie adverse
-     * - 'aucun'         : rien versé ce mois, et échéance pas encore dépassée
-     * - 'en_retard'      : rien versé ce mois, et échéance dépassée
-     * - 'partiel'       : versé, mais moins que le montant attendu
-     * - 'complet'       : versé au moins le montant attendu
+     * Résumé rapide de la situation actuelle.
      */
-    public function getStatutVersementMoisAttribute(): string
+    public function getSituationActuelleAttribute(): array
     {
-        if (empty($this->montant_loyer_attendu)) {
-            return 'aucun_attendu';
-        }
-
-        $totalVerseMois = $this->total_verse_mois;
-
-        $dateEcheance = $this->jour_echeance
-            ? now()->startOfMonth()->addDays($this->jour_echeance - 1)
-            : null;
-
-        if ($totalVerseMois <= 0) {
-            if ($dateEcheance && now()->greaterThan($dateEcheance)) {
-                return 'en_retard';
-            }
-            return 'aucun';
-        }
-
-        if ($totalVerseMois < $this->montant_loyer_attendu) {
-            return 'partiel';
-        }
-
-        return 'complet';
+        return app(EcheancierService::class)->situationActuelle($this);
     }
 
     public function getStatutVersementLabelAttribute(): string
     {
-        return match ($this->statut_versement_mois) {
-            'aucun_attendu' => 'Sans loyer défini',
-            'aucun' => 'Rien versé ce mois',
-            'en_retard' => 'En retard',
-            'partiel' => 'Versement partiel',
-            'complet' => 'À jour',
-            default => 'Inconnu',
-        };
+        return $this->situation_actuelle['statut_label'];
     }
 
     public function getStatutVersementCouleurAttribute(): string
     {
-        return match ($this->statut_versement_mois) {
-            'complet' => 'success',
-            'partiel' => 'warning',
-            'en_retard' => 'danger',
-            'aucun' => 'gray',
-            default => 'gray',
+        return $this->situation_actuelle['statut_couleur'];
+    }
+
+    public function getResteAPayerAttribute(): float
+    {
+        return $this->situation_actuelle['reste_a_payer'];
+    }
+
+    public function getPeriodiciteLabelAttribute(): string
+    {
+        return match ($this->periodicite) {
+            'mensuel' => 'Mensuel',
+            'trimestriel' => 'Trimestriel',
+            'semestriel' => 'Semestriel',
+            'annuel' => 'Annuel',
+            default => $this->periodicite,
         };
     }
 }
