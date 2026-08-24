@@ -50,6 +50,9 @@ class SequestreResource extends Resource
         return [
             RelationManagers\MouvementsRelationManager::class,
             RelationManagers\DocumentsRelationManager::class,
+            RelationManagers\AyantsDroitRelationManager::class,
+            RelationManagers\PartiesAdversesRelationManager::class,
+            RelationManagers\PartiesTiercesRelationManager::class,
         ];
     }
 
@@ -238,6 +241,7 @@ class SequestreResource extends Resource
                                 ->columns(4)
                                 ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvel ayant droit')
                                 ->collapsible()
+                                ->collapsed()
                                 ->addActionLabel('➕ Ajouter un ayant droit')
                                 ->columnSpanFull()
                                 ->helperText('Optionnel — laissez vide si non applicable à ce stade'),
@@ -297,6 +301,7 @@ class SequestreResource extends Resource
                                 ->columns(4)
                                 ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie adverse')
                                 ->collapsible()
+                                ->collapsed()
                                 ->addActionLabel('➕ Ajouter une partie adverse')
                                 ->columnSpanFull()
                                 ->helperText('Optionnel — laissez vide si non applicable à ce stade'),
@@ -346,6 +351,7 @@ class SequestreResource extends Resource
                                 ->columns(4)
                                 ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvelle partie tierce')
                                 ->collapsible()
+                                ->collapsed()
                                 ->addActionLabel('➕ Ajouter une partie tierce')
                                 ->columnSpanFull()
                                 ->helperText('Optionnel — huissier, avocat, service public, etc.'),
@@ -409,10 +415,12 @@ class SequestreResource extends Resource
                     ->relationship('statutSequestre', 'libelle'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\EditAction::make(),
+                    Tables\Actions\DeleteAction::make(),
+                ]),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->defaultSort('date_ouverture', 'desc');
     }
 
