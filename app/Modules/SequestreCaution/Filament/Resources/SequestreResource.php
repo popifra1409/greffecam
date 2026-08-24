@@ -202,6 +202,29 @@ class SequestreResource extends Resource
                                 ->displayFormat('d/m/Y')
                                 ->default(now()),
 
+                            Forms\Components\Select::make('prefixe_intitule_override')
+                                ->label('Préfixe de l\'intitulé')
+                                ->options([
+                                    'Dossier Famille' => 'Dossier Famille',
+                                    'Dossier Société' => 'Dossier Société',
+                                ])
+                                ->placeholder('Utiliser le préfixe par défaut de la nature')
+                                ->helperText('Laissez vide pour utiliser le préfixe configuré sur la nature du séquestre')
+                                ->live()
+                                ->columnSpanFull(),
+
+                            Forms\Components\TextInput::make('nom_intitule')
+                                ->label('Nom (pour l\'intitulé du dossier)')
+                                ->placeholder('Ex: NGO NGO, KISINIT...')
+                                ->helperText(function (Get $get) {
+                                    $prefixe = $get('prefixe_intitule_override')
+                                        ?: \App\Models\NatureSequestre::find($get('nature_sequestre_id'))?->prefixe_intitule
+                                        ?: 'Dossier';
+                                    return "Aperçu : « {$prefixe} [votre saisie] »";
+                                })
+                                ->live()
+                                ->columnSpanFull(),
+
                             Forms\Components\TextInput::make('taux_precompte')
                                 ->label('Taux de précompte')
                                 ->numeric()
@@ -232,6 +255,8 @@ class SequestreResource extends Resource
                             Forms\Components\Repeater::make('ayantsDroit')
                                 ->label('')
                                 ->relationship('ayantsDroit')
+                                ->mutateRelationshipDataBeforeCreateUsing(fn(array $data): ?array => filled($data['nom_complet'] ?? null) ? $data : null)
+                                ->mutateRelationshipDataBeforeSaveUsing(fn(array $data): ?array => filled($data['nom_complet'] ?? null) ? $data : null)
                                 ->schema([
                                     Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->columnSpan(2),
                                     Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
@@ -261,6 +286,8 @@ class SequestreResource extends Resource
                             Forms\Components\Repeater::make('partiesAdverses')
                                 ->label('')
                                 ->relationship('partiesAdverses')
+                                ->mutateRelationshipDataBeforeCreateUsing(fn(array $data): ?array => filled($data['nom_complet'] ?? null) ? $data : null)
+                                ->mutateRelationshipDataBeforeSaveUsing(fn(array $data): ?array => filled($data['nom_complet'] ?? null) ? $data : null)
                                 ->schema([
                                     Forms\Components\TextInput::make('nom_complet')->label('Nom complet')->columnSpan(2),
                                     Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
@@ -321,6 +348,8 @@ class SequestreResource extends Resource
                             Forms\Components\Repeater::make('partiesTierces')
                                 ->label('')
                                 ->relationship('partiesTierces')
+                                ->mutateRelationshipDataBeforeCreateUsing(fn(array $data): ?array => filled($data['nom_complet'] ?? null) ? $data : null)
+                                ->mutateRelationshipDataBeforeSaveUsing(fn(array $data): ?array => filled($data['nom_complet'] ?? null) ? $data : null)
                                 ->schema([
                                     Forms\Components\Select::make('type_partie_tierce')
                                         ->label('Type')
@@ -370,8 +399,9 @@ class SequestreResource extends Resource
                     ->color('primary')
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('intitule')
+                Tables\Columns\TextColumn::make('nom_intitule')
                     ->label('Intitulé')
+                    ->getStateUsing(fn($record) => $record->intitule)
                     ->searchable()
                     ->wrap(),
 

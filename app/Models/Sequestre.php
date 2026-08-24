@@ -18,6 +18,8 @@ class Sequestre extends Model
         'date_ouverture',
         'taux_precompte',
         'observations',
+        'nom_intitule',
+        'prefixe_intitule_override',
     ];
 
     protected $casts = [
@@ -127,13 +129,25 @@ class Sequestre extends Model
     // ACCESSEURS
     // ================================================================
 
+    /**
+     * Intitulé complet = préfixe configuré sur la nature + nom saisi.
+     * Ex: "Dossier Famille NGO NGO", "Dossier Société SARL ABC".
+     */
     public function getIntituleAttribute(): string
     {
-        return $this->dossier?->label_dossier_sequestre
-            ?? $this->representant?->nom_complet
-            ?? $this->dossier?->demandeur_nom_complet
-            ?? $this->dossier?->numero_dossier
-            ?? '—';
+        // ✅ Le préfixe choisi sur CE séquestre prime toujours sur celui de la nature
+        // (une même nature pouvant s'appliquer à une famille ou à une société selon le cas).
+        $prefixe = $this->prefixe_intitule_override
+            ?: $this->natureSequestre?->prefixe_intitule
+            ?: 'Dossier';
+
+        $nom = $this->nom_intitule
+            ?: $this->representant?->nom_complet
+            ?: $this->dossier?->demandeur_nom_complet
+            ?: $this->dossier?->numero_dossier
+            ?: '—';
+
+        return trim("{$prefixe} {$nom}");
     }
 
     public function getNumeroDossierAttribute(): ?string

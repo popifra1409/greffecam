@@ -648,7 +648,7 @@ class DossierResource extends Resource
                     ->size('sm')
                     ->color('primary')
                     ->button(),
-            ])
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

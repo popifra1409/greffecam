@@ -14,6 +14,7 @@ class NatureSequestre extends Model
         'terme_ayants_droit',
         'terme_parties_adverses',
         'terme_partie_tierce',
+        'prefixe_intitule',
         'is_active',
     ];
 

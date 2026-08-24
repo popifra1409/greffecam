@@ -829,31 +829,31 @@ class DecisionResource extends Resource
                     ->relationship('tribunal', 'nom'),
             ])
             ->actions([
-                // ✅ APERÇU PDF RAPIDE
-                Tables\Actions\Action::make('apercu_pdf')
-                    ->label('PDF')
-                    ->icon('heroicon-o-document-text')
-                    ->color('info')
-                    ->url(fn($record) => route('decisions.etat.apercu', ['decision' => $record]))
-                    ->openUrlInNewTab(),
-
-                // ✅ ACTIONS DE WORKFLOW
-                Tables\Actions\Action::make('valider')
-                    ->label('Valider')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn($record) => $record->peutEtreValidee())
-                    ->requiresConfirmation()
-                    ->action(function ($record) {
-                        $record->update(['statut' => 'validee']);
-
-                        \Filament\Notifications\Notification::make()
-                            ->title('Décision validée')
-                            ->success()
-                            ->send();
-                    }),
-
                 Tables\Actions\ActionGroup::make([
+                    // ✅ APERÇU PDF RAPIDE
+                    Tables\Actions\Action::make('apercu_pdf')
+                        ->label('PDF')
+                        ->icon('heroicon-o-document-text')
+                        ->color('info')
+                        ->url(fn($record) => route('decisions.etat.apercu', ['decision' => $record]))
+                        ->openUrlInNewTab(),
+
+                    // ✅ ACTIONS DE WORKFLOW
+                    Tables\Actions\Action::make('valider')
+                        ->label('Valider')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn($record) => $record->peutEtreValidee())
+                        ->requiresConfirmation()
+                        ->action(function ($record) {
+                            $record->update(['statut' => 'validee']);
+
+                            \Filament\Notifications\Notification::make()
+                                ->title('Décision validée')
+                                ->success()
+                                ->send();
+                        }),
+
                     Tables\Actions\ViewAction::make(),
                     Tables\Actions\EditAction::make()
                         ->visible(fn($record) => $record->estModifiable()),
@@ -872,7 +872,7 @@ class DecisionResource extends Resource
                     ->size('sm')
                     ->color('primary')
                     ->button(),
-            ])
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
