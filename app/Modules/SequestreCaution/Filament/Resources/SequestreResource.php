@@ -225,6 +225,18 @@ class SequestreResource extends Resource
                                 ->live()
                                 ->columnSpanFull(),
 
+                            Forms\Components\Select::make('regle_repartition')
+                                ->label('Règle de répartition du solde')
+                                ->options([
+                                    'succession_conjoint_enfants' => 'Décès d\'un parent : Conjoint(s) 1/4 + Enfants 3/4',
+                                    'succession_enfants_seuls' => 'Pas de conjoint : parts égales entre enfants',
+                                    'separation_conjoints' => 'Séparation entre conjoints : 50/50',
+                                    'personnalisee' => 'La famille définit elle-même les parts',
+                                ])
+                                ->native(false)
+                                ->columnSpanFull()
+                                ->helperText('Détermine comment le solde du séquestre sera réparti entre les ayants droit'),
+
                             Forms\Components\TextInput::make('taux_precompte')
                                 ->label('Taux de précompte')
                                 ->numeric()
@@ -262,6 +274,21 @@ class SequestreResource extends Resource
                                     Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
                                     Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
                                     Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
+                                    Forms\Components\Select::make('role_succession')
+                                        ->label('Rôle successoral')
+                                        ->options([
+                                            'conjoint' => 'Conjoint',
+                                            'enfant' => 'Enfant',
+                                            'autre' => 'Autre',
+                                        ])
+                                        ->helperText('Utilisé pour calculer sa part du solde'),
+
+                                    Forms\Components\TextInput::make('pourcentage_manuel')
+                                        ->label('Part manuelle (%)')
+                                        ->numeric()
+                                        ->suffix('%')
+                                        ->visible(fn(Get $get) => $get('../../regle_repartition') === 'personnalisee')
+                                        ->helperText('Uniquement si la règle "personnalisée" est choisie'),
                                 ])
                                 ->columns(4)
                                 ->itemLabel(fn(array $state): ?string => $state['nom_complet'] ?? 'Nouvel ayant droit')

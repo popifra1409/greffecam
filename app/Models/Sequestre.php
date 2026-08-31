@@ -20,6 +20,7 @@ class Sequestre extends Model
         'observations',
         'nom_intitule',
         'prefixe_intitule_override',
+        'regle_repartition',
     ];
 
     protected $casts = [

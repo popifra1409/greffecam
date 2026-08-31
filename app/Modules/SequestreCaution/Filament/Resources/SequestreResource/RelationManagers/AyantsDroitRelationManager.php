@@ -21,6 +21,21 @@ class AyantsDroitRelationManager extends RelationManager
             Forms\Components\TextInput::make('numero_cni')->label('N° CNI'),
             Forms\Components\TextInput::make('telephone')->label('Téléphone')->tel(),
             Forms\Components\TextInput::make('adresse')->label('Adresse')->columnSpanFull(),
+            Forms\Components\Select::make('role_succession')
+                ->label('Rôle successoral')
+                ->options([
+                    'conjoint' => 'Conjoint',
+                    'enfant' => 'Enfant',
+                    'autre' => 'Autre',
+                ])
+                ->helperText('Utilisé pour calculer sa part du solde'),
+
+            Forms\Components\TextInput::make('pourcentage_manuel')
+                ->label('Part manuelle (%)')
+                ->numeric()
+                ->suffix('%')
+                ->visible(fn(Get $get) => $get('../../regle_repartition') === 'personnalisee')
+                ->helperText('Uniquement si la règle "personnalisée" est choisie'),
         ])->columns(2);
     }
 
@@ -53,6 +68,17 @@ class AyantsDroitRelationManager extends RelationManager
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()->label('➕ Ajouter un ayant droit'),
+                Tables\Actions\Action::make('voir_repartition')
+                    ->label('📊 Voir répartition')
+                    ->color('info')
+                    ->modalHeading('Répartition du solde')
+                    ->modalContent(fn() => view('sequestres.repartition-modal', [
+                        'resultat' => app(\App\Services\RepartitionSuccessionService::class)
+                            ->calculerRepartition($this->getOwnerRecord()),
+                    ]))
+                    ->modalSubmitAction(false)
+                    ->modalCancelActionLabel('Fermer')
+                    ->modalWidth('2xl'),
             ])
             ->actions([
                 Tables\Actions\ActionGroup::make([
