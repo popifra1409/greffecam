@@ -9,6 +9,10 @@ class EtatSequestrePdfService
 {
     public function genererEtat(Sequestre $sequestre): \Barryvdh\DomPDF\PDF
     {
+        // ✅ Les tableaux volumineux (historique des mouvements) sont coûteux en
+        // mémoire pour DomPDF ; on augmente temporairement la limite pour ce rendu.
+        ini_set('memory_limit', '512M');
+
         $sequestre->load([
             'dossier.tribunal',
             'decision.typeDecision',

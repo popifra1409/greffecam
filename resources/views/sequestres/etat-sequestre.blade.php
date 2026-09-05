@@ -100,6 +100,7 @@
         .badge-gray    { background-color: #f3f4f6; color: #374151; }
 
         .parties-table {
+            table-layout: fixed;
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 10px;
