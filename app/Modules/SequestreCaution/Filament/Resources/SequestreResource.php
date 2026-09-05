@@ -237,6 +237,13 @@ class SequestreResource extends Resource
                                 ->columnSpanFull()
                                 ->helperText('Détermine comment le solde du séquestre sera réparti entre les ayants droit'),
 
+                            Forms\Components\TextInput::make('fonds_initial')
+                                ->label('Fonds initial (à l\'ouverture)')
+                                ->numeric()
+                                ->suffix('FCFA')
+                                ->default(0)
+                                ->helperText('Montant déjà détenu au moment de l\'ouverture du séquestre, avant tout mouvement'),
+
                             Forms\Components\TextInput::make('taux_precompte')
                                 ->label('Taux de précompte')
                                 ->numeric()

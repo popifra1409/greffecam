@@ -23,16 +23,14 @@ class SoldeSequestreService
             $mouvement->montant_net = -$mouvement->montant_mouvement;
         }
 
-        // ✅ Valeur provisoire de solde_apres pour satisfaire la contrainte NOT NULL
-        // à l'INSERT ; recalculerSolde() la corrigera juste après si besoin (ordre
-        // chronologique différent, autres mouvements existants, etc.)
         $dernierSolde = MouvementSequestre::where('sequestre_id', $sequestre->id)
             ->when($mouvement->exists, fn($q) => $q->where('id', '!=', $mouvement->id))
             ->latest('date_mouvement')
             ->latest('id')
             ->value('solde_apres');
 
-        $mouvement->solde_apres = ($dernierSolde ?? 0) + $mouvement->montant_net;
+        // ✅ Si aucun mouvement précédent, partir du fonds initial (pas 0)
+        $mouvement->solde_apres = ($dernierSolde ?? (float) $sequestre->fonds_initial) + $mouvement->montant_net;
     }
     /**
      * Recalcule en cascade le solde_apres (SOLDE) de TOUS les mouvements
@@ -45,7 +43,9 @@ class SoldeSequestreService
             ->orderBy('id')
             ->get();
 
-        $soldeCourant = 0.0;
+        // ✅ Le fonds initial est le point de départ du grand livre,
+        // pas systématiquement 0.
+        $soldeCourant = (float) $sequestre->fonds_initial;
 
         foreach ($mouvements as $mouvement) {
             $soldeCourant += (float) $mouvement->montant_net;

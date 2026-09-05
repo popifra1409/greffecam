@@ -21,11 +21,12 @@ class Sequestre extends Model
         'nom_intitule',
         'prefixe_intitule_override',
         'regle_repartition',
+        'fonds_initial',
     ];
-
     protected $casts = [
         'date_ouverture' => 'date',
         'taux_precompte' => 'decimal:4',
+        'fonds_initial' => 'decimal:2',
     ];
 
     protected static function booted(): void
@@ -190,17 +191,22 @@ class Sequestre extends Model
     {
         return (float) $this->mouvements()->sum('montant_precompte');
     }
+    /**
+     * Solde actuel = fonds initial (à l'ouverture) + effet cumulé de tous les
+     * mouvements. S'il n'y a aucun mouvement encore, le solde est simplement
+     * le fonds initial (pas 0, sauf si aucun fonds n'a été renseigné).
+     */
     public function getSoldeActuelAttribute(): float
     {
-        // ✅ reorder() efface le tri par défaut hérité de la relation mouvements(),
-        // avant d'appliquer le tri décroissant voulu ici.
         $dernierMouvement = $this->mouvements()
             ->reorder()
             ->orderByDesc('date_mouvement')
             ->orderByDesc('id')
             ->first();
 
-        return $dernierMouvement ? (float) $dernierMouvement->solde_apres : 0.0;
+        return $dernierMouvement
+            ? (float) $dernierMouvement->solde_apres
+            : (float) $this->fonds_initial;
     }
 
     public function getTauxPourcentageAttribute(): string

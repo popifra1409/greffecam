@@ -113,16 +113,16 @@ class MouvementsRelationManager extends RelationManager
                 ->live(onBlur: true)
                 ->disabled(fn(Get $get) => filled($get('entree')))
                 ->required(fn(Get $get) => empty($get('entree')))
-                ->rules([
-                    fn(Get $get): \Closure => function (string $attribute, $value, \Closure $fail) use ($get) {
-                        $disponible = $this->soldeDisponible($get('_editing_id'));
+                ->helperText(function (Get $get) {
+                    $disponible = $this->soldeDisponible($get('_editing_id'));
+                    $texte = 'Montant retiré du solde';
 
-                        if ((float) $value > $disponible) {
-                            $fail('Le retrait (' . number_format((float) $value, 0, ',', ' ') . ' FCFA) dépasse le solde disponible (' . number_format($disponible, 0, ',', ' ') . ' FCFA).');
-                        }
-                    },
-                ])
-                ->helperText('Montant retiré du solde, limité au disponible')
+                    if ($disponible <= 0) {
+                        $texte .= ' ⚠️ Solde disponible actuellement : ' . number_format($disponible, 0, ',', ' ') . ' FCFA (ce retrait rendra le solde négatif)';
+                    }
+
+                    return $texte;
+                })
                 ->columnSpan(1),
 
             // ✅ Versement : sélection obligatoire de la partie adverse (payeur)
