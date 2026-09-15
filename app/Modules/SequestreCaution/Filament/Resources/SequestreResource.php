@@ -427,27 +427,38 @@ class SequestreResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('numero_dossier_sequestre')
+                    ->label('N° Dossier Séquestre')
+                    ->badge()
+                    ->color('primary')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('dossier.numero_dossier')
                     ->label('N° Dossier')
                     ->badge()
-                    ->color('primary')
-                    ->searchable(),
+                    ->color('gray')
+                    ->searchable()
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('nom_intitule')
                     ->label('Intitulé')
                     ->getStateUsing(fn($record) => $record->intitule)
                     ->searchable()
+                    ->sortable()
                     ->wrap(),
 
                 Tables\Columns\TextColumn::make('natureSequestre.libelle')
                     ->label('Nature')
                     ->badge()
-                    ->color('info'),
+                    ->color('info')
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('decision.numero_repertoire')
                     ->label('N° Décision')
                     ->badge()
-                    ->color('gray'),
+                    ->color('gray')
+                    ->sortable(),
 
                 Tables\Columns\TextColumn::make('date_ouverture')
                     ->label('Ouverture')
@@ -467,7 +478,8 @@ class SequestreResource extends Resource
                 Tables\Columns\TextColumn::make('statutSequestre.libelle')
                     ->label('Statut')
                     ->badge()
-                    ->color(fn($record) => $record->statutSequestre?->couleur ?? 'gray'),
+                    ->color(fn($record) => $record->statutSequestre?->couleur ?? 'gray')
+                    ->sortable(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('nature_sequestre_id')
@@ -485,7 +497,7 @@ class SequestreResource extends Resource
                     Tables\Actions\DeleteAction::make(),
                 ]),
             ], position: Tables\Enums\ActionsPosition::BeforeColumns)
-            ->defaultSort('date_ouverture', 'desc');
+            ->defaultSort('numero_dossier_sequestre', 'asc');
     }
 
     public static function getPages(): array

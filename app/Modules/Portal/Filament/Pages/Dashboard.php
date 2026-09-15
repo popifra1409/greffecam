@@ -18,8 +18,8 @@ class Dashboard extends BaseDashboard
         $user = auth()->user();
         $allModules = ModuleAccess::getAvailableModules();
 
-        // Administrateur voit tout
-        if ($user->hasRole('Administrateur')) {
+        // ✅ Super Administrateur et Administrateur voient tout
+        if ($user->hasRole(['Super Administrateur', 'Administrateur'])) {
             return $allModules;
         }
 
@@ -39,5 +39,20 @@ class Dashboard extends BaseDashboard
         }
 
         return $accessibleModules;
+    }
+
+    public function estAdministrateur(): bool
+    {
+        return auth()->user()->hasRole(['Super Administrateur', 'Administrateur']);
+    }
+
+    /**
+     * Nombre total de modules réellement disponibles (hors "Bientôt disponible").
+     */
+    public function getNombreModulesActifs(): int
+    {
+        return collect($this->getModules())
+            ->filter(fn($module) => !isset($module['available']) || $module['available'])
+            ->count();
     }
 }

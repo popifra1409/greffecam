@@ -13,7 +13,7 @@ class EtatSequestrePdfService
         // mémoire pour DomPDF ; on augmente temporairement la limite pour ce rendu.
         ini_set('memory_limit', '512M');
 
-        $sequestre->load([
+            $sequestre->load([
             'dossier.tribunal',
             'decision.typeDecision',
             'decision.natureDecision',

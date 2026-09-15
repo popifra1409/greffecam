@@ -20,6 +20,7 @@ use Illuminate\View\Middleware\ShareErrorsFromSession;
 use App\Modules\Portal\Filament\Pages\Dashboard;
 use Hasnayeen\Themes\ThemesPlugin;
 use Hasnayeen\Themes\Http\Middleware\SetTheme;
+use Filament\Support\Facades\FilamentView;
 
 class PortalPanelProvider extends PanelProvider
 {
@@ -33,6 +34,7 @@ class PortalPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Blue,
             ])
+            ->viteTheme('resources/css/app.css')
             ->sidebarCollapsibleOnDesktop()
 
             ->plugin(

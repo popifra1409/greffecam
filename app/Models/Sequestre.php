@@ -62,10 +62,24 @@ class Sequestre extends Model
         $sigleTribunal = $tribunal?->sigle ? strtoupper($tribunal->sigle) : 'TPI';
         $annee = now()->format('y');
 
-        $compteur = static::where('numero_dossier_sequestre', 'like', "{$sigleTribunal}/SEQ/{$annee}/%")
-            ->count() + 1;
+        $prefixe = "{$sigleTribunal}/SEQ/{$annee}/";
 
-        return sprintf('%s/SEQ/%s/%06d', $sigleTribunal, $annee, $compteur);
+        // ✅ MAX du compteur existant (pas un simple count(), fragile en cas
+        // de suppression ou de concurrence) + boucle de sécurité anti-collision.
+        $dernierNumero = static::where('numero_dossier_sequestre', 'like', $prefixe . '%')
+            ->get(['numero_dossier_sequestre'])
+            ->map(fn($s) => (int) str_replace($prefixe, '', $s->numero_dossier_sequestre))
+            ->max();
+
+        $compteur = ($dernierNumero ?? 0) + 1;
+
+        do {
+            $numero = sprintf('%s%06d', $prefixe, $compteur);
+            $existeDeja = static::where('numero_dossier_sequestre', $numero)->exists();
+            $compteur++;
+        } while ($existeDeja);
+
+        return $numero;
     }
 
     // ================================================================

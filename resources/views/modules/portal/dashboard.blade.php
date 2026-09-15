@@ -1,122 +1,145 @@
 <x-filament-panels::page>
+    @php
+        $couleurs = [
+            'amber' => ['bg' => 'bg-amber-50 dark:bg-amber-900/20', 'bgIcon' => 'bg-amber-100 dark:bg-amber-900/40', 'text' => 'text-amber-600 dark:text-amber-400', 'border' => 'hover:border-amber-400 dark:hover:border-amber-500', 'accent' => 'bg-amber-500', 'btn' => 'bg-amber-600 hover:bg-amber-700'],
+            'green' => ['bg' => 'bg-green-50 dark:bg-green-900/20', 'bgIcon' => 'bg-green-100 dark:bg-green-900/40', 'text' => 'text-green-600 dark:text-green-400', 'border' => 'hover:border-green-400 dark:hover:border-green-500', 'accent' => 'bg-green-500', 'btn' => 'bg-green-600 hover:bg-green-700'],
+            'blue' => ['bg' => 'bg-blue-50 dark:bg-blue-900/20', 'bgIcon' => 'bg-blue-100 dark:bg-blue-900/40', 'text' => 'text-blue-600 dark:text-blue-400', 'border' => 'hover:border-blue-400 dark:hover:border-blue-500', 'accent' => 'bg-blue-500', 'btn' => 'bg-blue-600 hover:bg-blue-700'],
+            'gray' => ['bg' => 'bg-gray-50 dark:bg-gray-800/40', 'bgIcon' => 'bg-gray-200 dark:bg-gray-700', 'text' => 'text-gray-500 dark:text-gray-400', 'border' => 'hover:border-gray-400 dark:hover:border-gray-500', 'accent' => 'bg-gray-400', 'btn' => 'bg-gray-500 hover:bg-gray-600'],
+        ];
+        $modules = $this->getModules();
+    @endphp
+
     <div class="space-y-6">
-        {{-- En-tête --}}
-        <div class="text-center py-8">
-            <h2 class="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                Bienvenue, {{ auth()->user()->name }}
-            </h2>
-            <p class="mt-2 text-lg text-gray-600 dark:text-gray-300">
-                Sélectionnez un module pour commencer
-            </p>
-        </div>
 
-        {{-- Grille de modules --}}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            @foreach($this->getModules() as $code => $module)
-                <a href="{{ $module['url'] }}"
-                    class="relative block p-6 bg-white dark:bg-gray-900 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 border-2 {{ isset($module['available']) && !$module['available'] ? 'border-gray-300 dark:border-gray-700 opacity-70 cursor-not-allowed' : 'border-gray-200 dark:border-gray-800 hover:border-' . $module['color'] . '-500' }} group"
-                    @if(isset($module['available']) && !$module['available'])
-                    onclick="event.preventDefault(); alert('Ce module sera bientôt disponible');" @endif>
-                    {{-- Badge "Bientôt disponible" --}}
-                    @if(isset($module['available']) && !$module['available'])
-                        <div class="absolute top-4 right-4">
-                            <span
-                                class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                                Bientôt disponible
-                            </span>
-                        </div>
-                    @endif
-
-                    {{-- Icône --}}
-                    <div class="flex items-center mb-4">
-                        <div
-                            class="flex items-center justify-center w-14 h-14 rounded-xl bg-{{ $module['color'] }}-100 dark:bg-{{ $module['color'] }}-900/30 group-hover:scale-110 transition-transform">
-                            <x-filament::icon :icon="$module['icon']"
-                                class="w-7 h-7 text-{{ $module['color'] }}-600 dark:text-{{ $module['color'] }}-400" />
-                        </div>
-                        <h3 class="ml-4 text-xl font-bold text-gray-900 dark:text-gray-100">
-                            {{ $module['name'] }}
-                        </h3>
-                    </div>
-
-                    {{-- Description --}}
-                    <p class="text-sm text-gray-600 dark:text-gray-300 mb-4 leading-relaxed">
-                        {{ $module['description'] }}
-                    </p>
-
-                    {{-- Fonctionnalités --}}
-                    <ul class="space-y-2 mb-6">
-                        @foreach($module['features'] as $feature)
-                            <li class="flex items-start text-sm text-gray-700 dark:text-gray-200">
-                                <svg class="w-5 h-5 mt-0.5 mr-2 text-{{ $module['color'] }}-500 dark:text-{{ $module['color'] }}-400 flex-shrink-0"
-                                    fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd"
-                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                        clip-rule="evenodd" />
-                                </svg>
-                                <span>{{ $feature }}</span>
-                            </li>
-                        @endforeach
-                    </ul>
-
-                    {{-- Bouton d'accès --}}
-                    <div class="flex items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <span
-                            class="text-sm font-semibold text-{{ $module['color'] }}-600 dark:text-{{ $module['color'] }}-400 group-hover:text-{{ $module['color'] }}-700 dark:group-hover:text-{{ $module['color'] }}-300 transition-colors">
-                            {{ isset($module['available']) && !$module['available'] ? 'Bientôt disponible' : 'Accéder au module' }}
-                        </span>
-                        @if(!isset($module['available']) || $module['available'])
-                            <svg class="w-5 h-5 text-{{ $module['color'] }}-600 dark:text-{{ $module['color'] }}-400 group-hover:translate-x-1 transition-transform"
-                                fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                        @endif
-                    </div>
-                </a>
-            @endforeach
-        </div>
-
-        {{-- Bloc Administration (visible seulement pour les admins) --}}
-        @if(auth()->user()->hasRole('Administrateur'))
-            <div class="mt-8 p-6 bg-blue-50 dark:bg-blue-900/20 rounded-xl border-2 border-blue-200 dark:border-blue-800">
-                <div class="flex items-center mb-4">
-                    <div class="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/40">
-                        <x-filament::icon icon="heroicon-o-cog-6-tooth" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <h3 class="ml-3 text-lg font-bold text-gray-900 dark:text-gray-100">
-                        Administration
-                    </h3>
-                </div>
-                <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                    Gestion des utilisateurs, rôles et permissions du système
+        {{-- ================= EN-TÊTE ================= --}}
+        <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-700 to-slate-900 px-6 py-6 text-white shadow-lg">
+            <div class="relative z-10 flex flex-col gap-1">
+                <p class="text-xs font-medium uppercase tracking-wide text-white/70">
+                    {{ now()->translatedFormat('l d F Y') }}
                 </p>
-                <div class="flex flex-wrap gap-4">
-                    <a href="/portal/users"
-                        class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium text-sm rounded-lg transition-colors">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                        </svg>
-                        Utilisateurs
+                <h2 class="text-2xl font-bold text-white">
+                    Bonjour, {{ explode(' ', auth()->user()->name)[0] }} 👋
+                </h2>
+                <p class="text-sm text-white/80 max-w-xl">
+                    Sélectionnez un module ci-dessous pour accéder à vos outils de gestion.
+                </p>
+            </div>
+
+            {{-- Motif décoratif --}}
+            <div class="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10"></div>
+            <div class="pointer-events-none absolute -right-20 bottom-0 h-28 w-28 rounded-full bg-white/5"></div>
+
+            {{-- Mini-stat --}}
+            <div class="relative z-10 mt-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1 text-xs font-medium text-white backdrop-blur">
+                <x-filament::icon icon="heroicon-o-squares-2x2" class="w-3.5 h-3.5" />
+                {{ $this->getNombreModulesActifs() }} module{{ $this->getNombreModulesActifs() > 1 ? 's' : '' }} disponible{{ $this->getNombreModulesActifs() > 1 ? 's' : '' }}
+            </div>
+        </div>
+
+        {{-- ================= GRILLE DE MODULES ================= --}}
+        @if(count($modules) === 0 && !$this->estAdministrateur())
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+                <x-filament::icon icon="heroicon-o-lock-closed" class="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
+                <p class="text-gray-500 dark:text-gray-400">
+                    Aucun module ne vous a encore été attribué. Contactez un administrateur.
+                </p>
+            </div>
+        @else
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                @foreach($modules as $code => $module)
+                    @php
+                        $c = $couleurs[$module['color']] ?? $couleurs['gray'];
+                        $disponible = !isset($module['available']) || $module['available'];
+                    @endphp
+
+                    <a href="{{ $disponible ? $module['url'] : '#' }}"
+                        @if(!$disponible) onclick="event.preventDefault();" @endif
+                        class="group relative flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm transition-all duration-200 {{ $disponible ? $c['border'] . ' hover:shadow-md hover:-translate-y-0.5' : 'opacity-60 cursor-not-allowed' }}">
+
+                        {{-- Bandeau coloré supérieur --}}
+                        <div class="h-1 w-full {{ $c['accent'] }}"></div>
+
+                        <div class="flex flex-1 flex-col p-5">
+                            {{-- En-tête carte --}}
+                            <div class="flex items-start justify-between mb-3">
+                                <div class="flex items-center justify-center w-12 h-12 rounded-lg {{ $c['bgIcon'] }} transition-transform group-hover:scale-105">
+                                    <x-filament::icon :icon="$module['icon']" class="w-6 h-6 {{ $c['text'] }}" />
+                                </div>
+
+                                @if(!$disponible)
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+                                        Bientôt
+                                    </span>
+                                @endif
+                            </div>
+
+                            <h3 class="text-base font-bold text-gray-900 dark:text-gray-100 mb-1">
+                                {{ $module['name'] }}
+                            </h3>
+
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-3 leading-relaxed">
+                                {{ $module['description'] }}
+                            </p>
+
+                            {{-- Fonctionnalités --}}
+                            <ul class="space-y-1 mb-4 flex-1">
+                                @foreach(array_slice($module['features'], 0, 4) as $feature)
+                                    <li class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300">
+                                        <x-filament::icon icon="heroicon-o-check-circle" class="w-4 h-4 mt-0.5 {{ $c['text'] }} flex-shrink-0" />
+                                        <span>{{ $feature }}</span>
+                                    </li>
+                                @endforeach
+                            </ul>
+
+                            {{-- Pied de carte --}}
+                            <div class="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
+                                <span class="text-sm font-semibold {{ $c['text'] }}">
+                                    {{ $disponible ? 'Accéder au module' : 'Indisponible pour le moment' }}
+                                </span>
+                                @if($disponible)
+                                    <x-filament::icon icon="heroicon-o-arrow-right" class="w-5 h-5 {{ $c['text'] }} transition-transform group-hover:translate-x-1" />
+                                @endif
+                            </div>
+                        </div>
                     </a>
-                    <a href="/portal/roles"
-                        class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium text-sm rounded-lg transition-colors">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                        </svg>
-                        Rôles
-                    </a>
-                    <a href="/portal/permissions"
-                        class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-medium text-sm rounded-lg transition-colors">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-                        </svg>
-                        Permissions
-                    </a>
-                </div>
+                @endforeach
+
+                {{-- ================= CARTE ADMINISTRATION (intégrée au grid) ================= --}}
+                @if($this->estAdministrateur())
+                    @php $ca = $couleurs['gray']; @endphp
+                    <div class="group relative flex h-full flex-col overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shadow-sm">
+                        <div class="h-1 w-full {{ $ca['accent'] }}"></div>
+
+                        <div class="flex flex-1 flex-col p-5">
+                            <div class="flex items-center justify-center w-12 h-12 rounded-lg {{ $ca['bgIcon'] }} mb-3">
+                                <x-filament::icon icon="heroicon-o-cog-6-tooth" class="w-6 h-6 {{ $ca['text'] }}" />
+                            </div>
+
+                            <h3 class="text-base font-bold text-gray-900 dark:text-gray-100 mb-1">
+                                Administration
+                            </h3>
+
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+                                Gestion des utilisateurs, rôles et permissions du système.
+                            </p>
+
+                            <div class="mt-auto flex flex-wrap gap-2 pt-3 border-t border-gray-100 dark:border-gray-800">
+                                <a href="/portal/users" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white {{ $ca['btn'] }} transition-colors">
+                                    <x-filament::icon icon="heroicon-o-users" class="w-3.5 h-3.5" />
+                                    Utilisateurs
+                                </a>
+                                <a href="/portal/roles" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white {{ $ca['btn'] }} transition-colors">
+                                    <x-filament::icon icon="heroicon-o-shield-check" class="w-3.5 h-3.5" />
+                                    Rôles
+                                </a>
+                                <a href="/portal/permissions" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white {{ $ca['btn'] }} transition-colors">
+                                    <x-filament::icon icon="heroicon-o-key" class="w-3.5 h-3.5" />
+                                    Permissions
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
         @endif
     </div>
