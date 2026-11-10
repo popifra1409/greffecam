@@ -10,12 +10,18 @@ class ListRecours extends ListRecords
 {
     protected static string $resource = RecoursResource::class;
 
+    protected function authorizeAccess(): void
+    {
+        abort_unless(static::getResource()::canViewAny(), 403);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
             Actions\CreateAction::make()
                 ->label('Nouveau recours')
-                ->icon('heroicon-o-plus'),
+                ->icon('heroicon-o-plus')
+                ->visible(fn(): bool => static::getResource()::canCreate()),
         ];
     }
 }

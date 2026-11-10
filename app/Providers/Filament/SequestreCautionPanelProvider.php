@@ -18,7 +18,6 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 use Filament\Navigation\MenuItem;
-use Filament\Navigation\NavigationItem;
 use Hasnayeen\Themes\ThemesPlugin;
 use Hasnayeen\Themes\Http\Middleware\SetTheme;
 
@@ -30,16 +29,9 @@ class SequestreCautionPanelProvider extends PanelProvider
             ->id('sequestre-caution')
             ->path('sequestre-caution')
             ->login()
+            ->profile()
             ->colors([
                 'primary' => Color::Emerald,
-            ])
-
-            ->navigationItems([
-                NavigationItem::make('Portail Principal')
-                    ->url('/portal')
-                    ->icon('heroicon-o-arrow-left-circle')
-                    ->group('Navigation')
-                    ->sort(-1000),
             ])
 
             ->renderHook(
@@ -49,14 +41,19 @@ class SequestreCautionPanelProvider extends PanelProvider
 
             ->userMenuItems([
                 'profile' => MenuItem::make()
-                    ->label('Mon Profil')
+                    ->label('Mon profil')
                     ->icon('heroicon-o-user-circle'),
 
                 MenuItem::make()
-                    ->label('🏠 Portail Principal')
+                    ->label('🏠 Portail principal')
                     ->url('/portal')
-                    ->icon('heroicon-o-home')
-                    ->sort(10),
+                    ->icon('heroicon-o-home'),
+
+                MenuItem::make()
+                    ->label('Gestion des utilisateurs')
+                    ->url('/portal/users')
+                    ->icon('heroicon-o-users')
+                    ->visible(fn() => auth()->user()?->hasAnyRole(['Super Administrateur', 'Administrateur']) ?? false),
 
                 'logout' => MenuItem::make()
                     ->label('Déconnexion')
@@ -64,6 +61,7 @@ class SequestreCautionPanelProvider extends PanelProvider
             ])
 
             ->globalSearch(true)
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->sidebarCollapsibleOnDesktop()
@@ -110,9 +108,6 @@ class SequestreCautionPanelProvider extends PanelProvider
 
             ->brandName('Séquestre & Caution')
 
-            ->navigationGroups([
-                'Gestion des Séquestres',
-                'Référentiels',
-            ]);
+            ->navigationGroups(['Séquestres', 'Banque', 'Rapports', 'Référentiels']);
     }
 }

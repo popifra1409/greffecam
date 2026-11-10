@@ -99,10 +99,18 @@ class DocumentsRelationManager extends RelationManager
                 Tables\Actions\Action::make('telecharger')
                     ->label('Télécharger')
                     ->icon('heroicon-o-arrow-down-tray')
-                    ->action(fn($record) => response()->download(
-                        \Illuminate\Support\Facades\Storage::disk('local')->path($record->fichier_path),
-                        $record->libelle
-                    )),
+                    ->action(function ($record) {
+                        \App\Support\JournalAudit::journaliser('documents', 'document_telecharge', [
+                            'libelle' => $record->libelle,
+                            'categorie' => $record->categorie,
+                            'fichier' => $record->fichier_path,
+                        ], $record);
+
+                        return response()->download(
+                            \Illuminate\Support\Facades\Storage::disk('local')->path($record->fichier_path),
+                            $record->libelle
+                        );
+                    }),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])

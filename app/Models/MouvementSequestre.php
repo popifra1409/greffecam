@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\JournaliseActivite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MouvementSequestre extends Model
 {
+    use JournaliseActivite;
+
     protected $table = 'mouvements_sequestre';
 
     protected $fillable = [
@@ -76,6 +79,35 @@ class MouvementSequestre extends Model
     public function getTypeLabelAttribute(): string
     {
         return $this->type_mouvement === 'versement' ? 'Versement' : 'Retrait';
+    }
+
+    /**
+     * Type de bénéficiaire renseigné à la saisie :
+     * - versement : le locataire (partie adverse) qui paie ;
+     * - retrait   : l'ayant droit (avec son rôle) ou la partie tierce (avec son type).
+     * Vaut null quand aucun bénéficiaire n'a été renseigné.
+     */
+    public function getTypeBeneficiaireAttribute(): ?string
+    {
+        if ($this->type_mouvement === 'versement') {
+            return $this->sequestre_partie_adverse_id ? 'Locataire' : null;
+        }
+
+        if ($this->sequestre_partie_tierce_id) {
+            $type = $this->partieTierce?->type_label;
+
+            return $type ? 'Partie tierce : ' . $type : 'Partie tierce';
+        }
+
+        if ($this->sequestre_ayant_droit_id) {
+            $role = $this->ayantDroit?->role_succession;
+
+            return $role
+                ? 'Ayant droit (' . $this->ayantDroit->role_succession_label . ')'
+                : 'Ayant droit';
+        }
+
+        return null;
     }
 
     /**

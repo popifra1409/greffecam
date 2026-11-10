@@ -4,25 +4,48 @@ namespace App\Modules\DecisionRecours\Filament\Resources;
 
 use App\Modules\DecisionRecours\Filament\Resources\TransmissionDecisionResource\Pages;
 use App\Models\TransmissionDecision;
-use Filament\Forms;
-use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Traits\HasResourcePermissions;
 
 class TransmissionDecisionResource extends Resource
 {
+    use HasResourcePermissions;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_transmissions';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'create_transmissions';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'create_transmissions';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'delete_transmissions';
+    }
+
     protected static ?string $model = TransmissionDecision::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path';
 
-    protected static ?string $navigationGroup = 'Gestion Judiciaire';
+    protected static ?string $navigationGroup = 'Gestion judiciaire';
 
     protected static ?string $modelLabel = 'Transmission';
 
     protected static ?string $pluralModelLabel = 'Historique des transmissions';
 
-    protected static ?int $navigationSort = 7;
+    protected static ?int $navigationSort = 40;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     public static function getNavigationBadge(): ?string
     {
@@ -44,75 +67,6 @@ class TransmissionDecisionResource extends Resource
         }
 
         return 'success';
-    }
-
-    public static function form(Form $form): Form
-    {
-        return $form
-            ->schema([
-                Forms\Components\Section::make('Informations de la transmission')
-                    ->schema([
-                        Forms\Components\Select::make('decision_id')
-                            ->label('Décision')
-                            ->relationship('decision', 'numero_rg')
-                            ->disabled(),
-
-                        Forms\Components\Select::make('expediteur_id')
-                            ->label('Expéditeur')
-                            ->relationship('expediteur', 'name')
-                            ->disabled(),
-
-                        Forms\Components\Select::make('destinataire_id')
-                            ->label('Destinataire')
-                            ->relationship('destinataire', 'name')
-                            ->disabled(),
-
-                        Forms\Components\Select::make('motif')
-                            ->label('Motif')
-                            ->options([
-                                'validation' => 'Validation',
-                                'signature' => 'Signature',
-                                'correction' => 'Correction',
-                                'avis' => 'Avis',
-                                'information' => 'Information',
-                                'autre' => 'Autre',
-                            ])
-                            ->disabled(),
-
-                        Forms\Components\Select::make('statut')
-                            ->label('Statut')
-                            ->options([
-                                'en_attente' => 'En attente',
-                                'acceptee' => 'Acceptée',
-                                'rejetee' => 'Rejetée',
-                                'retournee' => 'Retournée',
-                            ])
-                            ->disabled(),
-
-                        Forms\Components\DateTimePicker::make('date_transmission')
-                            ->label('Date de transmission')
-                            ->disabled(),
-
-                        Forms\Components\DateTimePicker::make('date_traitement')
-                            ->label('Date de traitement')
-                            ->disabled(),
-                    ])->columns(2),
-
-                Forms\Components\Section::make('Observations')
-                    ->schema([
-                        Forms\Components\Textarea::make('observations_expediteur')
-                            ->label('Observations de l\'expéditeur')
-                            ->disabled()
-                            ->rows(3)
-                            ->columnSpanFull(),
-
-                        Forms\Components\Textarea::make('observations_destinataire')
-                            ->label('Observations du destinataire')
-                            ->disabled()
-                            ->rows(3)
-                            ->columnSpanFull(),
-                    ]),
-            ]);
     }
 
     public static function table(Table $table): Table
@@ -236,7 +190,8 @@ class TransmissionDecisionResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()
-                    ->label('Voir'),
+                    ->label('Voir')
+                    ->visible(fn($record) => static::canView($record)),
             ])
             ->defaultSort('date_transmission', 'desc');
     }

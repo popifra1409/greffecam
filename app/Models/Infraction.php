@@ -27,7 +27,9 @@ class Infraction extends Model
     {
         return LogOptions::defaults()
             ->logOnly(['libelle', 'code', 'categorie', 'is_active'])
-            ->logOnlyDirty();
+            ->logOnlyDirty()
+            ->useLogName('infractions')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Relation avec les décisions

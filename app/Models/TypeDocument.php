@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Traits\JournaliseActivite;
 use Illuminate\Database\Eloquent\Model;
 
 class TypeDocument extends Model
 {
+    use JournaliseActivite;
+
     protected $table = 'type_documents';
 
     protected $fillable = [

@@ -9,6 +9,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Models\Role;
 
 class RoleResource extends Resource
@@ -25,7 +27,9 @@ class RoleResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Rôles';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static function getViewPermission(): string { return 'view_roles'; }
     protected static function getCreatePermission(): string { return 'manage_roles'; }
@@ -127,6 +131,28 @@ class RoleResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['name'];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->name;
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Permissions' => ($record->permissions_count ?? 0) . ' permission(s)',
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->withCount('permissions');
     }
 
     public static function getPages(): array

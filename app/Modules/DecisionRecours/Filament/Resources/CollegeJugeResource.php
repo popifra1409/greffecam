@@ -9,20 +9,45 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Traits\HasResourcePermissions;
 
 class CollegeJugeResource extends Resource
 {
+    use HasResourcePermissions;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_colleges_juges';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_colleges_juges';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_colleges_juges';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_colleges_juges';
+    }
+
     protected static ?string $model = CollegeJuge::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
-    protected static ?string $navigationGroup = 'Référentiels';
+    protected static ?string $navigationGroup = 'Paramétrage';
 
     protected static ?string $modelLabel = 'Collège de juges';
 
     protected static ?string $pluralModelLabel = 'Collégialité';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 70;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     public static function form(Form $form): Form
     {
@@ -140,13 +165,23 @@ class CollegeJugeResource extends Resource
                     ->relationship('tribunal', 'nom'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->visible(fn($record) => static::canView($record)),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => static::canDelete($record))
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ]);
     }

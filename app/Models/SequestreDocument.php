@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\JournaliseActivite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SequestreDocument extends Model
 {
+    use JournaliseActivite;
+
     protected $fillable = [
         'sequestre_id',
         'mouvement_sequestre_id',

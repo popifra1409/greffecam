@@ -9,9 +9,32 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Traits\HasResourcePermissions;
 
 class JugeResource extends Resource
 {
+    use HasResourcePermissions;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_juges';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_juges';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_juges';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_juges';
+    }
+
     protected static ?string $model = Juge::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-scale';
@@ -22,7 +45,9 @@ class JugeResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Juges';
 
-    protected static ?int $navigationSort = 5;
+    protected static ?int $navigationSort = 60;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     public static function form(Form $form): Form
     {
@@ -145,12 +170,21 @@ class JugeResource extends Resource
                     ->falseLabel('Inactifs uniquement'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => static::canDelete($record))
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ]);
     }

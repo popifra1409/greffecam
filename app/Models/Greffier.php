@@ -34,7 +34,9 @@ class Greffier extends Model
         return LogOptions::defaults()
             ->logOnly(['matricule', 'nom', 'prenom', 'grade', 'est_chef', 'is_active'])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontSubmitEmptyLogs()
+            ->useLogName('greffiers')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Relations

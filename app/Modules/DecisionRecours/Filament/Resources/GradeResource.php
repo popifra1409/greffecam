@@ -25,23 +25,25 @@ class GradeResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Grades';
 
-    protected static ?int $navigationSort = 4;
+    protected static ?int $navigationSort = 50;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static function getViewPermission(): string
     {
-        return 'view_referentiels';
+        return 'view_grades';
     }
     protected static function getCreatePermission(): string
     {
-        return 'manage_referentiels';
+        return 'manage_grades';
     }
     protected static function getEditPermission(): string
     {
-        return 'manage_referentiels';
+        return 'manage_grades';
     }
     protected static function getDeletePermission(): string
     {
-        return 'manage_referentiels';
+        return 'manage_grades';
     }
 
     public static function form(Form $form): Form
@@ -142,12 +144,21 @@ class GradeResource extends Resource
                     ]),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => static::canDelete($record))
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('ordre');

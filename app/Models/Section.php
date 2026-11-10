@@ -29,7 +29,9 @@ class Section extends Model
     {
         return LogOptions::defaults()
             ->logOnly(['libelle', 'code', 'type', 'is_active'])
-            ->logOnlyDirty();
+            ->logOnlyDirty()
+            ->useLogName('sections')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Relations

@@ -554,15 +554,37 @@ class ViewDecision extends ViewRecord
                             ->label('Mode de composition')
                             ->badge()
                             ->size('lg')
-                            ->color(fn($state) => $state === 'juge_unique' ? 'info' : 'warning')
-                            ->formatStateUsing(fn($state) => $state === 'juge_unique' ? 'Juge unique' : 'Collège de juges'),
+                            ->color(fn($state) => match ($state) {
+                                'juge_unique' => 'info',
+                                'juge_assesseurs' => 'success',
+                                default => 'warning',
+                            })
+                            ->formatStateUsing(fn($state) => match ($state) {
+                                'juge_unique' => 'Juge unique',
+                                'juge_assesseurs' => 'Juge + assesseurs',
+                                default => 'Collège de juges',
+                            }),
 
                         Infolists\Components\TextEntry::make('jugeUnique.nom_complet')
-                            ->label('Juge')
+                            ->label(fn($record) => $record->mode_composition === 'juge_assesseurs' ? 'Juge / Président' : 'Juge')
                             ->badge()
                             ->color('primary')
-                            ->visible(fn($record) => $record->mode_composition === 'juge_unique')
+                            ->visible(fn($record) => in_array($record->mode_composition, ['juge_unique', 'juge_assesseurs']))
                             ->placeholder('Non renseigné'),
+
+                        Infolists\Components\TextEntry::make('assesseur_1')
+                            ->label('Assesseur 1')
+                            ->badge()
+                            ->color('gray')
+                            ->visible(fn($record) => $record->mode_composition === 'juge_assesseurs')
+                            ->placeholder('Non renseigné'),
+
+                        Infolists\Components\TextEntry::make('assesseur_2')
+                            ->label('Assesseur 2')
+                            ->badge()
+                            ->color('gray')
+                            ->visible(fn($record) => $record->mode_composition === 'juge_assesseurs' && filled($record->assesseur_2))
+                            ->placeholder('—'),
 
                         Infolists\Components\TextEntry::make('collegeJuge.designation')
                             ->label('Collège')

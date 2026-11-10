@@ -29,7 +29,9 @@ class JourFerie extends Model
     {
         return LogOptions::defaults()
             ->logOnly(['libelle', 'date', 'annee'])
-            ->logOnlyDirty();
+            ->logOnlyDirty()
+            ->useLogName('jour_feries')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Scope pour récupérer les jours fériés d'une année

@@ -4,6 +4,9 @@ namespace App\Modules\DecisionRecours\Filament\Resources;
 
 use App\Modules\DecisionRecours\Filament\Resources\TribunalResource\Pages;
 use App\Models\Tribunal;
+use App\Traits\HasResourcePermissions;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,6 +15,8 @@ use Filament\Tables\Table;
 
 class TribunalResource extends Resource
 {
+    use HasResourcePermissions;
+
     protected static ?string $model = Tribunal::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-library';
@@ -22,7 +27,29 @@ class TribunalResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Tribunaux';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 10;
+
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_referentiels';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_referentiels';
+    }
 
     public static function form(Form $form): Form
     {
@@ -147,16 +174,44 @@ class TribunalResource extends Resource
                     ->falseLabel('Inactifs uniquement'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => $record->dossiers_count == 0 && $record->decisions_count == 0),
+                    ->visible(fn($record) => static::canDelete($record)
+                        && $record->dossiers_count == 0
+                        && $record->decisions_count == 0)
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('sigle');
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['nom', 'sigle', 'ville'];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->nom;
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Sigle' => $record->sigle,
+            'Ville' => $record->ville,
+        ];
     }
 
     public static function getPages(): array

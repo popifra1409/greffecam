@@ -4,6 +4,7 @@ namespace App\Modules\DecisionRecours\Filament\Resources\DecisionResource\Pages;
 
 use App\Modules\DecisionRecours\Filament\Resources\DecisionResource;
 use App\Models\Dossier;
+use App\Models\Section;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateDecision extends CreateRecord
@@ -20,6 +21,7 @@ class CreateDecision extends CreateRecord
 
         if ($dossierId) {
             $dossier = Dossier::with(['tribunal', 'section', 'matiere', 'anneeJudiciaire'])
+                ->visiblesPar(auth()->user())
                 ->find($dossierId);
 
             if ($dossier) {
@@ -32,7 +34,7 @@ class CreateDecision extends CreateRecord
                     'annee_judiciaire_id' => $dossier->annee_judiciaire_id,
                     'date_decision' => now(),
                     'statut' => 'brouillon',
-                    'mode_composition' => 'juge_unique',
+                    'mode_composition' => $dossier->section?->utilise_assesseur ? 'juge_assesseurs' : 'juge_unique',
                 ]);
             }
         }
@@ -47,7 +49,12 @@ class CreateDecision extends CreateRecord
 
         // Récupérer le dossier pour hériter ses informations
         $dossier = Dossier::with(['tribunal', 'section', 'matiere', 'anneeJudiciaire'])
+            ->visiblesPar(auth()->user())
             ->find($data['dossier_id']);
+
+        if (! $dossier && auth()->user()?->estRestreintAuxSections()) {
+            abort(403, 'Ce dossier ne relève pas de votre section.');
+        }
 
         if ($dossier) {
             // S'assurer que les IDs sont bien présents
@@ -65,8 +72,9 @@ class CreateDecision extends CreateRecord
         // Statut par défaut
         $data['statut'] = $data['statut'] ?? 'brouillon';
 
-        // Mode de composition par défaut
-        $data['mode_composition'] = $data['mode_composition'] ?? 'juge_unique';
+        // Mode de composition par défaut (assesseurs pour le droit local)
+        $sectionUtiliseAssesseurs = (bool) Section::find($data['section_id'] ?? null)?->utilise_assesseur;
+        $data['mode_composition'] = $data['mode_composition'] ?? ($sectionUtiliseAssesseurs ? 'juge_assesseurs' : 'juge_unique');
 
         // Signification : par défaut non signifiée
         $data['est_signifiee'] = $data['est_signifiee'] ?? false;
@@ -103,10 +111,16 @@ class CreateDecision extends CreateRecord
         }
 
         // ✅ Nettoyer les champs selon le mode de composition
-        if (($data['mode_composition'] ?? null) === 'juge_unique') {
-            $data['college_juge_id'] = null;
-        } elseif (($data['mode_composition'] ?? null) === 'college') {
+        if (($data['mode_composition'] ?? null) === 'college') {
             $data['juge_unique_id'] = null;
+            $data['assesseur_1'] = null;
+            $data['assesseur_2'] = null;
+        } elseif (($data['mode_composition'] ?? null) === 'juge_assesseurs') {
+            $data['college_juge_id'] = null;
+        } else {
+            $data['college_juge_id'] = null;
+            $data['assesseur_1'] = null;
+            $data['assesseur_2'] = null;
         }
 
         return $data;

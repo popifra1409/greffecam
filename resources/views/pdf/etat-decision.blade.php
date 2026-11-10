@@ -543,24 +543,30 @@
             <div class="info-row">
                 <div class="info-label">Mode de composition</div>
                 <div class="info-value">
-                    <span class="badge {{ $decision->mode_composition === 'juge_unique' ? 'badge-info' : 'badge-warning' }}">
-                        {{ $decision->mode_composition === 'juge_unique' ? 'Juge unique' : 'Collège de juges (Collégialité)' }}
+                    <span class="badge {{ $decision->mode_composition === 'college' ? 'badge-warning' : 'badge-info' }}">
+                        @if($decision->mode_composition === 'juge_unique')
+                            Juge unique
+                        @elseif($decision->mode_composition === 'juge_assesseurs')
+                            Juge + assesseurs
+                        @else
+                            Collège de juges (Collégialité)
+                        @endif
                     </span>
                 </div>
             </div>
 
-            @if($decision->mode_composition === 'juge_unique')
-                <div class="info-row">
-                    <div class="info-label">Juge</div>
-                    <div class="info-value">
-                        <strong>{{ $decision->jugeUnique->nom_complet ?? 'Non renseigné' }}</strong>
-                    </div>
-                </div>
-            @else
+            @if($decision->mode_composition === 'college')
                 <div class="info-row">
                     <div class="info-label">Collège</div>
                     <div class="info-value">
                         <strong>{{ $decision->collegeJuge->designation ?? 'Non renseigné' }}</strong>
+                    </div>
+                </div>
+            @else
+                <div class="info-row">
+                    <div class="info-label">{{ $decision->mode_composition === 'juge_assesseurs' ? 'Juge / Président' : 'Juge' }}</div>
+                    <div class="info-value">
+                        <strong>{{ $decision->jugeUnique->nom_complet ?? 'Non renseigné' }}</strong>
                     </div>
                 </div>
             @endif
@@ -572,6 +578,18 @@
             </div>
             @endif
         </div>
+
+        @if($decision->mode_composition === 'juge_assesseurs' && ($decision->assesseur_1 || $decision->assesseur_2))
+            <h3>Assesseurs :</h3>
+            <div class="membres-college">
+                @foreach(array_filter([$decision->assesseur_1, $decision->assesseur_2]) as $assesseur)
+                    <div class="membre-item">
+                        <strong>{{ $assesseur }}</strong>
+                        <span class="badge badge-info">Assesseur</span>
+                    </div>
+                @endforeach
+            </div>
+        @endif
 
        @if($decision->mode_composition === 'college' && $decision->collegeJuge && $decision->collegeJuge->juges->count() > 0)
     <h3>Membres du collège :</h3>

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\JournaliseActivite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Sequestre extends Model
 {
+    use JournaliseActivite;
+
     protected $fillable = [
         'numero_dossier_sequestre',
         'decision_id',
@@ -22,11 +25,14 @@ class Sequestre extends Model
         'prefixe_intitule_override',
         'regle_repartition',
         'fonds_initial',
+        'numero_compte_bancaire',
+        'date_ouverture_compte',
     ];
     protected $casts = [
         'date_ouverture' => 'date',
         'taux_precompte' => 'decimal:4',
         'fonds_initial' => 'decimal:2',
+        'date_ouverture_compte' => 'date',
     ];
 
     protected static function booted(): void
@@ -134,6 +140,11 @@ class Sequestre extends Model
     public function partiesTierces(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(SequestrePartieTierce::class);
+    }
+
+    public function relevesBancaires(): HasMany
+    {
+        return $this->hasMany(BanqueReleve::class)->orderBy('date_releve');
     }
 
     public function getLibellePartieTierceAttribute(): string

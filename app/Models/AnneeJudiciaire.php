@@ -31,7 +31,9 @@ class AnneeJudiciaire extends Model
     {
         return LogOptions::defaults()
             ->logOnly(['libelle', 'is_active', 'is_cloturee'])
-            ->logOnlyDirty();
+            ->logOnlyDirty()
+            ->useLogName('annees_judiciaires')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Relations

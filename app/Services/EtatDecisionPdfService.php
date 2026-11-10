@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Decision;
+use App\Support\JournalAudit;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class EtatDecisionPdfService
@@ -38,6 +39,12 @@ class EtatDecisionPdfService
         $pdf->setOption('margin-right', '15mm');
         $pdf->setOption('margin-bottom', '15mm');
         $pdf->setOption('margin-left', '15mm');
+
+        JournalAudit::journaliser('rapports', 'pdf_genere', [
+            'rapport' => 'État de décision',
+            'numero' => $decision->numero_repertoire,
+            'variante' => $type,
+        ], $decision);
 
         return $pdf;
     }

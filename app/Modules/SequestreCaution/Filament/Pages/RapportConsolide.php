@@ -2,8 +2,7 @@
 
 namespace App\Modules\SequestreCaution\Filament\Pages;
 
-use App\Models\Sequestre;
-use App\Models\MouvementSequestre;
+use App\Services\RapportConsolideService;
 use Filament\Pages\Page;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -17,13 +16,13 @@ class RapportConsolide extends Page implements HasTable
 
     protected static ?string $navigationIcon = 'heroicon-o-chart-bar-square';
 
-    protected static ?string $navigationGroup = 'Gestion des Séquestres';
+    protected static ?string $navigationGroup = 'Rapports';
 
-    protected static ?string $navigationLabel = 'Rapport Consolidé';
+    protected static ?string $navigationLabel = 'Rapport consolidé';
 
     protected static ?string $title = 'Rapport Consolidé des Séquestres';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 10;
 
     protected static string $view = 'sequestres.pages.rapport-consolide';
 
@@ -52,6 +51,9 @@ class RapportConsolide extends Page implements HasTable
 
     public function table(Table $table): Table
     {
+        $dateDebut = $this->tableFilters['periode']['date_debut'] ?? null;
+        $dateFin = $this->tableFilters['periode']['date_fin'] ?? null;
+
         return $table
             ->query($this->getBaseQuery())
             ->columns([
@@ -96,8 +98,15 @@ class RapportConsolide extends Page implements HasTable
                     ->alignEnd()
                     ->summarize(Tables\Columns\Summarizers\Sum::make()->money('XAF')->label('Total')),
 
-                Tables\Columns\TextColumn::make('solde_courant')
-                    ->label('Solde actuel')
+                Tables\Columns\TextColumn::make('solde_ouverture')
+                    ->label(app(RapportConsolideService::class)->libelleOuverture($dateDebut))
+                    ->money('XAF')
+                    ->alignEnd()
+                    ->color('gray')
+                    ->summarize(Tables\Columns\Summarizers\Sum::make()->money('XAF')->label('Total')),
+
+                Tables\Columns\TextColumn::make('solde_arrete')
+                    ->label(app(RapportConsolideService::class)->libelleSolde($dateFin))
                     ->money('XAF')
                     ->weight('bold')
                     ->alignEnd()
@@ -165,46 +174,17 @@ class RapportConsolide extends Page implements HasTable
     }
 
     /**
-     * Requête de base avec sous-requêtes calculant les totaux de la période
-     * filtrée (entrées/sorties/précompte) et le solde courant (toujours global,
-     * car c'est un solde de grand livre, indépendant de la période affichée).
+     * Requête de base : totaux de la période filtrée et solde arrêté à la
+     * date de fin (ou solde actuel), avec repli sur le fonds initial pour
+     * les séquestres sans mouvement.
      */
     protected function getBaseQuery(): Builder
     {
-        $dateDebut = $this->tableFilters['periode']['date_debut'] ?? null;
-        $dateFin = $this->tableFilters['periode']['date_fin'] ?? null;
-
-        $filtreDates = function ($query) use ($dateDebut, $dateFin) {
-            if ($dateDebut) {
-                $query->whereDate('date_mouvement', '>=', $dateDebut);
-            }
-            if ($dateFin) {
-                $query->whereDate('date_mouvement', '<=', $dateFin);
-            }
-        };
-
-        return Sequestre::query()
-            ->with(['natureSequestre', 'statutSequestre'])
-            ->addSelect([
-                'total_entrees_periode' => MouvementSequestre::selectRaw('coalesce(sum(montant_mouvement), 0)')
-                    ->whereColumn('sequestre_id', 'sequestres.id')
-                    ->where('type_mouvement', 'versement')
-                    ->tap($filtreDates),
-
-                'total_sorties_periode' => MouvementSequestre::selectRaw('coalesce(sum(montant_mouvement), 0)')
-                    ->whereColumn('sequestre_id', 'sequestres.id')
-                    ->where('type_mouvement', 'retrait')
-                    ->tap($filtreDates),
-
-                'total_precompte_periode' => MouvementSequestre::selectRaw('coalesce(sum(montant_precompte), 0)')
-                    ->whereColumn('sequestre_id', 'sequestres.id')
-                    ->tap($filtreDates),
-
-                'solde_courant' => MouvementSequestre::selectRaw('solde_apres')
-                    ->whereColumn('sequestre_id', 'sequestres.id')
-                    ->orderByDesc('date_mouvement')
-                    ->orderByDesc('id')
-                    ->limit(1),
-            ]);
+        return app(RapportConsolideService::class)->requete(
+            dateDebut: $this->tableFilters['periode']['date_debut'] ?? null,
+            dateFin: $this->tableFilters['periode']['date_fin'] ?? null,
+            statutId: $this->tableFilters['statut_sequestre_id']['value'] ?? null,
+            natureId: $this->tableFilters['nature_sequestre_id']['value'] ?? null,
+        );
     }
 }

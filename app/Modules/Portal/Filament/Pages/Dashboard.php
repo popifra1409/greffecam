@@ -11,7 +11,7 @@ class Dashboard extends BaseDashboard
 
     protected static string $view = 'modules.portal.dashboard';
 
-    protected static ?string $title = 'Portail d\'Accès';
+    protected static ?string $title = 'Portail d\'accès';
 
     public function getModules(): array
     {

@@ -3,17 +3,14 @@
 namespace App\Modules\DecisionRecours\Filament\Resources\TransmissionDecisionResource\Pages;
 
 use App\Modules\DecisionRecours\Filament\Resources\TransmissionDecisionResource;
-use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 
 class ListTransmissionDecisions extends ListRecords
 {
     protected static string $resource = TransmissionDecisionResource::class;
 
-    protected function getHeaderActions(): array
+    protected function authorizeAccess(): void
     {
-        return [
-            Actions\CreateAction::make(),
-        ];
+        abort_unless(static::getResource()::canViewAny(), 403);
     }
 }

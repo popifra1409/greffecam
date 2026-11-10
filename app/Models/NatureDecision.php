@@ -26,7 +26,9 @@ class NatureDecision extends Model
     {
         return LogOptions::defaults()
             ->logOnly(['libelle', 'code', 'is_active'])
-            ->logOnlyDirty();
+            ->logOnlyDirty()
+            ->useLogName('nature_decisions')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Relation avec les décisions (on la créera plus tard)

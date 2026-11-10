@@ -9,9 +9,32 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Traits\HasResourcePermissions;
 
 class JourFerieResource extends Resource
 {
+    use HasResourcePermissions;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_referentiels';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
     protected static ?string $model = JourFerie::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-calendar';
@@ -22,7 +45,9 @@ class JourFerieResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Jours fériés';
 
-    protected static ?int $navigationSort = 7;
+    protected static ?int $navigationSort = 40;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     public static function form(Form $form): Form
     {
@@ -113,12 +138,21 @@ class JourFerieResource extends Resource
                     ->falseLabel('Non récurrents'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => static::canDelete($record))
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('date', 'desc');

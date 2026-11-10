@@ -7,12 +7,15 @@ use App\Modules\SequestreCaution\Filament\Resources\SequestreResource\RelationMa
 use App\Models\Sequestre;
 use App\Models\Decision;
 use App\Traits\HasResourcePermissions;
+use App\Filament\Filters\PeriodeFilter;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class SequestreResource extends Resource
 {
@@ -20,10 +23,12 @@ class SequestreResource extends Resource
 
     protected static ?string $model = Sequestre::class;
     protected static ?string $navigationIcon = 'heroicon-o-lock-closed';
-    protected static ?string $navigationGroup = 'Gestion des Séquestres';
+    protected static ?string $navigationGroup = 'Séquestres';
     protected static ?string $modelLabel = 'Séquestre';
     protected static ?string $pluralModelLabel = 'Séquestres';
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 10;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static function getViewPermission(): string
     {
@@ -201,6 +206,24 @@ class SequestreResource extends Resource
                                 ->native(false)
                                 ->displayFormat('d/m/Y')
                                 ->default(now()),
+
+                            Forms\Components\Section::make('Compte bancaire')
+                                ->description('Compte de dépôt des fonds du séquestre — informations reprises par le module Banque')
+                                ->schema([
+                                    Forms\Components\TextInput::make('numero_compte_bancaire')
+                                        ->label('Numéro de compte')
+                                        ->maxLength(255)
+                                        ->placeholder('Ex : 10001 00001 00123456789 01')
+                                        ->helperText('Laisser vide tant que le compte n\'est pas ouvert'),
+
+                                    Forms\Components\DatePicker::make('date_ouverture_compte')
+                                        ->label('Date d\'ouverture du compte')
+                                        ->native(false)
+                                        ->displayFormat('d/m/Y')
+                                        ->helperText('Point de départ du calcul des intérêts'),
+                                ])
+                                ->columns(2)
+                                ->columnSpanFull(),
 
                             Forms\Components\Select::make('prefixe_intitule_override')
                                 ->label('Préfixe de l\'intitulé')
@@ -482,6 +505,8 @@ class SequestreResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                PeriodeFilter::make('date_ouverture', 'Période d\'ouverture', Sequestre::class),
+
                 Tables\Filters\SelectFilter::make('nature_sequestre_id')
                     ->label('Nature')
                     ->relationship('natureSequestre', 'libelle'),
@@ -498,6 +523,30 @@ class SequestreResource extends Resource
                 ]),
             ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->defaultSort('numero_dossier_sequestre', 'asc');
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['numero_dossier_sequestre', 'numero_compte_bancaire', 'nom_intitule'];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->numero_dossier_sequestre ?: 'Séquestre #' . $record->id;
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Intitulé' => $record->intitule ?: '—',
+            'Dossier' => $record->dossier?->numero_dossier ?? '—',
+            'Statut' => $record->statutSequestre?->libelle ?? '—',
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with(['dossier', 'statutSequestre']);
     }
 
     public static function getPages(): array

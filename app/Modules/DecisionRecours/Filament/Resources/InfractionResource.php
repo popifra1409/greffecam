@@ -10,22 +10,47 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Traits\HasResourcePermissions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class InfractionResource extends Resource
 {
+    use HasResourcePermissions;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_referentiels';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
     protected static ?string $model = Infraction::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-exclamation-triangle';
 
-    protected static ?string $navigationGroup = 'Gestion Judiciaire';
+    protected static ?string $navigationGroup = 'Référentiels';
 
     protected static ?string $modelLabel = 'Infraction / Nature du différend';
 
-    protected static ?string $pluralModelLabel = 'Infractions/Nature du différend';
+    protected static ?string $pluralModelLabel = 'Infractions / Nature du différend';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 10;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     public static function form(Form $form): Form
     {
@@ -93,11 +118,16 @@ class InfractionResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ]);
     }

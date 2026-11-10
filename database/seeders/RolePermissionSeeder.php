@@ -61,6 +61,18 @@ class RolePermissionSeeder extends Seeder
             'view_grades',
             'manage_grades',
 
+            // ✅ Référentiels sensibles : fiches personnelles des magistrats
+            //    et du personnel de greffe (nom, matricule, email, téléphone,
+            //    composition des collèges). Permissions distinctes de
+            //    view_referentiels : ces données ne doivent pas être lisibles
+            //    par tous les porteurs de view_referentiels.
+            'view_juges',
+            'manage_juges',
+            'view_greffiers',
+            'manage_greffiers',
+            'view_colleges_juges',
+            'manage_colleges_juges',
+
             // Administration
             'view_users',
             'create_users',
@@ -152,6 +164,12 @@ class RolePermissionSeeder extends Seeder
             'manage_referentiels',
             'view_grades',
             'manage_grades',
+            'view_juges',
+            'manage_juges',
+            'view_greffiers',
+            'manage_greffiers',
+            'view_colleges_juges',
+            'manage_colleges_juges',
             'view_users',
             'create_users',
             'edit_users',
@@ -199,6 +217,13 @@ class RolePermissionSeeder extends Seeder
             'manage_alertes',
             'view_referentiels',
             'view_grades',
+            'manage_grades',
+            'view_juges',
+            'manage_juges',
+            'view_greffiers',
+            'manage_greffiers',
+            'view_colleges_juges',
+            'manage_colleges_juges',
             'access_decision_recours',
         ]);
 
@@ -220,6 +245,9 @@ class RolePermissionSeeder extends Seeder
             'view_alertes',
             'view_referentiels',
             'view_grades',
+            'view_juges',
+            'view_greffiers',
+            'view_colleges_juges',
             'access_decision_recours',
         ]);
 
@@ -235,6 +263,9 @@ class RolePermissionSeeder extends Seeder
             'view_alertes',
             'view_referentiels',
             'view_grades',
+            'view_juges',
+            'view_greffiers',
+            'view_colleges_juges',
             'access_decision_recours',
         ]);
 
@@ -246,6 +277,9 @@ class RolePermissionSeeder extends Seeder
             'view_recours',
             'view_referentiels',
             'view_grades',
+            'view_juges',
+            'view_greffiers',
+            'view_colleges_juges',
             'access_decision_recours',
         ]);
 
@@ -264,10 +298,18 @@ class RolePermissionSeeder extends Seeder
             'view_referentiels',
             'manage_referentiels',
             'view_grades',
-            'manage_grades',
+            'view_juges',
+            'view_greffiers',
+            'view_colleges_juges',
             'access_decision_recours',
             'access_administration',
         ]);
+
+        // Support technique : lecture seule sur les fiches personnelles et les
+        // grades. L'écriture de ces référentiels sensibles est réservée aux
+        // Administrateurs et au Greffier en Chef, même sur une installation
+        // où manage_grades avait déjà été accordé.
+        $informaticien->revokePermissionTo('manage_grades');
 
         // COMPTABLE SÉQUESTRE
         $comptableSequestre = Role::firstOrCreate(['name' => 'Comptable Séquestre']);
@@ -286,6 +328,11 @@ class RolePermissionSeeder extends Seeder
             'view_grades',
             'access_sequestre_caution',
         ]);
+
+        // Le comptable séquestre n'a aucun accès aux fiches personnelles des
+        // magistrats et du greffe ; view_grades lui avait été accordé par le
+        // passé et restait lisible malgré tout.
+        $comptableSequestre->revokePermissionTo('view_grades');
 
         // ================================================================
         // CRÉATION DES UTILISATEURS PAR DÉFAUT

@@ -23,6 +23,7 @@ class User extends Authenticatable implements FilamentUser
         'last_login_at',
         'last_login_ip',
         'email_verified_at',
+        'greffier_id',
     ];
 
     protected $hidden = [
@@ -48,22 +49,64 @@ class User extends Authenticatable implements FilamentUser
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['name', 'email', 'is_active'])
+            ->logOnly(['name', 'email', 'is_active', 'greffier_id'])
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontSubmitEmptyLogs()
+            ->useLogName('utilisateurs')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
-    // Relations avec les sections (pour les greffiers)
+    /**
+     * Fiche greffier rattachée au compte (porte les affectations de sections).
+     */
+    public function greffier()
+    {
+        return $this->belongsTo(Greffier::class);
+    }
+
+    /**
+     * Sections du greffier rattaché. Les affectations sont portées par la
+     * fiche greffier (table greffier_section), pas par le compte utilisateur.
+     */
     public function sections()
     {
-        return $this->belongsToMany(Section::class, 'greffier_section')
-            ->withPivot(['date_affectation', 'date_fin_affectation', 'is_active'])
-            ->withTimestamps();
+        if ($this->greffier) {
+            return $this->greffier->sections();
+        }
+
+        return Section::query()->whereRaw('1 = 0');
     }
 
     public function sectionsActives()
     {
-        return $this->sections()->wherePivot('is_active', true);
+        return $this->sections()->where('sections.is_active', true);
+    }
+
+    /**
+     * Un greffier (hors greffier en chef) ne voit que sa section et ses
+     * dossiers affectés. Les autres rôles conservent l'accès global.
+     */
+    public function estRestreintAuxSections(): bool
+    {
+        return $this->hasRole('Greffier')
+            && ! $this->hasAnyRole(['Super Administrateur', 'Administrateur', 'Greffier en Chef']);
+    }
+
+    /**
+     * Identifiants des sections ouvertes au compte (via le greffier rattaché).
+     */
+    public function sectionsAutorisees(): \Illuminate\Support\Collection
+    {
+        $sections = $this->greffier?->sections;
+
+        if (! $sections) {
+            return collect();
+        }
+
+        return $sections
+            ->where('is_active', true)
+            ->pluck('id')
+            ->values();
     }
 
     public function notificationPreference()

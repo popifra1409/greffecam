@@ -10,7 +10,10 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Get;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use App\Traits\HasResourcePermissions;
+use App\Filament\Filters\PeriodeFilter;
 
 class DossierResource extends Resource
 {
@@ -19,13 +22,15 @@ class DossierResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-folder-open';
 
-    protected static ?string $navigationGroup = 'Gestion Judiciaire';
+    protected static ?string $navigationGroup = 'Gestion judiciaire';
 
     protected static ?string $modelLabel = 'Dossier';
 
     protected static ?string $pluralModelLabel = 'Dossiers / Enrôlement';
 
     protected static ?int $navigationSort = 10;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
 
     // ✅ Définir les permissions
@@ -54,6 +59,15 @@ class DossierResource extends Resource
         return [
             \App\Modules\DecisionRecours\Filament\Resources\DossierResource\RelationManagers\DecisionsRelationManager::class,
         ];
+    }
+
+    /**
+     * Un greffier ne voit que les dossiers de ses sections et ceux qui lui
+     * sont affectés ; les autres rôles gardent l'accès global.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->visiblesPar(auth()->user());
     }
 
     public static function form(Form $form): Form
@@ -581,6 +595,8 @@ class DossierResource extends Resource
                     ->formatStateUsing(fn($state) => $state > 0 ? $state : 'Aucune'),
             ])
             ->filters([
+                PeriodeFilter::make('date_enrolement', 'Période d\'enrôlement', Dossier::class),
+
                 Tables\Filters\SelectFilter::make('tribunal_id')
                     ->label('Tribunal')
                     ->relationship('tribunal', 'nom'),
@@ -636,12 +652,19 @@ class DossierResource extends Resource
                         ->label('Créer une décision')
                         ->icon('heroicon-o-scale')
                         ->color('success')
-                        ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance']))
+                        ->visible(fn($record) => in_array($record->statut, ['ouvert', 'en_instance'])
+                            && \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::canCreate())
                         ->url(fn($record) => \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('create', ['dossier_id' => $record->id])),
 
-                    Tables\Actions\ViewAction::make(),
-                    Tables\Actions\EditAction::make(),
-                    Tables\Actions\DeleteAction::make(),
+                    Tables\Actions\ViewAction::make()
+                        ->visible(fn($record) => static::canView($record)),
+                    Tables\Actions\EditAction::make()
+                        ->visible(fn($record) => static::canEdit($record)),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn($record) => static::canDelete($record))
+                        ->before(function ($record) {
+                            abort_unless(static::canDelete($record), 403);
+                        }),
                 ])
                     ->label('Actions')
                     ->icon('heroicon-o-ellipsis-vertical')
@@ -651,10 +674,47 @@ class DossierResource extends Resource
             ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('date_enrolement', 'desc');
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'numero_dossier',
+            'numero_dossier_personnalise',
+            'demandeur_nom',
+            'demandeur_prenom',
+            'defendeur_nom',
+            'defendeur_prenom',
+            'demandeur_raison_sociale',
+            'defendeur_raison_sociale',
+        ];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->numero_dossier_personnalise ?: ($record->numero_dossier ?? 'Dossier #' . $record->id);
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Demandeur' => $record->demandeur_nom_complet ?: '—',
+            'Défendeur' => $record->defendeur_nom_complet ?: '—',
+            'Tribunal' => $record->tribunal?->nom ?? '—',
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with('tribunal');
     }
 
     public static function getPages(): array

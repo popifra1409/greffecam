@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -74,7 +75,9 @@ class Dossier extends Model
         return LogOptions::defaults()
             ->logAll()
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontSubmitEmptyLogs()
+            ->useLogName('dossiers')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Relations
@@ -310,5 +313,35 @@ class Dossier extends Model
         return $this->sequestres()
             ->whereHas('statutSequestre', fn($q) => $q->where('bloque_mouvements', false))
             ->exists();
+    }
+
+    /**
+     * Dossiers visibles par un greffier : ceux de ses sections, ceux qu'il a
+     * enrôlés et ceux dont une décision lui est affectée. Les rôles non
+     * restreints (administrateur, greffier en chef, juge, consultant...)
+     * voient tout.
+     */
+    public function scopeVisiblesPar(Builder $query, ?User $user = null): Builder
+    {
+        $user ??= auth()->user();
+
+        if (! $user || ! $user->estRestreintAuxSections()) {
+            return $query;
+        }
+
+        $sectionIds = $user->sectionsAutorisees();
+        $greffierId = $user->greffier_id;
+
+        return $query->where(function (Builder $q) use ($sectionIds, $greffierId, $user) {
+            $q->where('enrole_par', $user->id)
+                ->orWhereHas('decisions', fn (Builder $decision) => $decision
+                    ->where(fn (Builder $affectee) => $affectee
+                        ->where('greffier_responsable_id', $user->id)
+                        ->orWhere('detenteur_actuel_id', $user->id)))
+                ->when($greffierId, fn (Builder $q2) => $q2
+                    ->orWhereHas('decisions', fn (Builder $decision) => $decision->where('greffier_id', $greffierId)))
+                ->when($sectionIds->isNotEmpty(), fn (Builder $q2) => $q2
+                    ->orWhereIn('section_id', $sectionIds));
+        });
     }
 }

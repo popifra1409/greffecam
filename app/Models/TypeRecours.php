@@ -30,7 +30,9 @@ class TypeRecours extends Model
     {
         return LogOptions::defaults()
             ->logOnly(['libelle', 'code', 'delai_jours', 'is_active'])
-            ->logOnlyDirty();
+            ->logOnlyDirty()
+            ->useLogName('type_recours')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Relation avec les recours (on la créera plus tard)

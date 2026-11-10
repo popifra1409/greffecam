@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\JournaliseActivite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class NotificationPreference extends Model
 {
+    use JournaliseActivite;
+
     protected $fillable = [
         'user_id',
         'email_enabled',

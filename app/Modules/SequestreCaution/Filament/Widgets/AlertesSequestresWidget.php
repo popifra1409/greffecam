@@ -3,7 +3,6 @@
 namespace App\Modules\SequestreCaution\Filament\Widgets;
 
 use App\Models\Sequestre;
-use App\Models\MouvementSequestre;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
@@ -77,28 +76,26 @@ class AlertesSequestresWidget extends BaseWidget
 
     protected function getQuery(): Builder
     {
-        $soldeSubQuery = MouvementSequestre::selectRaw('solde_apres')
-            ->whereColumn('sequestre_id', 'sequestres.id')
-            ->orderByDesc('date_mouvement')
-            ->orderByDesc('id')
-            ->limit(1);
+        // Solde = dernier solde du grand livre, sinon fonds initial — même
+        // définition que le tableau de bord et le rapport consolidé.
+        $soldeSql = 'coalesce((
+            select m.solde_apres
+            from mouvements_sequestre m
+            where m.sequestre_id = sequestres.id
+            order by m.date_mouvement desc, m.id desc
+            limit 1
+        ), sequestres.fonds_initial)';
 
         return Sequestre::query()
+            ->select('sequestres.*')
+            ->selectRaw("{$soldeSql} as solde_courant")
             ->whereHas('statutSequestre', fn($q) => $q->where('bloque_mouvements', false))
-            ->addSelect(['solde_courant' => $soldeSubQuery])
-            ->whereRaw('(
-                select coalesce(m.solde_apres, 0)
-                from mouvements_sequestre m
-                where m.sequestre_id = sequestres.id
-                order by m.date_mouvement desc, m.id desc
-                limit 1
-            ) < ?', [static::$seuilSoldeBas])
-            ->orderByRaw('(
-                select coalesce(m.solde_apres, 0)
-                from mouvements_sequestre m
-                where m.sequestre_id = sequestres.id
-                order by m.date_mouvement desc, m.id desc
-                limit 1
-            ) asc');
+            // Un dossier sans aucun mouvement ni fonds initial n'est pas
+            // « épuisé » : il n'a simplement rien encore.
+            ->where(fn(Builder $q) => $q
+                ->whereHas('mouvements')
+                ->orWhere('fonds_initial', '>', 0))
+            ->whereRaw("{$soldeSql} < ?", [static::$seuilSoldeBas])
+            ->orderByRaw("{$soldeSql} asc");
     }
 }

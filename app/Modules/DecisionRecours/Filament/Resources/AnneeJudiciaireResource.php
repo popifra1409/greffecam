@@ -9,10 +9,33 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Traits\HasResourcePermissions;
 use Filament\Notifications\Notification;
 
 class AnneeJudiciaireResource extends Resource
 {
+    use HasResourcePermissions;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_referentiels';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
     protected static ?string $model = AnneeJudiciaire::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
@@ -23,7 +46,9 @@ class AnneeJudiciaireResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Années judiciaires';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 30;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     public static function form(Form $form): Form
     {
@@ -136,9 +161,11 @@ class AnneeJudiciaireResource extends Resource
                     ->label('Activer')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn($record) => !$record->is_active && !$record->is_cloturee)
+                    ->visible(fn($record) => !$record->is_active && !$record->is_cloturee && static::canEdit($record))
                     ->requiresConfirmation()
                     ->action(function ($record) {
+                        abort_unless(static::canEdit($record), 403);
+
                         $record->activer();
                         Notification::make()
                             ->title('Année judiciaire activée')
@@ -146,13 +173,21 @@ class AnneeJudiciaireResource extends Resource
                             ->send();
                     }),
 
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => $record->decisions_count === 0),
+                    ->visible(fn($record) => $record->decisions_count === 0 && static::canDelete($record))
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('date_debut', 'desc');

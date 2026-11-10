@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\JournaliseActivite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MotifMouvement extends Model
 {
+    use JournaliseActivite;
+
     protected $table = 'motifs_mouvements';
     protected $fillable = ['code', 'libelle', 'type_mouvement', 'is_active'];
 

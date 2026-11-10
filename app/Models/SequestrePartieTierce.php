@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\JournaliseActivite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SequestrePartieTierce extends Model
 {
+    use JournaliseActivite;
+
     protected $table = 'sequestre_parties_tierces';
 
     protected $fillable = [

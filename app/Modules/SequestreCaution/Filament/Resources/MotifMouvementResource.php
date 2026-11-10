@@ -25,7 +25,9 @@ class MotifMouvementResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Motifs de mouvement';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 30;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static function getViewPermission(): string
     {

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\MouvementSequestre;
 use App\Helpers\NombreEnLettresHelper;
+use App\Support\JournalAudit;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class RecuMouvementPdfService
@@ -30,6 +31,14 @@ class RecuMouvementPdfService
 
         $pdf = Pdf::loadView($vue, $data);
         $pdf->setPaper('a4', 'portrait');
+
+        JournalAudit::journaliser('rapports', 'pdf_genere', [
+            'rapport' => 'Reçu de mouvement',
+            'numero' => $data['numeroRecu'],
+            'sequestre' => $mouvement->sequestre?->numero_dossier_sequestre,
+            'mouvement_id' => $mouvement->id,
+            'montant' => (float) $mouvement->montant_mouvement,
+        ], $mouvement);
 
         return $pdf;
     }

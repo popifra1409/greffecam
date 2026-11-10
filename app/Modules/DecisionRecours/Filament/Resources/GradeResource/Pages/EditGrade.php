@@ -12,6 +12,12 @@ class EditGrade extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [Actions\DeleteAction::make()];
+        return [
+            Actions\DeleteAction::make()
+                ->visible(fn(): bool => static::getResource()::canDelete($this->getRecord()))
+                ->before(function (): void {
+                    abort_unless(static::getResource()::canDelete($this->getRecord()), 403);
+                }),
+        ];
     }
 }

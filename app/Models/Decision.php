@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -60,6 +61,8 @@ class Decision extends Model
         //COMPOSITION
         'mode_composition',
         'juge_unique_id',
+        'assesseur_1',
+        'assesseur_2',
         'college_juge_id',
         'greffier_id',
 
@@ -130,7 +133,9 @@ class Decision extends Model
         return LogOptions::defaults()
             ->logAll()
             ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
+            ->dontSubmitEmptyLogs()
+            ->useLogName('decisions')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     public function categorieDecision(): BelongsTo
@@ -227,6 +232,21 @@ class Decision extends Model
     // ✅ ACCESSEURS POUR COMPOSITION
     public function getCompositionAttribute()
     {
+        if ($this->mode_composition === 'juge_assesseurs') {
+            $juge = $this->jugeUnique?->nom_complet ?? 'Juge non défini';
+            $assesseurs = collect([$this->assesseur_1, $this->assesseur_2])
+                ->filter(fn($nom) => filled($nom))
+                ->values();
+
+            if ($assesseurs->isEmpty()) {
+                return $juge;
+            }
+
+            return $juge
+                . ' + assesseur' . ($assesseurs->count() > 1 ? 's' : '')
+                . ' : ' . $assesseurs->join(', ');
+        }
+
         if ($this->mode_composition === 'juge_unique') {
             return $this->jugeUnique?->nom_complet ?? 'Juge unique non défini';
         }
@@ -288,6 +308,34 @@ class Decision extends Model
     }
 
     // Scopes
+
+    /**
+     * Décisions visibles par un greffier : celles de ses sections, de ses
+     * dossiers et celles qui lui sont affectées. Les rôles non restreints
+     * voient tout.
+     */
+    public function scopeVisiblesPar(Builder $query, ?User $user = null): Builder
+    {
+        $user ??= auth()->user();
+
+        if (! $user || ! $user->estRestreintAuxSections()) {
+            return $query;
+        }
+
+        $sectionIds = $user->sectionsAutorisees();
+        $greffierId = $user->greffier_id;
+
+        return $query->where(function (Builder $q) use ($sectionIds, $greffierId, $user) {
+            $q->where('greffier_responsable_id', $user->id)
+                ->orWhere('detenteur_actuel_id', $user->id)
+                ->orWhere('validee_par', $user->id)
+                ->when($greffierId, fn (Builder $q2) => $q2->orWhere('greffier_id', $greffierId))
+                ->when($sectionIds->isNotEmpty(), fn (Builder $q2) => $q2
+                    ->orWhereIn('section_id', $sectionIds)
+                    ->orWhereHas('dossier', fn (Builder $dossier) => $dossier->whereIn('section_id', $sectionIds)));
+        });
+    }
+
     public function scopeNonArchivees($query)
     {
         return $query->where('is_archived', false);

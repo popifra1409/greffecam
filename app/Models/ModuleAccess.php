@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use App\Traits\JournaliseActivite;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Models\Role;
 
 class ModuleAccess extends Model
 {
+    use JournaliseActivite;
+
     protected $fillable = [
         'role_id',
         'module_code',

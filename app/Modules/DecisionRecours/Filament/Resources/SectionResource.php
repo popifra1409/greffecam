@@ -4,6 +4,9 @@ namespace App\Modules\DecisionRecours\Filament\Resources;
 
 use App\Modules\DecisionRecours\Filament\Resources\SectionResource\Pages;
 use App\Models\Section;
+use App\Traits\HasResourcePermissions;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,6 +15,8 @@ use Filament\Tables\Table;
 
 class SectionResource extends Resource
 {
+    use HasResourcePermissions;
+
     protected static ?string $model = Section::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-tag';
@@ -22,7 +27,29 @@ class SectionResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Sections';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 20;
+
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_referentiels';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_referentiels';
+    }
 
     public static function form(Form $form): Form
     {
@@ -158,15 +185,42 @@ class SectionResource extends Resource
                     ->falseLabel('Inactifs uniquement'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => static::canDelete($record))
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('code');
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['libelle', 'code'];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->libelle;
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Code' => $record->code,
+            'Type' => $record->estRepressive() ? 'Section répressive' : 'Section non répressive',
+        ];
     }
 
     public static function getPages(): array

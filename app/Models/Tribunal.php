@@ -29,7 +29,9 @@ class Tribunal extends Model
     {
         return LogOptions::defaults()
             ->logOnly(['nom', 'ville', 'is_active'])
-            ->logOnlyDirty();
+            ->logOnlyDirty()
+            ->useLogName('tribunaux')
+            ->setDescriptionForEvent(fn(string $event) => \App\Support\JournalAudit::libelleEvenement($event));
     }
 
     // Relations

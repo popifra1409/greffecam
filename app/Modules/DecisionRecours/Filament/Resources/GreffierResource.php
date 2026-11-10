@@ -4,6 +4,9 @@ namespace App\Modules\DecisionRecours\Filament\Resources;
 
 use App\Modules\DecisionRecours\Filament\Resources\GreffierResource\Pages;
 use App\Models\Greffier;
+use App\Traits\HasResourcePermissions;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,6 +15,8 @@ use Filament\Tables\Table;
 
 class GreffierResource extends Resource
 {
+    use HasResourcePermissions;
+
     protected static ?string $model = Greffier::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-identification';
@@ -22,7 +27,29 @@ class GreffierResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Greffiers';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 80;
+
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_greffiers';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_greffiers';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_greffiers';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_greffiers';
+    }
 
     public static function form(Form $form): Form
     {
@@ -169,6 +196,12 @@ class GreffierResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('sections')
+                    ->label('Section')
+                    ->relationship('sections', 'libelle')
+                    ->searchable()
+                    ->preload(),
+
                 Tables\Filters\SelectFilter::make('tribunal_id')
                     ->label('Tribunal')
                     ->relationship('tribunal', 'nom'),
@@ -186,13 +219,23 @@ class GreffierResource extends Resource
                     ->falseLabel('Inactifs uniquement'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->visible(fn($record) => static::canView($record)),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => static::canDelete($record))
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('nom');
@@ -203,6 +246,30 @@ class GreffierResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return ['matricule', 'nom', 'prenom', 'email'];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->nom_complet;
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Matricule' => $record->matricule,
+            'Tribunal' => $record->tribunal?->nom ?? '—',
+            'Email' => $record->email ?? '—',
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with('tribunal');
     }
 
     public static function getPages(): array

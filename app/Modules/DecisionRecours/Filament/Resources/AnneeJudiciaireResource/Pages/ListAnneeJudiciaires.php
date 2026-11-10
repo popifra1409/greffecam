@@ -10,10 +10,16 @@ class ListAnneeJudiciaires extends ListRecords
 {
     protected static string $resource = AnneeJudiciaireResource::class;
 
+    protected function authorizeAccess(): void
+    {
+        abort_unless(static::getResource()::canViewAny(), 403);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->visible(fn(): bool => static::getResource()::canCreate()),
         ];
     }
 }

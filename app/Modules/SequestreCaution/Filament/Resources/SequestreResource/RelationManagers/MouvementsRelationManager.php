@@ -2,6 +2,7 @@
 
 namespace App\Modules\SequestreCaution\Filament\Resources\SequestreResource\RelationManagers;
 
+use App\Filament\Filters\PeriodeFilter;
 use App\Models\MotifMouvement;
 use App\Models\MouvementSequestre;
 use Filament\Forms;
@@ -10,6 +11,7 @@ use Filament\Forms\Get;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class MouvementsRelationManager extends RelationManager
 {
@@ -268,12 +270,33 @@ class MouvementsRelationManager extends RelationManager
         return $data;
     }
 
+    /**
+     * Construit l'URL de l'état PDF à partir des filtres actifs du tableau.
+     */
+    protected function urlEtatPdf(): string
+    {
+        $periode = $this->tableFilters['periode_date_mouvement'] ?? [];
+
+        return route('mouvements.etat.pdf', array_filter([
+            'sequestre' => $this->getOwnerRecord()->id,
+            'date_debut' => $periode['date_debut'] ?? null,
+            'date_fin' => $periode['date_fin'] ?? null,
+            'type_mouvement' => $this->tableFilters['type_mouvement']['value'] ?? null,
+            'partie_adverse_id' => $this->tableFilters['sequestre_partie_adverse_id']['value'] ?? null,
+            'ayant_droit_id' => $this->tableFilters['sequestre_ayant_droit_id']['value'] ?? null,
+            'versements_locataires' => ($this->tableFilters['versements_locataires']['isActive'] ?? false) ? 1 : null,
+            'retraits_ayants_droit' => ($this->tableFilters['retraits_ayants_droit']['isActive'] ?? false) ? 1 : null,
+            'autres_retraits' => ($this->tableFilters['autres_retraits']['isActive'] ?? false) ? 1 : null,
+        ], fn($valeur) => filled($valeur)));
+    }
+
     // ================================================================
     // TABLEAU
     // ================================================================
     public function table(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(fn(Builder $query) => $query->with(['partieTierce', 'ayantDroit', 'partieAdverse']))
             ->recordTitleAttribute('operateur_beneficiaire')
             ->columns([
                 Tables\Columns\TextColumn::make('date_mouvement')
@@ -288,12 +311,14 @@ class MouvementsRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('beneficiaire_type')
                     ->label('Type bénéficiaire')
-                    ->getStateUsing(function ($record) {
-                        if ($record->type_mouvement !== 'retrait') return null;
-                        return $record->sequestre_partie_tierce_id ? 'Partie Tierce' : 'Ayant droit';
-                    })
+                    ->getStateUsing(fn($record) => $record->type_beneficiaire)
                     ->badge()
-                    ->color(fn($state) => $state === 'Partie Tierce' ? 'info' : 'success')
+                    ->color(fn(?string $state): string => match (true) {
+                        $state === 'Locataire' => 'info',
+                        str_starts_with((string) $state, 'Ayant droit') => 'success',
+                        str_starts_with((string) $state, 'Partie tierce') => 'warning',
+                        default => 'gray',
+                    })
                     ->placeholder('—'),
 
                 Tables\Columns\IconColumn::make('est_procuration')
@@ -368,6 +393,58 @@ class MouvementsRelationManager extends RelationManager
                     ->color('gray')
                     ->url(fn() => route('sequestres.etat.pdf', ['sequestre' => $this->getOwnerRecord()->id]))
                     ->openUrlInNewTab(),
+
+                // ✅ État ciblé : reprend les filtres actifs (un locataire / tous les
+                // locataires / un ayant droit / tous les ayants droit / autres retraits).
+                Tables\Actions\Action::make('etat_mouvements_pdf')
+                    ->label('📄 État filtré (PDF)')
+                    ->icon('heroicon-o-document-chart-bar')
+                    ->color('primary')
+                    ->url(fn() => $this->urlEtatPdf())
+                    ->openUrlInNewTab()
+                    ->tooltip('Le PDF reprend les filtres actifs : locataire, ayant droit, autres retraits et période.'),
+            ])
+            ->filters([
+                PeriodeFilter::make('date_mouvement', 'Période du mouvement', MouvementSequestre::class),
+
+                Tables\Filters\SelectFilter::make('type_mouvement')
+                    ->label('Type de mouvement')
+                    ->options([
+                        'versement' => 'Versements',
+                        'retrait' => 'Retraits',
+                    ])
+                    ->native(false),
+
+                Tables\Filters\SelectFilter::make('sequestre_partie_adverse_id')
+                    ->label('Locataire (partie adverse)')
+                    ->options(fn(): array => $this->getOwnerRecord()->partiesAdverses->pluck('nom_complet', 'id')->all())
+                    ->searchable(),
+
+                Tables\Filters\SelectFilter::make('sequestre_ayant_droit_id')
+                    ->label('Ayant droit (retraits)')
+                    ->options(fn(): array => $this->getOwnerRecord()->ayantsDroit->pluck('nom_complet', 'id')->all())
+                    ->searchable(),
+
+                Tables\Filters\Filter::make('versements_locataires')
+                    ->label('Versements des locataires (tous)')
+                    ->toggle()
+                    ->query(fn(Builder $query) => $query
+                        ->where('type_mouvement', 'versement')
+                        ->whereNotNull('sequestre_partie_adverse_id')),
+
+                Tables\Filters\Filter::make('retraits_ayants_droit')
+                    ->label('Retraits des ayants droit (tous)')
+                    ->toggle()
+                    ->query(fn(Builder $query) => $query
+                        ->where('type_mouvement', 'retrait')
+                        ->whereNotNull('sequestre_ayant_droit_id')),
+
+                Tables\Filters\Filter::make('autres_retraits')
+                    ->label('Autres retraits (huissier, réfection…)')
+                    ->toggle()
+                    ->query(fn(Builder $query) => $query
+                        ->where('type_mouvement', 'retrait')
+                        ->whereNull('sequestre_ayant_droit_id')),
             ])
             ->actions([
                 // ✅ Joindre la décharge signée scannée (retraits uniquement)

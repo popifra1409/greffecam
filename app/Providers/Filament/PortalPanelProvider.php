@@ -17,6 +17,7 @@ use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\AuthenticateSession;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Filament\Navigation\MenuItem;
 use App\Modules\Portal\Filament\Pages\Dashboard;
 use Hasnayeen\Themes\ThemesPlugin;
 use Hasnayeen\Themes\Http\Middleware\SetTheme;
@@ -31,11 +32,32 @@ class PortalPanelProvider extends PanelProvider
             ->id('portal')
             ->path('portal')
             ->login()
+            ->profile()
             ->colors([
                 'primary' => Color::Blue,
             ])
             ->viteTheme('resources/css/app.css')
             ->sidebarCollapsibleOnDesktop()
+            ->databaseNotifications()
+            ->databaseNotificationsPolling('30s')
+            ->globalSearch(true)
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
+
+            ->userMenuItems([
+                'profile' => MenuItem::make()
+                    ->label('Mon profil')
+                    ->icon('heroicon-o-user-circle'),
+
+                MenuItem::make()
+                    ->label('Gestion des utilisateurs')
+                    ->url('/portal/users')
+                    ->icon('heroicon-o-users')
+                    ->visible(fn() => auth()->user()?->hasAnyRole(['Super Administrateur', 'Administrateur']) ?? false),
+
+                'logout' => MenuItem::make()
+                    ->label('Déconnexion')
+                    ->icon('heroicon-o-arrow-right-on-rectangle'),
+            ])
 
             ->plugin(
                 ThemesPlugin::make()
@@ -72,9 +94,7 @@ class PortalPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ])
-            ->brandName('Administration')
-            ->navigationGroups([
-                'Administration',
-            ]);
+            ->brandName('Portail')
+            ->navigationGroups(['Administration', 'Traçabilité']);
     }
 }

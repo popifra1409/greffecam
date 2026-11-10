@@ -18,6 +18,11 @@ class NatureSequestreResource extends Resource
     protected static ?string $model = NatureSequestre::class;
     protected static ?string $navigationIcon = 'heroicon-o-tag';
     protected static ?string $navigationGroup = 'Référentiels';
+
+    protected static ?int $navigationSort = 10;
+
+    protected static bool $hasTitleCaseModelLabel = false;
+
     protected static ?string $modelLabel = 'Nature de séquestre';
     protected static ?string $pluralModelLabel = 'Natures de séquestre';
 

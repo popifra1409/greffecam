@@ -20,7 +20,7 @@ class PreferencesNotification extends Page
 
     protected static ?string $navigationGroup = 'Mon compte';
 
-    protected static ?int $navigationSort = 99;
+    protected static ?int $navigationSort = 10;
 
     // Visibilité : tous les utilisateurs connectés
     public static function canAccess(): bool

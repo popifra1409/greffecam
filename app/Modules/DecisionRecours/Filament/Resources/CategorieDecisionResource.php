@@ -10,11 +10,34 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Traits\HasResourcePermissions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CategorieDecisionResource extends Resource
 {
+    use HasResourcePermissions;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_referentiels';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'manage_referentiels';
+    }
+
     protected static ?string $model = CategorieDecision::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -23,9 +46,11 @@ class CategorieDecisionResource extends Resource
 
     protected static ?string $modelLabel = 'Categorie Decision';
 
-    protected static ?string $pluralModelLabel = 'Catégories Décisions';
+    protected static ?string $pluralModelLabel = 'Catégories de décisions';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 30;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     public static function form(Form $form): Form
     {
@@ -67,11 +92,16 @@ class CategorieDecisionResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ]);
     }

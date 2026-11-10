@@ -29,6 +29,7 @@ class DecisionRecoursPanelProvider extends PanelProvider
             ->id('decision-recours')
             ->path('decision-recours')
             ->login()
+            ->profile()
             ->colors([
                 'primary' => Color::Amber,
             ])
@@ -41,8 +42,7 @@ class DecisionRecoursPanelProvider extends PanelProvider
 
             ->userMenuItems([
                 'profile' => MenuItem::make()
-                    ->label('Mon Profil')
-                    ->url(fn() => '/decision-recours/profile')
+                    ->label('Mon profil')
                     ->icon('heroicon-o-user-circle'),
 
                 MenuItem::make()
@@ -51,17 +51,15 @@ class DecisionRecoursPanelProvider extends PanelProvider
                     ->icon('heroicon-o-bell'),
 
                 MenuItem::make()
-                    ->label('🏠 Portail Principal')
+                    ->label('🏠 Portail principal')
                     ->url('/portal')
-                    ->icon('heroicon-o-home')
-                    ->sort(10),
+                    ->icon('heroicon-o-home'),
 
                 MenuItem::make()
-                    ->label('Administration')
+                    ->label('Gestion des utilisateurs')
                     ->url('/portal/users')
-                    ->icon('heroicon-o-cog-6-tooth')
-                    ->visible(fn() => auth()->user()?->hasAnyRole(['Super Administrateur', 'Administrateur']) ?? false)
-                    ->sort(20),
+                    ->icon('heroicon-o-users')
+                    ->visible(fn() => auth()->user()?->hasAnyRole(['Super Administrateur', 'Administrateur']) ?? false),
 
                 'logout' => MenuItem::make()
                     ->label('Déconnexion')
@@ -69,6 +67,7 @@ class DecisionRecoursPanelProvider extends PanelProvider
             ])
 
             ->globalSearch(true)
+            ->globalSearchKeyBindings(['command+k', 'ctrl+k'])
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->sidebarCollapsibleOnDesktop()
@@ -116,10 +115,6 @@ class DecisionRecoursPanelProvider extends PanelProvider
 
             ->brandName('Décision & Recours')
 
-            ->navigationGroups([
-                'Gestion Judiciaire',
-                'Référentiels',
-                'Paramétrage',
-            ]);
+            ->navigationGroups(['Gestion judiciaire', 'Référentiels', 'Paramétrage', 'Mon compte']);
     }
 }

@@ -64,10 +64,16 @@ class EditDecision extends EditRecord
         }
 
         // Nettoyer les champs selon le mode de composition
-        if (($data['mode_composition'] ?? null) === 'juge_unique') {
-            $data['college_juge_id'] = null;
-        } elseif (($data['mode_composition'] ?? null) === 'college') {
+        if (($data['mode_composition'] ?? null) === 'college') {
             $data['juge_unique_id'] = null;
+            $data['assesseur_1'] = null;
+            $data['assesseur_2'] = null;
+        } elseif (($data['mode_composition'] ?? null) === 'juge_assesseurs') {
+            $data['college_juge_id'] = null;
+        } else {
+            $data['college_juge_id'] = null;
+            $data['assesseur_1'] = null;
+            $data['assesseur_2'] = null;
         }
 
         // Si archivée, empêcher les modifications

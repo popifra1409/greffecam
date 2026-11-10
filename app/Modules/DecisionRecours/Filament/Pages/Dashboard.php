@@ -10,7 +10,7 @@ class Dashboard extends BaseDashboard
 
     protected static string $view = 'modules.decision-recours.dashboard';
 
-    protected static ?string $title = 'Tableau de Bord';
+    protected static ?string $title = 'Tableau de bord';
 
     public function getWidgets(): array
     {

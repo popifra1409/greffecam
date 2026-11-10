@@ -91,6 +91,7 @@
             @else
                 Toutes périodes confondues
             @endif
+            — {{ $libelleSolde }}
         </div>
     </div>
 
@@ -104,7 +105,8 @@
                 <th class="text-right">Entrées (période)</th>
                 <th class="text-right">Sorties (période)</th>
                 <th class="text-right">Montant Séquestre (période)</th>
-                <th class="text-right">Solde actuel</th>
+                <th class="text-right">{{ $libelleOuverture }}</th>
+                <th class="text-right">{{ $libelleSolde }}</th>
             </tr>
         </thead>
         <tbody>
@@ -117,7 +119,8 @@
                 <td class="text-right montant-positif">{{ number_format($sequestre->total_entrees_periode, 0, ',', ' ') }}</td>
                 <td class="text-right montant-negatif">{{ number_format($sequestre->total_sorties_periode, 0, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($sequestre->total_precompte_periode, 0, ',', ' ') }}</td>
-                <td class="text-right"><strong>{{ number_format($sequestre->solde_courant ?? 0, 0, ',', ' ') }}</strong></td>
+                <td class="text-right">{{ number_format($sequestre->solde_ouverture, 0, ',', ' ') }}</td>
+                <td class="text-right"><strong>{{ number_format($sequestre->solde_arrete, 0, ',', ' ') }}</strong></td>
             </tr>
             @endforeach
         </tbody>
@@ -127,6 +130,7 @@
                 <td class="text-right">{{ number_format($totalEntrees, 0, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($totalSorties, 0, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($totalPrecompte, 0, ',', ' ') }}</td>
+                <td class="text-right">{{ number_format($totalOuverture, 0, ',', ' ') }}</td>
                 <td class="text-right">{{ number_format($totalSolde, 0, ',', ' ') }}</td>
             </tr>
         </tfoot>

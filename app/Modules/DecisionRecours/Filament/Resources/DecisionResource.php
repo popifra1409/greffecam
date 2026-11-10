@@ -5,6 +5,7 @@ namespace App\Modules\DecisionRecours\Filament\Resources;
 use App\Modules\DecisionRecours\Filament\Resources\DecisionResource\Pages;
 use App\Models\Decision;
 use App\Models\Dossier;
+use App\Models\Section;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,7 +13,9 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Forms\Get;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use App\Traits\HasResourcePermissions;
+use App\Filament\Filters\PeriodeFilter;
 
 class DecisionResource extends Resource
 {
@@ -21,13 +24,15 @@ class DecisionResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-scale';
 
-    protected static ?string $navigationGroup = 'Gestion Judiciaire';
+    protected static ?string $navigationGroup = 'Gestion judiciaire';
 
     protected static ?string $modelLabel = 'Décision';
 
     protected static ?string $pluralModelLabel = 'Décisions';
 
-    protected static ?int $navigationSort = 11;
+    protected static ?int $navigationSort = 20;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
 
     protected static function getViewPermission(): string
@@ -47,6 +52,24 @@ class DecisionResource extends Resource
         return 'delete_decisions';
     }
 
+    protected static function sectionUtiliseAssesseurs(?int $sectionId): bool
+    {
+        if (! $sectionId) {
+            return false;
+        }
+
+        return (bool) Section::find($sectionId)?->utilise_assesseur;
+    }
+
+    /**
+     * Un greffier ne voit que les décisions de ses sections, de ses dossiers
+     * et celles qui lui sont affectées.
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->visiblesPar(auth()->user());
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -59,8 +82,14 @@ class DecisionResource extends Resource
                                 Forms\Components\Select::make('dossier_id')
                                     ->label('Dossier d\'enrôlement')
                                     ->relationship('dossier', 'numero_dossier', function ($query) {
-                                        return $query->whereIn('statut', ['ouvert', 'en_instance'])
+                                        $query->whereIn('statut', ['ouvert', 'en_instance'])
                                             ->with(['tribunal', 'section', 'matiere']);
+
+                                        if (auth()->check()) {
+                                            $query->visiblesPar(auth()->user());
+                                        }
+
+                                        return $query;
                                     })
                                     ->getOptionLabelFromRecordUsing(
                                         fn($record) =>
@@ -77,6 +106,12 @@ class DecisionResource extends Resource
                                                 $set('section_id', $dossier->section_id);
                                                 $set('matiere_id', $dossier->matiere_id);
                                                 $set('annee_judiciaire_id', $dossier->annee_judiciaire_id);
+                                                // Les sections à assesseurs (droit local) siègent
+                                                // avec un juge assisté d'assesseurs, pas en collège.
+                                                $set(
+                                                    'mode_composition',
+                                                    $dossier->section?->utilise_assesseur ? 'juge_assesseurs' : 'juge_unique'
+                                                );
                                             }
                                         }
                                     })
@@ -268,19 +303,27 @@ class DecisionResource extends Resource
                             ->schema([
                                 Forms\Components\Radio::make('mode_composition')
                                     ->label('Mode de composition')
-                                    ->options([
-                                        'juge_unique' => 'Juge unique',
-                                        'college' => 'Collège de juges (Collégialité)',
-                                    ])
+                                    ->options(function (Get $get): array {
+                                        $options = ['juge_unique' => 'Juge unique'];
+
+                                        if (static::sectionUtiliseAssesseurs($get('section_id'))) {
+                                            $options['juge_assesseurs'] = 'Juge + assesseurs (droit local)';
+                                        }
+
+                                        $options['college'] = 'Collège de juges (Collégialité)';
+
+                                        return $options;
+                                    })
                                     ->default('juge_unique')
                                     ->required()
                                     ->live()
+                                    ->helperText('Les sections à assesseurs (droit local) ne forment pas un collège : un juge siège avec ses assesseurs.')
                                     ->columnSpanFull(),
 
-                                Forms\Components\Section::make('Juge unique')
+                                Forms\Components\Section::make('Juge')
                                     ->schema([
                                         Forms\Components\Select::make('juge_unique_id')
-                                            ->label('Juge')
+                                            ->label(fn(Get $get) => $get('mode_composition') === 'juge_assesseurs' ? 'Juge / Président' : 'Juge')
                                             ->relationship('jugeUnique', 'nom', function ($query, Get $get) {
                                                 $tribunalId = $get('tribunal_id');
                                                 if ($tribunalId) {
@@ -292,9 +335,25 @@ class DecisionResource extends Resource
                                             ->getOptionLabelFromRecordUsing(fn($record) => $record->nom_complet)
                                             ->searchable(['nom', 'prenom'])
                                             ->preload()
-                                            ->required(fn(Get $get) => $get('mode_composition') === 'juge_unique'),
+                                            ->required(fn(Get $get) => in_array($get('mode_composition'), ['juge_unique', 'juge_assesseurs'])),
                                     ])
-                                    ->visible(fn(Get $get) => $get('mode_composition') === 'juge_unique'),
+                                    ->visible(fn(Get $get) => in_array($get('mode_composition'), ['juge_unique', 'juge_assesseurs'])),
+
+                                Forms\Components\Section::make('Assesseurs')
+                                    ->description('Droit local : assesseurs siégeant aux côtés du juge (saisie libre, ils ne figurent pas au référentiel des juges).')
+                                    ->schema([
+                                        Forms\Components\TextInput::make('assesseur_1')
+                                            ->label('Assesseur 1')
+                                            ->maxLength(255)
+                                            ->required(fn(Get $get) => $get('mode_composition') === 'juge_assesseurs'),
+
+                                        Forms\Components\TextInput::make('assesseur_2')
+                                            ->label('Assesseur 2')
+                                            ->maxLength(255)
+                                            ->helperText('Facultatif si un seul assesseur siège'),
+                                    ])
+                                    ->columns(2)
+                                    ->visible(fn(Get $get) => $get('mode_composition') === 'juge_assesseurs'),
 
                                 Forms\Components\Section::make('Collège de juges')
                                     ->schema([
@@ -786,6 +845,8 @@ class DecisionResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                PeriodeFilter::make('date_decision', 'Période de décision', Decision::class),
+
                 Tables\Filters\SelectFilter::make('statut')
                     ->options([
                         'brouillon' => 'Brouillon',
@@ -821,6 +882,7 @@ class DecisionResource extends Resource
                     ->label('Mode de composition')
                     ->options([
                         'juge_unique' => 'Juge unique',
+                        'juge_assesseurs' => 'Juge + assesseurs',
                         'college' => 'Collégialité',
                     ]),
 
@@ -843,9 +905,11 @@ class DecisionResource extends Resource
                         ->label('Valider')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
-                        ->visible(fn($record) => $record->peutEtreValidee())
+                        ->visible(fn($record) => $record->peutEtreValidee() && static::canEdit($record))
                         ->requiresConfirmation()
                         ->action(function ($record) {
+                            abort_unless(static::canEdit($record), 403);
+
                             $record->update(['statut' => 'validee']);
 
                             \Filament\Notifications\Notification::make()
@@ -854,9 +918,10 @@ class DecisionResource extends Resource
                                 ->send();
                         }),
 
-                    Tables\Actions\ViewAction::make(),
+                    Tables\Actions\ViewAction::make()
+                        ->visible(fn($record) => static::canView($record)),
                     Tables\Actions\EditAction::make()
-                        ->visible(fn($record) => $record->estModifiable()),
+                        ->visible(fn($record) => $record->estModifiable() && static::canEdit($record)),
                     // ✅ TÉLÉCHARGER PDF
                     Tables\Actions\Action::make('telecharger_pdf')
                         ->label('Télécharger PDF')
@@ -865,7 +930,10 @@ class DecisionResource extends Resource
                         ->url(fn($record) => route('decisions.etat.telecharger', ['decision' => $record]))
                         ->openUrlInNewTab(),
                     Tables\Actions\DeleteAction::make()
-                        ->visible(fn($record) => $record->estModifiable()),
+                        ->visible(fn($record) => $record->estModifiable() && static::canDelete($record))
+                        ->before(function ($record) {
+                            abort_unless(static::canDelete($record), 403);
+                        }),
                 ])
                     ->label('Actions')
                     ->icon('heroicon-o-ellipsis-vertical')
@@ -875,10 +943,44 @@ class DecisionResource extends Resource
             ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('date_decision', 'desc');
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'numero_repertoire',
+            'numero_parquet',
+            'numero_case_bd',
+            'reference_acte_huissier',
+            'dossier.numero_dossier',
+        ];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->identification;
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Dossier' => $record->dossier?->numero_dossier ?? '—',
+            'Date' => $record->date_decision?->format('d/m/Y') ?? '—',
+            'Type' => $record->typeDecision?->libelle ?? '—',
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with(['dossier', 'typeDecision']);
     }
 
     public static function getPages(): array

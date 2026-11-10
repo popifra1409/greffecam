@@ -2,8 +2,10 @@
 
 namespace App\Modules\SequestreCaution\Filament\Resources\SequestreResource\RelationManagers;
 
+use App\Services\RepartitionSuccessionService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -41,14 +43,62 @@ class AyantsDroitRelationManager extends RelationManager
 
     public function table(Table $table): Table
     {
+        // La répartition est recalculée à chaque rendu (création/édition/suppression
+        // d'un ayant droit ou variation du solde), puis indexée par ayant droit.
+        $sequestre = $this->getOwnerRecord();
+        $sequestre->load('ayantsDroit');
+
+        $repartition = app(RepartitionSuccessionService::class)->calculerRepartition($sequestre);
+        $parts = $repartition['repartitions']->keyBy(fn(array $ligne) => $ligne['ayant_droit']->getKey());
+        $soldeDisponible = (float) $repartition['solde_disponible'];
+        $totalAttribue = (float) $repartition['repartitions']->sum('montant');
+
         return $table
             ->recordTitleAttribute('nom_complet')
+            ->description(function () use ($repartition, $soldeDisponible, $totalAttribue): string {
+                if ($soldeDisponible <= 0 || $repartition['repartitions']->isEmpty()) {
+                    return 'Aucun partage calculable : ' . ($repartition['avertissement'] ?? 'solde indisponible.');
+                }
+
+                return 'Solde à répartir : ' . number_format($soldeDisponible, 0, ',', ' ')
+                    . ' FCFA — attribué : ' . number_format($totalAttribue, 0, ',', ' ') . ' FCFA';
+            })
             ->columns([
                 Tables\Columns\TextColumn::make('nom_complet')
                     ->label('Nom complet')
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
+
+                Tables\Columns\TextColumn::make('role_part')
+                    ->label('Rôle')
+                    ->badge()
+                    ->getStateUsing(function ($record) use ($parts): string {
+                        $ligne = $parts->get($record->getKey());
+
+                        return $ligne ? $ligne['role_label'] : $record->role_succession_label;
+                    })
+                    ->color(fn(string $state) => match ($state) {
+                        'Conjoint' => 'info',
+                        'Enfant' => 'success',
+                        'Personnalisé' => 'warning',
+                        default => 'gray',
+                    }),
+
+                Tables\Columns\TextColumn::make('part_pourcentage_calculee')
+                    ->label('Part (%)')
+                    ->alignEnd()
+                    ->getStateUsing(fn($record) => ($ligne = $parts->get($record->getKey())) ? $ligne['part_pourcentage'] : null)
+                    ->formatStateUsing(fn($state) => $state === null ? '—' : number_format((float) $state, 2, ',', ' ') . ' %'),
+
+                Tables\Columns\TextColumn::make('part_montant')
+                    ->label('Part du solde')
+                    ->money('XAF')
+                    ->weight('bold')
+                    ->alignEnd()
+                    ->getStateUsing(fn($record) => ($ligne = $parts->get($record->getKey())) ? $ligne['montant'] : null)
+                    ->color(fn($record) => filled($parts->get($record->getKey())['montant'] ?? null) ? 'success' : 'gray')
+                    ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('numero_cni')
                     ->label('N° CNI')
@@ -73,8 +123,8 @@ class AyantsDroitRelationManager extends RelationManager
                     ->color('info')
                     ->modalHeading('Répartition du solde')
                     ->modalContent(fn() => view('sequestres.repartition-modal', [
-                        'resultat' => app(\App\Services\RepartitionSuccessionService::class)
-                            ->calculerRepartition($this->getOwnerRecord()),
+                        'resultat' => app(RepartitionSuccessionService::class)
+                            ->calculerRepartition($this->getOwnerRecord()->load('ayantsDroit')),
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fermer')

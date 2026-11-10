@@ -25,7 +25,9 @@ class StatutSequestreResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Statuts de séquestre';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 20;
+
+    protected static bool $hasTitleCaseModelLabel = false;
 
     protected static function getViewPermission(): string
     {

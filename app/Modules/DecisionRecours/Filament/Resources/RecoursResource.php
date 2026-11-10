@@ -4,6 +4,9 @@ namespace App\Modules\DecisionRecours\Filament\Resources;
 
 use App\Modules\DecisionRecours\Filament\Resources\RecoursResource\Pages;
 use App\Models\Recours;
+use App\Traits\HasResourcePermissions;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -12,17 +15,41 @@ use Filament\Tables\Table;
 
 class RecoursResource extends Resource
 {
+    use HasResourcePermissions;
+
     protected static ?string $model = Recours::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-arrow-path-rounded-square';
 
-    protected static ?string $navigationGroup = 'Gestion Judiciaire';
+    protected static ?string $navigationGroup = 'Gestion judiciaire';
 
     protected static ?string $modelLabel = 'Recours';
 
     protected static ?string $pluralModelLabel = 'Recours';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 30;
+
+    protected static bool $hasTitleCaseModelLabel = false;
+
+    protected static function getViewPermission(): string
+    {
+        return 'view_recours';
+    }
+
+    protected static function getCreatePermission(): string
+    {
+        return 'create_recours';
+    }
+
+    protected static function getEditPermission(): string
+    {
+        return 'edit_recours';
+    }
+
+    protected static function getDeletePermission(): string
+    {
+        return 'delete_recours';
+    }
 
     public static function form(Form $form): Form
     {
@@ -314,8 +341,10 @@ class RecoursResource extends Resource
                     })),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->visible(fn($record) => static::canView($record)),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn($record) => static::canEdit($record)),
 
                 Tables\Actions\Action::make('voir_decision')
                     ->label('Voir décision')
@@ -326,17 +355,55 @@ class RecoursResource extends Resource
                         : null)
                     ->openUrlInNewTab(),
 
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn($record) => static::canDelete($record))
+                    ->before(function ($record) {
+                        abort_unless(static::canDelete($record), 403);
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn() => static::canDeleteAny())
+                        ->before(function () {
+                            abort_unless(static::canDeleteAny(), 403);
+                        }),
                 ]),
             ])
             ->defaultSort('created_at', 'desc')
             ->emptyStateHeading('Aucun recours enregistré')
             ->emptyStateDescription('Les recours seront listés ici une fois créés.')
             ->emptyStateIcon('heroicon-o-arrow-path-rounded-square');
+    }
+
+    public static function getGloballySearchableAttributes(): array
+    {
+        return [
+            'numero_recours',
+            'reference_lettre',
+            'decision.numero_repertoire',
+            'decision.numero_parquet',
+            'decision.dossier.numero_dossier',
+        ];
+    }
+
+    public static function getGlobalSearchResultTitle(Model $record): string
+    {
+        return $record->numero_recours ?: 'Recours #' . $record->id;
+    }
+
+    public static function getGlobalSearchResultDetails(Model $record): array
+    {
+        return [
+            'Décision' => $record->decision?->identification ?? '—',
+            'Type' => $record->type_label,
+            'Transmission' => $record->date_transmission_cour_appel?->format('d/m/Y') ?? 'Non transmis',
+        ];
+    }
+
+    public static function getGlobalSearchEloquentQuery(): Builder
+    {
+        return parent::getGlobalSearchEloquentQuery()->with(['decision', 'typeRecours']);
     }
 
     public static function getPages(): array

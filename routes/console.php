@@ -43,6 +43,15 @@ Schedule::command('log:clear')
     ->monthly()
     ->timezone('Africa/Douala');
 
+// Archiver le journal d'audit (le 1er de chaque mois à 3h)
+// Les entrées de plus de 6 mois sont déplacées vers un fichier compressé
+// puis retirées de la table activity_log pour préserver les performances.
+Schedule::command('audit:archiver')
+    ->monthlyOn(1, '03:00')
+    ->timezone('Africa/Douala')
+    ->withoutOverlapping()
+    ->emailOutputOnFailure('admin@greffe.cm');
+
 // ========================================
 // MODE DEBUG UNIQUEMENT
 // ========================================

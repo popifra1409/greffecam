@@ -126,6 +126,19 @@
             background-color: #fafafa;
         }
 
+        .parties-table .ligne-type td {
+            background-color: #eef2ff;
+            font-weight: bold;
+            font-size: 9.5pt;
+            text-transform: uppercase;
+        }
+
+        .parties-table .ligne-sous-total td {
+            background-color: #f8fafc;
+            font-weight: bold;
+            font-style: italic;
+        }
+
         .montant-positif { color: #166534; font-weight: bold; }
         .montant-negatif { color: #991b1b; font-weight: bold; }
 
@@ -332,32 +345,41 @@
     </div>
     @endif
 
-    {{-- SECTION 3bis : RÉPARTITION PAR AYANT DROIT (ce que chacun a déjà perçu) --}}
+    {{-- SECTION 3bis : RÉPARTITION PAR BÉNÉFICIAIRE (ce que chacun a déjà perçu) --}}
     @if($repartitionAyantsDroit->count() > 0)
     <div class="section">
-        <div class="section-title">📊 Répartition des Montants Perçus par Ayant Droit</div>
+        <div class="section-title">📊 Répartition des Montants Perçus par Bénéficiaire</div>
         <table class="parties-table">
             <thead>
                 <tr>
-                    <th>Ayant droit</th>
+                    <th>Bénéficiaire</th>
                     <th>Nb. retraits</th>
                     <th>Dont procuration</th>
                     <th>Total perçu</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($repartitionAyantsDroit as $ligne)
+                @foreach($repartitionAyantsDroit as $groupe)
+                <tr class="ligne-type">
+                    <td colspan="4">{{ $groupe['type'] }}</td>
+                </tr>
+                @foreach($groupe['lignes'] as $ligne)
                 <tr>
-                    <td><strong>{{ $ligne['ayant_droit']?->nom_complet ?? 'Non attribué (historique)' }}</strong></td>
+                    <td><strong>{{ $ligne['libelle'] }}</strong></td>
                     <td>{{ $ligne['nombre_retraits'] }}</td>
                     <td>{{ $ligne['dont_procuration'] }}</td>
                     <td class="montant-negatif">{{ number_format($ligne['total_percu'], 0, ',', ' ') }} FCFA</td>
                 </tr>
                 @endforeach
+                <tr class="ligne-sous-total">
+                    <td colspan="3" style="text-align: right;">Sous-total {{ $groupe['type'] }}</td>
+                    <td>{{ number_format($groupe['total_percu'], 0, ',', ' ') }} FCFA</td>
+                </tr>
+                @endforeach
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3" style="text-align: right;">TOTAL DÉJÀ PERÇU :</td>
+                    <td colspan="3" style="text-align: right;">TOTAL GÉNÉRAL DÉJÀ PERÇU :</td>
                     <td>{{ number_format($repartitionAyantsDroit->sum('total_percu'), 0, ',', ' ') }} FCFA</td>
                 </tr>
             </tfoot>
@@ -442,6 +464,7 @@
                     <th>Opérateur / Bénéficiaire</th>
                     <th>Motif</th>
                     <th>Type</th>
+                    <th>Type bénéficiaire</th>
                     <th>Montant</th>
                     <th>Montant Séquestre</th>
                     <th>Solde</th>
@@ -458,6 +481,7 @@
                             {{ $mouvement->type_label }}
                         </span>
                     </td>
+                    <td>{{ $mouvement->type_beneficiaire ?? '—' }}</td>
                     <td>{{ number_format($mouvement->montant_mouvement, 0, ',', ' ') }}</td>
                     <td>{{ number_format($mouvement->montant_precompte, 0, ',', ' ') }}</td>
                     <td><strong>{{ number_format($mouvement->solde_apres, 0, ',', ' ') }}</strong></td>
@@ -466,7 +490,7 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="6" style="text-align: right;">SOLDE FINAL :</td>
+                    <td colspan="7" style="text-align: right;">SOLDE FINAL :</td>
                     <td>{{ number_format($sequestre->solde_actuel, 0, ',', ' ') }} FCFA</td>
                 </tr>
             </tfoot>
