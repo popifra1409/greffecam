@@ -21,10 +21,28 @@ use Filament\Navigation\MenuItem;
 use App\Modules\Portal\Filament\Pages\Dashboard;
 use Hasnayeen\Themes\ThemesPlugin;
 use Hasnayeen\Themes\Http\Middleware\SetTheme;
+use Filament\Support\Facades\FilamentAsset;
 use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Contracts\Support\Htmlable;
 
 class PortalPanelProvider extends PanelProvider
 {
+    /**
+     * `viteTheme()` remplace le thème Filament par défaut au lieu de s'y
+     * ajouter : sans ce rechargement, les composants Filament (boutons,
+     * sections, champs) perdent leur feuille de style.
+     */
+    public function boot(): void
+    {
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::STYLES_AFTER,
+            fn (): ?Htmlable => filament()->getCurrentPanel()?->getId() === 'portal'
+                ? FilamentAsset::getTheme('app')?->getHtml()
+                : null,
+        );
+    }
+
     public function panel(Panel $panel): Panel
     {
         return $panel

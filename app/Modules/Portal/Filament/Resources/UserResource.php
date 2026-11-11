@@ -36,6 +36,8 @@ class UserResource extends Resource
 
     protected static bool $hasTitleCaseModelLabel = false;
 
+    protected static ?string $recordTitleAttribute = 'name';
+
     protected static function getViewPermission(): string
     {
         return 'view_users';
@@ -127,7 +129,11 @@ class UserResource extends Resource
                             ->dehydrateStateUsing(fn($state) => Hash::make($state))
                             ->dehydrated(fn($state) => filled($state))
                             ->required(fn(string $context): bool => $context === 'create')
-                            ->maxLength(255),
+                            ->maxLength(255)
+                            ->helperText(fn(string $context): ?string => $context === 'edit'
+                                ? 'Laisser vide pour conserver le mot de passe actuel.'
+                                : null)
+                            ->columnSpanFull(),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Paramètres')
@@ -144,12 +150,20 @@ class UserResource extends Resource
                             ->preload()
                             ->live()
                             ->required()
-                            // ✅ Empêche d'attribuer le rôle Super Administrateur
-                            // depuis ce formulaire (un seul compte doit le porter,
-                            // géré exclusivement par le seeder).
-                            ->options(fn() => \Spatie\Permission\Models\Role::where('name', '!=', 'Super Administrateur')
+                            // Le rôle Super Administrateur est exclu des choix, sauf
+                            // pour le compte qui le porte déjà : il doit rester
+                            // affiché, et le champ est verrouillé pour ce compte.
+                            ->options(fn(?User $record) => Role::query()
+                                ->when(
+                                    ! $record?->hasRole('Super Administrateur'),
+                                    fn(Builder $query) => $query->where('name', '!=', 'Super Administrateur')
+                                )
+                                ->orderBy('name')
                                 ->pluck('name', 'id'))
-                            ->helperText('Le rôle "Super Administrateur" ne peut pas être attribué depuis cette interface.'),
+                            ->disabled(fn(?User $record): bool => (bool) $record?->hasRole('Super Administrateur'))
+                            ->helperText(fn(?User $record): string => $record?->hasRole('Super Administrateur')
+                                ? 'Compte protégé : le rôle « Super Administrateur » ne peut être ni retiré ni modifié depuis cette interface.'
+                                : 'Le rôle « Super Administrateur » ne peut pas être attribué depuis cette interface.'),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Rattachement greffier')
@@ -157,8 +171,13 @@ class UserResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('greffier_id')
                             ->label('Greffier rattaché')
-                            ->options(fn() => Greffier::actif()
+                            // Le greffier déjà rattaché reste proposé même s'il a
+                            // été désactivé, sinon la sélection apparaîtrait vide.
+                            ->options(fn(?User $record) => Greffier::query()
                                 ->with('tribunal')
+                                ->where(fn(Builder $query) => $query
+                                    ->where('is_active', true)
+                                    ->when($record?->greffier_id, fn(Builder $query, $greffierId) => $query->orWhere('id', $greffierId)))
                                 ->orderBy('nom')
                                 ->get()
                                 ->mapWithKeys(fn(Greffier $greffier) => [
@@ -166,11 +185,12 @@ class UserResource extends Resource
                                         ($greffier->matricule ? $greffier->matricule . ' — ' : '')
                                         . $greffier->nom_complet
                                         . ' (' . ($greffier->tribunal?->nom ?? 'sans tribunal') . ')'
+                                        . ($greffier->is_active ? '' : ' — inactif')
                                     ),
                                 ]))
                             ->searchable()
                             ->live()
-                            ->required(fn(Get $get) => static::roleGreffierSelectionne($get))
+                            ->required(fn(Get $get) => static::roleGreffierSelectionne($get, ['Greffier', 'Greffier en Chef']))
                             ->helperText('Les sections sont affectées sur la fiche du greffier (Paramétrage > Greffiers).')
                             ->columnSpanFull(),
 
@@ -289,10 +309,18 @@ class UserResource extends Resource
                     ->falseLabel('Inactifs uniquement'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => !static::estCompteSuperAdminUnique($record)),
-            ])
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\EditAction::make(),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn($record) => !static::estCompteSuperAdminUnique($record)),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

@@ -38,21 +38,24 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
+            table-layout: fixed;
         }
 
         table.rapport th {
             background-color: #f0f0f0;
-            padding: 6px;
+            padding: 4px;
             text-align: left;
+            vertical-align: bottom;
             font-weight: bold;
             border: 1px solid #ddd;
-            font-size: 8pt;
+            font-size: 7.5pt;
         }
 
         table.rapport td {
-            padding: 5px 6px;
+            padding: 4px;
             border: 1px solid #ddd;
-            font-size: 8pt;
+            font-size: 7.5pt;
+            word-wrap: break-word;
         }
 
         table.rapport tfoot td {
@@ -60,7 +63,7 @@
             background-color: #f0f0f0;
         }
 
-        .text-right { text-align: right; }
+        .text-right { text-align: right; white-space: nowrap; }
         .montant-positif { color: #166534; }
         .montant-negatif { color: #991b1b; }
 
@@ -96,6 +99,17 @@
     </div>
 
     <table class="rapport">
+        <colgroup>
+            <col style="width: 11%">
+            <col style="width: 23%">
+            <col style="width: 10%">
+            <col style="width: 8%">
+            <col style="width: 10%">
+            <col style="width: 10%">
+            <col style="width: 10%">
+            <col style="width: 9%">
+            <col style="width: 9%">
+        </colgroup>
         <thead>
             <tr>
                 <th>N° Dossier Séquestre</th>

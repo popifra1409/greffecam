@@ -171,7 +171,7 @@ class JournalAudit extends Page implements HasTable
                     ]))
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Fermer'),
-            ])
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->emptyStateHeading('Aucune entrée')
             ->emptyStateDescription('Le journal se remplit automatiquement à chaque action enregistrée dans l\'application.')
             ->paginated([25, 50, 100])

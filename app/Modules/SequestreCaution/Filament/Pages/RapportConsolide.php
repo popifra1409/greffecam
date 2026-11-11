@@ -2,7 +2,10 @@
 
 namespace App\Modules\SequestreCaution\Filament\Pages;
 
+use App\Filament\Filters\PeriodeFilter;
+use App\Models\MouvementSequestre;
 use App\Services\RapportConsolideService;
+use Carbon\Carbon;
 use Filament\Pages\Page;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -33,29 +36,55 @@ class RapportConsolide extends Page implements HasTable
                 ->label('📊 Exporter en PDF')
                 ->color('primary')
                 ->url(fn() => $this->getExportUrl())
-                ->openUrlInNewTab(),
+                ->openUrlInNewTab()
+                ->tooltip('Le PDF reprend la période et les filtres actifs (statut, nature).'),
         ];
     }
 
     protected function getExportUrl(): string
     {
-        $filters = $this->tableFilters['periode'] ?? [];
-
-        return route('sequestres.rapport-consolide.pdf', [
-            'date_debut' => $filters['date_debut'] ?? null,
-            'date_fin' => $filters['date_fin'] ?? null,
+        return route('sequestres.rapport-consolide.pdf', array_filter([
+            'date_debut' => $this->dateDebutFiltre(),
+            'date_fin' => $this->dateFinFiltre(),
             'statut_sequestre_id' => $this->tableFilters['statut_sequestre_id']['value'] ?? null,
             'nature_sequestre_id' => $this->tableFilters['nature_sequestre_id']['value'] ?? null,
-        ]);
+        ], fn($valeur) => filled($valeur)));
+    }
+
+    protected function dateDebutFiltre(): ?string
+    {
+        return $this->tableFilters['periode']['date_debut'] ?? null;
+    }
+
+    protected function dateFinFiltre(): ?string
+    {
+        return $this->tableFilters['periode']['date_fin'] ?? null;
+    }
+
+    /**
+     * Rappel visible de la période active, au-dessus du tableau.
+     */
+    public function getSubheading(): ?string
+    {
+        $debut = $this->dateDebutFiltre();
+        $fin = $this->dateFinFiltre();
+
+        if (! $debut && ! $fin) {
+            return 'Toutes périodes confondues — soldes actuels';
+        }
+
+        return 'Période : ' . ($debut ? Carbon::parse($debut)->format('d/m/Y') : 'origine')
+            . ' → ' . ($fin ? Carbon::parse($fin)->format('d/m/Y') : 'aujourd\'hui')
+            . ' — soldes arrêtés au ' . ($fin ? Carbon::parse($fin)->format('d/m/Y') : Carbon::today()->format('d/m/Y'));
     }
 
     public function table(Table $table): Table
     {
-        $dateDebut = $this->tableFilters['periode']['date_debut'] ?? null;
-        $dateFin = $this->tableFilters['periode']['date_fin'] ?? null;
-
         return $table
-            ->query($this->getBaseQuery())
+            // ✅ Requête construite à la lecture des lignes (et non à la
+            // construction du tableau) : les dates du filtre sont donc prises
+            // en compte dès le premier changement, sans rechargement.
+            ->query(fn(): Builder => $this->getBaseQuery())
             ->columns([
                 Tables\Columns\TextColumn::make('numero_dossier_sequestre')
                     ->label('N° Dossier Séquestre')
@@ -99,14 +128,14 @@ class RapportConsolide extends Page implements HasTable
                     ->summarize(Tables\Columns\Summarizers\Sum::make()->money('XAF')->label('Total')),
 
                 Tables\Columns\TextColumn::make('solde_ouverture')
-                    ->label(app(RapportConsolideService::class)->libelleOuverture($dateDebut))
+                    ->label(fn(): string => app(RapportConsolideService::class)->libelleOuverture($this->dateDebutFiltre()))
                     ->money('XAF')
                     ->alignEnd()
                     ->color('gray')
                     ->summarize(Tables\Columns\Summarizers\Sum::make()->money('XAF')->label('Total')),
 
                 Tables\Columns\TextColumn::make('solde_arrete')
-                    ->label(app(RapportConsolideService::class)->libelleSolde($dateFin))
+                    ->label(fn(): string => app(RapportConsolideService::class)->libelleSolde($this->dateFinFiltre()))
                     ->money('XAF')
                     ->weight('bold')
                     ->alignEnd()
@@ -114,52 +143,56 @@ class RapportConsolide extends Page implements HasTable
                     ->summarize(Tables\Columns\Summarizers\Sum::make()->money('XAF')->label('Total général')),
             ])
             ->filters([
+                // ✅ Période : une année remplit les deux dates, et une date
+                // effacée revient à « toutes périodes ». Les champs sont live
+                // pour que le tableau et les totaux suivent immédiatement.
                 Tables\Filters\Filter::make('periode')
+                    ->label('Période')
                     ->form([
-                        \Filament\Forms\Components\Select::make('preset')
-                            ->label('Période prédéfinie')
-                            ->options([
-                                'ce_mois' => 'Ce mois-ci',
-                                'mois_dernier' => 'Le mois dernier',
-                                'ce_trimestre' => 'Ce trimestre',
-                                'cette_annee' => 'Cette année',
-                                'personnalise' => 'Personnalisé',
-                            ])
+                        \Filament\Forms\Components\Select::make('annee')
+                            ->label('Année')
+                            ->placeholder('Toutes les périodes')
+                            ->options(fn(): array => PeriodeFilter::anneesDisponibles(
+                                MouvementSequestre::class,
+                                'date_mouvement',
+                            ))
                             ->live()
-                            ->afterStateUpdated(function (string $state, callable $set) {
-                                [$debut, $fin] = match ($state) {
-                                    'ce_mois' => [now()->startOfMonth(), now()->endOfMonth()],
-                                    'mois_dernier' => [now()->subMonthNoOverflow()->startOfMonth(), now()->subMonthNoOverflow()->endOfMonth()],
-                                    'ce_trimestre' => [now()->startOfQuarter(), now()->endOfQuarter()],
-                                    'cette_annee' => [now()->startOfYear(), now()->endOfYear()],
-                                    default => [null, null],
-                                };
-
-                                if ($debut && $fin) {
-                                    $set('date_debut', $debut->format('Y-m-d'));
-                                    $set('date_fin', $fin->format('Y-m-d'));
-                                }
-                            }),
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $set('date_debut', filled($state) ? "{$state}-01-01" : null);
+                                $set('date_fin', filled($state) ? "{$state}-12-31" : null);
+                            })
+                            ->helperText('Choisir une année remplit les deux dates ; vous pouvez ensuite les affiner.'),
 
                         \Filament\Forms\Components\DatePicker::make('date_debut')
                             ->label('Du')
                             ->native(false)
-                            ->displayFormat('d/m/Y'),
+                            ->displayFormat('d/m/Y')
+                            ->live()
+                            // Une date saisie à la main ne correspond plus à
+                            // l'année entière : on vide le raccourci « Année ».
+                            ->afterStateUpdated(fn(callable $set) => $set('annee', null)),
+
                         \Filament\Forms\Components\DatePicker::make('date_fin')
                             ->label('Au')
                             ->native(false)
-                            ->displayFormat('d/m/Y'),
+                            ->displayFormat('d/m/Y')
+                            ->live()
+                            ->afterStateUpdated(fn(callable $set) => $set('annee', null)),
                     ])
-                    ->query(fn(Builder $query) => $query) // le filtrage réel se fait dans getBaseQuery() via les sous-requêtes
+                    // La période alimente les totaux et les soldes dans
+                    // getBaseQuery(), elle ne masque aucun séquestre.
                     ->indicateUsing(function (array $data): array {
-                        $indicators = [];
-                        if ($data['date_debut'] ?? null) {
-                            $indicators[] = 'Du ' . \Carbon\Carbon::parse($data['date_debut'])->format('d/m/Y');
+                        $debut = $data['date_debut'] ?? null;
+                        $fin = $data['date_fin'] ?? null;
+
+                        if (! $debut && ! $fin) {
+                            return [];
                         }
-                        if ($data['date_fin'] ?? null) {
-                            $indicators[] = 'Au ' . \Carbon\Carbon::parse($data['date_fin'])->format('d/m/Y');
-                        }
-                        return $indicators;
+
+                        return [
+                            'Période : ' . ($debut ? Carbon::parse($debut)->format('d/m/Y') : 'origine')
+                                . ' → ' . ($fin ? Carbon::parse($fin)->format('d/m/Y') : 'aujourd\'hui'),
+                        ];
                     }),
 
                 Tables\Filters\SelectFilter::make('statut_sequestre_id')
@@ -181,8 +214,8 @@ class RapportConsolide extends Page implements HasTable
     protected function getBaseQuery(): Builder
     {
         return app(RapportConsolideService::class)->requete(
-            dateDebut: $this->tableFilters['periode']['date_debut'] ?? null,
-            dateFin: $this->tableFilters['periode']['date_fin'] ?? null,
+            dateDebut: $this->dateDebutFiltre(),
+            dateFin: $this->dateFinFiltre(),
             statutId: $this->tableFilters['statut_sequestre_id']['value'] ?? null,
             natureId: $this->tableFilters['nature_sequestre_id']['value'] ?? null,
         );

@@ -95,22 +95,30 @@ class SequestresRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make(),
             ])
             ->actions([
-                // ✅ CORRIGÉ : préciser le panel 'sequestre-caution', car SequestreResource
-                // n'existe pas dans le panel 'decision-recours' où ce RelationManager s'affiche.
-                Tables\Actions\Action::make('voir')
-                    ->label('Voir')
-                    ->icon('heroicon-o-eye')
-                    ->color('primary')
-                    ->url(fn($record) => \App\Modules\SequestreCaution\Filament\Resources\SequestreResource::getUrl(
-                        'view',
-                        ['record' => $record],
-                        panel: 'sequestre-caution'
-                    ))
-                    ->openUrlInNewTab(),
+                Tables\Actions\ActionGroup::make([
+                    // ✅ CORRIGÉ : préciser le panel 'sequestre-caution', car SequestreResource
+                    // n'existe pas dans le panel 'decision-recours' où ce RelationManager s'affiche.
+                    Tables\Actions\Action::make('voir')
+                        ->label('Voir')
+                        ->icon('heroicon-o-eye')
+                        ->color('primary')
+                        ->url(fn($record) => \App\Modules\SequestreCaution\Filament\Resources\SequestreResource::getUrl(
+                            'view',
+                            ['record' => $record],
+                            panel: 'sequestre-caution'
+                        ))
+                        ->openUrlInNewTab(),
 
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
+                    Tables\Actions\EditAction::make(),
+                    Tables\Actions\DeleteAction::make(),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->emptyStateHeading('Aucun séquestre')
             ->emptyStateDescription('Créez un séquestre à partir d\'une décision de ce dossier.')
             ->emptyStateIcon('heroicon-o-lock-closed');

@@ -92,21 +92,26 @@ class PartiesAdversesRelationManager extends RelationManager
                 Tables\Actions\CreateAction::make()->label('➕ Ajouter une partie adverse'),
             ])
             ->actions([
-                Tables\Actions\Action::make('voir_echeancier')
-                    ->label('Échéancier')
-                    ->icon('heroicon-o-calendar')
-                    ->color('info')
-                    ->visible(fn($record) => filled($record->date_debut_paiement) && filled($record->montant_echeance))
-                    ->modalHeading(fn($record) => "Échéancier — {$record->nom_complet}")
-                    ->modalContent(fn($record) => view('sequestres.echeancier-modal', ['partieAdverse' => $record]))
-                    ->modalSubmitAction(false)
-                    ->modalCancelActionLabel('Fermer')
-                    ->modalWidth('2xl'),
-
                 Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('voir_echeancier')
+                        ->label('Échéancier')
+                        ->icon('heroicon-o-calendar')
+                        ->color('info')
+                        ->visible(fn($record) => filled($record->date_debut_paiement) && filled($record->montant_echeance))
+                        ->modalHeading(fn($record) => "Échéancier — {$record->nom_complet}")
+                        ->modalContent(fn($record) => view('sequestres.echeancier-modal', ['partieAdverse' => $record]))
+                        ->modalSubmitAction(false)
+                        ->modalCancelActionLabel('Fermer')
+                        ->modalWidth('2xl'),
+
                     Tables\Actions\EditAction::make(),
                     Tables\Actions\DeleteAction::make(),
-                ]),
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
             ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->defaultSort('nom_complet')
             ->paginated([10, 25, 50, 'all'])

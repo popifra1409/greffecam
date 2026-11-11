@@ -75,7 +75,7 @@ class ArchivesJournalAudit extends Page implements HasTable
                     ->icon('heroicon-o-arrow-down-tray')
                     ->url(fn(AuditArchive $record): string => route('audit.archives.telecharger', $record))
                     ->openUrlInNewTab(),
-            ])
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->emptyStateHeading('Aucune archive')
             ->emptyStateDescription('Les archives sont créées automatiquement le 1er de chaque mois, ou manuellement depuis le journal d\'audit.')
             ->paginated([25, 50, 100])

@@ -341,26 +341,34 @@ class RecoursResource extends Resource
                     })),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make()
-                    ->visible(fn($record) => static::canView($record)),
-                Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => static::canEdit($record)),
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\ViewAction::make()
+                        ->visible(fn($record) => static::canView($record)),
+                    Tables\Actions\EditAction::make()
+                        ->visible(fn($record) => static::canEdit($record)),
 
-                Tables\Actions\Action::make('voir_decision')
-                    ->label('Voir décision')
-                    ->icon('heroicon-o-arrow-top-right-on-square')
+                    Tables\Actions\Action::make('voir_decision')
+                        ->label('Voir décision')
+                        ->icon('heroicon-o-arrow-top-right-on-square')
+                        ->color('primary')
+                        ->url(fn($record) => $record->decision_id
+                            ? \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('view', ['record' => $record->decision_id])
+                            : null)
+                        ->openUrlInNewTab(),
+
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn($record) => static::canDelete($record))
+                        ->before(function ($record) {
+                            abort_unless(static::canDelete($record), 403);
+                        }),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
                     ->color('primary')
-                    ->url(fn($record) => $record->decision_id
-                        ? \App\Modules\DecisionRecours\Filament\Resources\DecisionResource::getUrl('view', ['record' => $record->decision_id])
-                        : null)
-                    ->openUrlInNewTab(),
-
-                Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => static::canDelete($record))
-                    ->before(function ($record) {
-                        abort_unless(static::canDelete($record), 403);
-                    }),
-            ])
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()

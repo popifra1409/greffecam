@@ -192,7 +192,7 @@ class TransmissionDecisionResource extends Resource
                 Tables\Actions\ViewAction::make()
                     ->label('Voir')
                     ->visible(fn($record) => static::canView($record)),
-            ])
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->defaultSort('date_transmission', 'desc');
     }
 

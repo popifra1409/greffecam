@@ -121,11 +121,19 @@ class RoleResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => !static::estRoleProtege($record)),
-                Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => !static::estRoleProtege($record)),
-            ])
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\EditAction::make()
+                        ->visible(fn($record) => !static::estRoleProtege($record)),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn($record) => !static::estRoleProtege($record)),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

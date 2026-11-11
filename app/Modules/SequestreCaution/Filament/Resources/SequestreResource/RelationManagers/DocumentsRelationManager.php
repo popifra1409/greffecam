@@ -96,24 +96,32 @@ class DocumentsRelationManager extends RelationManager
                     }),
             ])
             ->actions([
-                Tables\Actions\Action::make('telecharger')
-                    ->label('Télécharger')
-                    ->icon('heroicon-o-arrow-down-tray')
-                    ->action(function ($record) {
-                        \App\Support\JournalAudit::journaliser('documents', 'document_telecharge', [
-                            'libelle' => $record->libelle,
-                            'categorie' => $record->categorie,
-                            'fichier' => $record->fichier_path,
-                        ], $record);
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('telecharger')
+                        ->label('Télécharger')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->action(function ($record) {
+                            \App\Support\JournalAudit::journaliser('documents', 'document_telecharge', [
+                                'libelle' => $record->libelle,
+                                'categorie' => $record->categorie,
+                                'fichier' => $record->fichier_path,
+                            ], $record);
 
-                        return response()->download(
-                            \Illuminate\Support\Facades\Storage::disk('local')->path($record->fichier_path),
-                            $record->libelle
-                        );
-                    }),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
+                            return response()->download(
+                                \Illuminate\Support\Facades\Storage::disk('local')->path($record->fichier_path),
+                                $record->libelle
+                            );
+                        }),
+                    Tables\Actions\EditAction::make(),
+                    Tables\Actions\DeleteAction::make(),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->defaultSort('categorie');
     }
 }

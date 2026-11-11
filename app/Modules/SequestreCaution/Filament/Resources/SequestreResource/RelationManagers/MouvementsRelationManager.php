@@ -275,19 +275,113 @@ class MouvementsRelationManager extends RelationManager
      */
     protected function urlEtatPdf(): string
     {
-        $periode = $this->tableFilters['periode_date_mouvement'] ?? [];
+        return route('mouvements.etat.pdf', $this->parametresEtatPdf());
+    }
 
-        return route('mouvements.etat.pdf', array_filter([
+    /**
+     * Paramètres envoyés au service PDF : période + état sélectionné.
+     * Un seul état est possible à la fois, donc aucune combinaison
+     * contradictoire ne peut être transmise.
+     */
+    protected function parametresEtatPdf(): array
+    {
+        $periode = $this->tableFilters['periode_date_mouvement'] ?? [];
+        $etat = $this->tableFilters['etat_mouvements']['value'] ?? null;
+
+        return array_filter([
             'sequestre' => $this->getOwnerRecord()->id,
             'date_debut' => $periode['date_debut'] ?? null,
             'date_fin' => $periode['date_fin'] ?? null,
-            'type_mouvement' => $this->tableFilters['type_mouvement']['value'] ?? null,
-            'partie_adverse_id' => $this->tableFilters['sequestre_partie_adverse_id']['value'] ?? null,
-            'ayant_droit_id' => $this->tableFilters['sequestre_ayant_droit_id']['value'] ?? null,
-            'versements_locataires' => ($this->tableFilters['versements_locataires']['isActive'] ?? false) ? 1 : null,
-            'retraits_ayants_droit' => ($this->tableFilters['retraits_ayants_droit']['isActive'] ?? false) ? 1 : null,
-            'autres_retraits' => ($this->tableFilters['autres_retraits']['isActive'] ?? false) ? 1 : null,
-        ], fn($valeur) => filled($valeur)));
+        ] + static::filtresPdfPourEtat($etat), fn($valeur) => filled($valeur));
+    }
+
+    /**
+     * Traduction d'un état en paramètres compris par MouvementsEtatPdfService.
+     */
+    protected static function filtresPdfPourEtat(?string $etat): array
+    {
+        return match (true) {
+            $etat === 'versements' => ['type_mouvement' => 'versement'],
+            $etat === 'retraits' => ['type_mouvement' => 'retrait'],
+            $etat === 'versements_locataires' => ['versements_locataires' => 1],
+            $etat === 'retraits_ayants_droit' => ['retraits_ayants_droit' => 1],
+            $etat === 'autres_retraits' => ['autres_retraits' => 1],
+            str_starts_with((string) $etat, 'locataire:') => ['partie_adverse_id' => (int) substr($etat, strlen('locataire:'))],
+            str_starts_with((string) $etat, 'ayant_droit:') => ['ayant_droit_id' => (int) substr($etat, strlen('ayant_droit:'))],
+            default => [],
+        };
+    }
+
+    /**
+     * Application du même état à la requête du tableau, pour que le tableau
+     * et le PDF affichent toujours exactement les mêmes mouvements.
+     */
+    protected static function appliquerEtat(Builder $query, ?string $etat): Builder
+    {
+        return match (true) {
+            $etat === 'versements' => $query->where('type_mouvement', 'versement'),
+            $etat === 'retraits' => $query->where('type_mouvement', 'retrait'),
+            $etat === 'versements_locataires' => $query
+                ->where('type_mouvement', 'versement')
+                ->whereNotNull('sequestre_partie_adverse_id'),
+            $etat === 'retraits_ayants_droit' => $query
+                ->where('type_mouvement', 'retrait')
+                ->whereNotNull('sequestre_ayant_droit_id'),
+            $etat === 'autres_retraits' => $query
+                ->where('type_mouvement', 'retrait')
+                ->whereNull('sequestre_ayant_droit_id'),
+            str_starts_with((string) $etat, 'locataire:') => $query
+                ->where('sequestre_partie_adverse_id', (int) substr($etat, strlen('locataire:'))),
+            str_starts_with((string) $etat, 'ayant_droit:') => $query
+                ->where('sequestre_ayant_droit_id', (int) substr($etat, strlen('ayant_droit:'))),
+            default => $query,
+        };
+    }
+
+    /**
+     * Options de l'état : un seul choix à la fois, groupé par nature.
+     */
+    protected function optionsEtat(): array
+    {
+        $sequestre = $this->getOwnerRecord();
+
+        return array_filter([
+            'Toutes catégories' => [
+                'versements' => 'Tous les versements',
+                'retraits' => 'Tous les retraits',
+                'versements_locataires' => 'Versements de tous les locataires',
+                'retraits_ayants_droit' => 'Retraits de tous les ayants droit',
+                'autres_retraits' => 'Autres retraits (huissier, réfection…)',
+            ],
+            'Versements d\'un locataire' => $sequestre->partiesAdverses
+                ->sortBy('nom_complet')
+                ->mapWithKeys(fn($partie) => ['locataire:' . $partie->id => $partie->nom_complet])
+                ->all(),
+            'Retraits d\'un ayant droit' => $sequestre->ayantsDroit
+                ->sortBy('nom_complet')
+                ->mapWithKeys(fn($ayantDroit) => ['ayant_droit:' . $ayantDroit->id => $ayantDroit->nom_complet])
+                ->all(),
+        ]);
+    }
+
+    /**
+     * Libellé de l'état actif, utilisé dans le bouton PDF.
+     */
+    protected function libelleEtat(): ?string
+    {
+        $etat = $this->tableFilters['etat_mouvements']['value'] ?? null;
+
+        if (blank($etat)) {
+            return null;
+        }
+
+        foreach ($this->optionsEtat() as $groupe) {
+            if (isset($groupe[$etat])) {
+                return $groupe[$etat];
+            }
+        }
+
+        return null;
     }
 
     // ================================================================
@@ -394,115 +488,98 @@ class MouvementsRelationManager extends RelationManager
                     ->url(fn() => route('sequestres.etat.pdf', ['sequestre' => $this->getOwnerRecord()->id]))
                     ->openUrlInNewTab(),
 
-                // ✅ État ciblé : reprend les filtres actifs (un locataire / tous les
-                // locataires / un ayant droit / tous les ayants droit / autres retraits).
+                // ✅ État ciblé : un seul choix à la fois (tous les versements, tous
+                // les retraits, tous les locataires, tous les ayants droit, autres
+                // retraits, un locataire ou un ayant droit précis).
                 Tables\Actions\Action::make('etat_mouvements_pdf')
-                    ->label('📄 État filtré (PDF)')
+                    ->label(fn() => $this->libelleEtat()
+                        ? '📄 État filtré (PDF)'
+                        : '📄 Journal complet (PDF)')
                     ->icon('heroicon-o-document-chart-bar')
                     ->color('primary')
                     ->url(fn() => $this->urlEtatPdf())
                     ->openUrlInNewTab()
-                    ->tooltip('Le PDF reprend les filtres actifs : locataire, ayant droit, autres retraits et période.'),
+                    ->tooltip(fn() => $this->libelleEtat()
+                        ? 'État « ' . $this->libelleEtat() . ' », période comprise.'
+                        : 'Aucun état sélectionné : le PDF reprend tous les mouvements, période comprise.'),
             ])
             ->filters([
                 PeriodeFilter::make('date_mouvement', 'Période du mouvement', MouvementSequestre::class),
 
-                Tables\Filters\SelectFilter::make('type_mouvement')
-                    ->label('Type de mouvement')
-                    ->options([
-                        'versement' => 'Versements',
-                        'retrait' => 'Retraits',
-                    ])
-                    ->native(false),
-
-                Tables\Filters\SelectFilter::make('sequestre_partie_adverse_id')
-                    ->label('Locataire (partie adverse)')
-                    ->options(fn(): array => $this->getOwnerRecord()->partiesAdverses->pluck('nom_complet', 'id')->all())
-                    ->searchable(),
-
-                Tables\Filters\SelectFilter::make('sequestre_ayant_droit_id')
-                    ->label('Ayant droit (retraits)')
-                    ->options(fn(): array => $this->getOwnerRecord()->ayantsDroit->pluck('nom_complet', 'id')->all())
-                    ->searchable(),
-
-                Tables\Filters\Filter::make('versements_locataires')
-                    ->label('Versements des locataires (tous)')
-                    ->toggle()
-                    ->query(fn(Builder $query) => $query
-                        ->where('type_mouvement', 'versement')
-                        ->whereNotNull('sequestre_partie_adverse_id')),
-
-                Tables\Filters\Filter::make('retraits_ayants_droit')
-                    ->label('Retraits des ayants droit (tous)')
-                    ->toggle()
-                    ->query(fn(Builder $query) => $query
-                        ->where('type_mouvement', 'retrait')
-                        ->whereNotNull('sequestre_ayant_droit_id')),
-
-                Tables\Filters\Filter::make('autres_retraits')
-                    ->label('Autres retraits (huissier, réfection…)')
-                    ->toggle()
-                    ->query(fn(Builder $query) => $query
-                        ->where('type_mouvement', 'retrait')
-                        ->whereNull('sequestre_ayant_droit_id')),
+                // ✅ Un état unique et exclusif : plus de combinaisons
+                // contradictoires (locataire + ayant droit, type + catégorie…).
+                Tables\Filters\SelectFilter::make('etat_mouvements')
+                    ->label('État / bénéficiaire')
+                    ->placeholder('Tous les mouvements')
+                    ->options(fn(): array => $this->optionsEtat())
+                    ->searchable()
+                    ->query(fn(Builder $query, array $data): Builder => static::appliquerEtat($query, $data['value'] ?? null)),
             ])
             ->actions([
-                // ✅ Joindre la décharge signée scannée (retraits uniquement)
-                Tables\Actions\Action::make('joindre_decharge')
-                    ->label(fn($record) => $record->decharge_jointe ? 'Décharge (voir/remplacer)' : 'Joindre décharge')
-                    ->icon('heroicon-o-arrow-up-tray')
-                    ->color(fn($record) => $record->decharge_jointe ? 'gray' : 'warning')
-                    ->visible(fn($record) => $record->type_mouvement === 'retrait')
-                    ->form([
-                        Forms\Components\FileUpload::make('fichier_path')
-                            ->label('Décharge signée (scan)')
-                            ->disk('local')
-                            ->directory('sequestre-documents')
-                            ->visibility('private')
-                            ->required()
-                            ->downloadable()
-                            ->openable()
-                            ->maxSize(10240)
-                            ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png']),
-                    ])
-                    ->action(function (array $data, $record): void {
-                        \App\Models\SequestreDocument::create([
-                            'sequestre_id' => $this->getOwnerRecord()->id,
-                            'mouvement_sequestre_id' => $record->id,
-                            'categorie' => 'quittance',
-                            'libelle' => 'Décharge — ' . $record->operateur_beneficiaire . ' — ' . $record->date_mouvement->format('d/m/Y'),
-                            'fichier_path' => $data['fichier_path'],
-                            'depose_par' => auth()->id(),
-                        ]);
-                    })
-                    ->modalHeading('Archiver la décharge signée')
-                    ->successNotificationTitle('Décharge archivée dans le sous-dossier Quittances'),
+                Tables\Actions\ActionGroup::make([
+                    // ✅ Joindre la décharge signée scannée (retraits uniquement)
+                    Tables\Actions\Action::make('joindre_decharge')
+                        ->label(fn($record) => $record->decharge_jointe ? 'Décharge (voir/remplacer)' : 'Joindre décharge')
+                        ->icon('heroicon-o-arrow-up-tray')
+                        ->color(fn($record) => $record->decharge_jointe ? 'gray' : 'warning')
+                        ->visible(fn($record) => $record->type_mouvement === 'retrait')
+                        ->form([
+                            Forms\Components\FileUpload::make('fichier_path')
+                                ->label('Décharge signée (scan)')
+                                ->disk('local')
+                                ->directory('sequestre-documents')
+                                ->visibility('private')
+                                ->required()
+                                ->downloadable()
+                                ->openable()
+                                ->maxSize(10240)
+                                ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png']),
+                        ])
+                        ->action(function (array $data, $record): void {
+                            \App\Models\SequestreDocument::create([
+                                'sequestre_id' => $this->getOwnerRecord()->id,
+                                'mouvement_sequestre_id' => $record->id,
+                                'categorie' => 'quittance',
+                                'libelle' => 'Décharge — ' . $record->operateur_beneficiaire . ' — ' . $record->date_mouvement->format('d/m/Y'),
+                                'fichier_path' => $data['fichier_path'],
+                                'depose_par' => auth()->id(),
+                            ]);
+                        })
+                        ->modalHeading('Archiver la décharge signée')
+                        ->successNotificationTitle('Décharge archivée dans le sous-dossier Quittances'),
 
-                Tables\Actions\Action::make('recu_pdf')
-                    ->label('Reçu')
-                    ->icon('heroicon-o-printer')
-                    ->color('gray')
-                    ->url(fn($record) => route('mouvements.recu.pdf', ['mouvement' => $record->id]))
-                    ->openUrlInNewTab(),
+                    Tables\Actions\Action::make('recu_pdf')
+                        ->label('Reçu')
+                        ->icon('heroicon-o-printer')
+                        ->color('gray')
+                        ->url(fn($record) => route('mouvements.recu.pdf', ['mouvement' => $record->id]))
+                        ->openUrlInNewTab(),
 
-                Tables\Actions\EditAction::make()
-                    ->modalWidth('2xl')
-                    ->mutateRecordDataUsing(function (array $data, $record): array {
-                        $data['_editing_id'] = $record->id;
+                    Tables\Actions\EditAction::make()
+                        ->modalWidth('2xl')
+                        ->mutateRecordDataUsing(function (array $data, $record): array {
+                            $data['_editing_id'] = $record->id;
 
-                        if ($record->type_mouvement === 'versement') {
-                            $data['entree'] = $record->montant_mouvement;
-                        } else {
-                            $data['sortie'] = $record->montant_mouvement;
-                            $data['type_beneficiaire_retrait'] = $record->sequestre_partie_tierce_id ? 'partie_tierce' : 'ayant_droit';
-                        }
+                            if ($record->type_mouvement === 'versement') {
+                                $data['entree'] = $record->montant_mouvement;
+                            } else {
+                                $data['sortie'] = $record->montant_mouvement;
+                                $data['type_beneficiaire_retrait'] = $record->sequestre_partie_tierce_id ? 'partie_tierce' : 'ayant_droit';
+                            }
 
-                        return $data;
-                    })
-                    ->mutateFormDataUsing(fn(array $data): array => $this->convertirDonneesFormulaire($data)),
+                            return $data;
+                        })
+                        ->mutateFormDataUsing(fn(array $data): array => $this->convertirDonneesFormulaire($data)),
 
-                Tables\Actions\DeleteAction::make(),
-            ])
+                    Tables\Actions\DeleteAction::make(),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->defaultSort('date_mouvement', 'desc')
             ->poll('10s');
     }

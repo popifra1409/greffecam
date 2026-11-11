@@ -174,16 +174,24 @@ class TribunalResource extends Resource
                     ->falseLabel('Inactifs uniquement'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => static::canEdit($record)),
-                Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => static::canDelete($record)
-                        && $record->dossiers_count == 0
-                        && $record->decisions_count == 0)
-                    ->before(function ($record) {
-                        abort_unless(static::canDelete($record), 403);
-                    }),
-            ])
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\EditAction::make()
+                        ->visible(fn($record) => static::canEdit($record)),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn($record) => static::canDelete($record)
+                            && $record->dossiers_count == 0
+                            && $record->decisions_count == 0)
+                        ->before(function ($record) {
+                            abort_unless(static::canDelete($record), 403);
+                        }),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()

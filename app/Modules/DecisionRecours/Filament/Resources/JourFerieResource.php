@@ -138,14 +138,22 @@ class JourFerieResource extends Resource
                     ->falseLabel('Non récurrents'),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => static::canEdit($record)),
-                Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => static::canDelete($record))
-                    ->before(function ($record) {
-                        abort_unless(static::canDelete($record), 403);
-                    }),
-            ])
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\EditAction::make()
+                        ->visible(fn($record) => static::canEdit($record)),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn($record) => static::canDelete($record))
+                        ->before(function ($record) {
+                            abort_unless(static::canDelete($record), 403);
+                        }),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()

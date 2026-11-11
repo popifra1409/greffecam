@@ -60,8 +60,10 @@ class PeriodeFilter
 
     /**
      * Années réellement présentes en base (min/max), sans charger les lignes.
+     * Publique pour être réutilisée par les rapports qui construisent leur
+     * propre filtre période (rapport consolidé des séquestres).
      */
-    protected static function anneesDisponibles(string $model, string $colonne): array
+    public static function anneesDisponibles(string $model, string $colonne): array
     {
         $min = $model::query()->min($colonne);
         $max = $model::query()->max($colonne);

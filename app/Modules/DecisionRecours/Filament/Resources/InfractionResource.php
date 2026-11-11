@@ -120,7 +120,7 @@ class InfractionResource extends Resource
             ->actions([
                 Tables\Actions\EditAction::make()
                     ->visible(fn($record) => static::canEdit($record)),
-            ])
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()

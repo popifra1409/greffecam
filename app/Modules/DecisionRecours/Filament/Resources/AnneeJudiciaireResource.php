@@ -157,30 +157,38 @@ class AnneeJudiciaireResource extends Resource
                     ->falseLabel('Ouvertes uniquement'),
             ])
             ->actions([
-                Tables\Actions\Action::make('activer')
-                    ->label('Activer')
-                    ->icon('heroicon-o-check-circle')
-                    ->color('success')
-                    ->visible(fn($record) => !$record->is_active && !$record->is_cloturee && static::canEdit($record))
-                    ->requiresConfirmation()
-                    ->action(function ($record) {
-                        abort_unless(static::canEdit($record), 403);
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('activer')
+                        ->label('Activer')
+                        ->icon('heroicon-o-check-circle')
+                        ->color('success')
+                        ->visible(fn($record) => !$record->is_active && !$record->is_cloturee && static::canEdit($record))
+                        ->requiresConfirmation()
+                        ->action(function ($record) {
+                            abort_unless(static::canEdit($record), 403);
 
-                        $record->activer();
-                        Notification::make()
-                            ->title('Année judiciaire activée')
-                            ->success()
-                            ->send();
-                    }),
+                            $record->activer();
+                            Notification::make()
+                                ->title('Année judiciaire activée')
+                                ->success()
+                                ->send();
+                        }),
 
-                Tables\Actions\EditAction::make()
-                    ->visible(fn($record) => static::canEdit($record)),
-                Tables\Actions\DeleteAction::make()
-                    ->visible(fn($record) => $record->decisions_count === 0 && static::canDelete($record))
-                    ->before(function ($record) {
-                        abort_unless(static::canDelete($record), 403);
-                    }),
-            ])
+                    Tables\Actions\EditAction::make()
+                        ->visible(fn($record) => static::canEdit($record)),
+                    Tables\Actions\DeleteAction::make()
+                        ->visible(fn($record) => $record->decisions_count === 0 && static::canDelete($record))
+                        ->before(function ($record) {
+                            abort_unless(static::canDelete($record), 403);
+                        }),
+
+                ])
+                    ->label('Actions')
+                    ->icon('heroicon-o-ellipsis-vertical')
+                    ->size('sm')
+                    ->color('primary')
+                    ->button(),
+            ], position: Tables\Enums\ActionsPosition::BeforeColumns)
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
